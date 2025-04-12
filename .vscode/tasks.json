@@ -1,0 +1,12 @@
+{
+    "tasks": [
+        {
+            "type": "npm",
+            "script": "w",
+            "path": "bootstrap/server",
+            "group": "build",
+            "problemMatcher": [],
+            "label": "bootstrap - server",
+        }
+    ]
+}

@@ -1,0 +1,15 @@
+{
+    "configurations": [
+        {
+            "name": "Launch Program",
+            "type": "node",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "program": "${workspaceFolder}/bootstrap/server/dist/main.js",
+            "cwd": "${workspaceFolder}/bootstrap/server",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}
