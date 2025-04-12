@@ -1,0 +1,11 @@
+{
+    "name": "@dagda/build",
+    "version": "1.0.0",
+    "description": "Compilation chain for the Dagda framework",
+    "author": "Matthieu Aubry",
+    "license": "ISC",
+    "scripts": {},
+    "devDependencies": {
+        "copy-webpack-plugin": "=12.0.2"
+    }
+}
