@@ -1,5 +1,5 @@
-import { BaseContext } from "@dagda/shared/entities/handler.tools";
-import { assertUnreachable } from "@dagda/shared/tools/asserts";
+import { BaseContext } from "@dagda/shared/src/entities/handler.tools";
+import { assertUnreachable } from "@dagda/shared/src/tools/asserts";
 import { ProjectId, UserId } from "./types";
 
 //#region Fetch contexts ------------------------------------------------------

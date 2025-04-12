@@ -1,0 +1,15 @@
+{
+    "name": "@dagda/shared",
+    "version": "1.0.0",
+    "description": "Stuff that goes both on client and server side of the app",
+    "author": "Matthieu Aubry",
+    "license": "CC BY 4.0",
+    "scripts": {
+        "build": "tsc",
+        "watch": "tsc -w",
+        "test": "mocha .tsc-build/**/*.spec.js"
+    },
+    "devDependencies": {
+        "@dagda/build": "^1.0.0"
+    }
+}

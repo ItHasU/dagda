@@ -1,0 +1,12 @@
+{
+    "name": "@dagda/client",
+    "version": "1.0.0",
+    "description": "Browser tools",
+    "author": "Matthieu Aubry",
+    "license": "ISC",
+    "scripts": {},
+    "devDependencies": {
+        "@dagda/build": "^1.0.0",
+        "@dagda/shared": "^1.0.0"
+    }
+}

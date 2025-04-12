@@ -1,0 +1,14 @@
+{
+  "name": "@dagda-app/shared",
+  "version": "1.0.0",
+  "description": "Shared code between client and server",
+  "author": "Matthieu Aubry",
+  "license": "ISC",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@dagda/build": "*"
+  }
+}

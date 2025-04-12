@@ -1,7 +1,5 @@
 import { Runnable } from "./queue";
 
-function _void(): void { }
-
 /** 
  * A pool for runnables.
  * 

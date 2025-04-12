@@ -1,0 +1,15 @@
+{
+    "extends": "@dagda/build/tsconfig-client.json",
+    "compilerOptions": {
+        "baseUrl": ".",
+        "outDir": "./.tsc-build/",
+    },
+    "include": [
+        "./**/*.ts"
+    ],
+    "references": [
+        {
+            "path": "../shared"
+        }
+    ]
+}
