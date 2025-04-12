@@ -1,0 +1,29 @@
+{
+  "name": "@dagda/workspace",
+  "version": "1.0.0",
+  "description": "",
+  "author": "Matthieu Aubry",
+  "license": "ISC",
+  "scripts": {
+    "clean": "rimraf -g apps/*/dist **/.tsc-build",
+    "clean-all": "rimraf -g apps/*/dist **/.tsc-build **/node_modules"
+  },
+  "devDependencies": {
+    "@types/mocha": "=10.0.10",
+    "css-loader": "=6.11.0",
+    "html-loader": "=4.2.0",
+    "html-webpack-plugin": "=5.6.3",
+    "mocha": "=10.8.2",
+    "rimraf": "=5.0.10",
+    "style-loader": "=3.3.4",
+    "ts-loader": "=9.5.2",
+    "tsconfig-paths-webpack-plugin": "=4.2.0",
+    "typescript": "=5.8.3",
+    "webpack": "=5.99.5",
+    "webpack-cli": "=5.1.4"
+  },
+  "workspaces": [
+    "bootstrap",
+    "packages/*"
+  ]
+}
