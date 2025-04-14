@@ -1,6 +1,8 @@
 import { BaseAppTypes } from "@dagda/shared/src/app/types";
 import express from "express";
+import passport from "passport";
 import { resolve } from "path";
+import { AuthHandler, AuthStrategy } from "../express/auth";
 import { getEnvNumber, getEnvString } from "../tools/config";
 
 /** Parameters */
@@ -32,20 +34,25 @@ export interface EnvConfig {
  * Base server app. 
  * This class stores all information about the app and manages the HTTP server.
  */
-export class App<AppTypes extends BaseAppTypes> {
+export abstract class AbstractApp<AppTypes extends BaseAppTypes> {
 
     protected _config: EnvConfig;
     protected _app: express.Express;
+    protected _auth: AuthHandler;
 
     constructor(protected _params: ServerParams) {
         console.log("Reading config for environment variables...");
         // Read the config from env variables
         this._config = this._readConfigFromEnv();
 
-        // Init the server
+        // -- Init the server --
         console.log("Starting server...");
         this._app = express();
         this._app.use(express.json()); // JSON parsing middleware
+
+        // -- Create the authentication handler --
+        console.log("Initializing authentication handler...");
+        this._auth = new AuthHandler(this._app, this._config.baseURL, this._isUserValid.bind(this));
 
         // -- Register client files routes --
         const path: string = resolve(this._params.staticFolder);
@@ -63,6 +70,18 @@ export class App<AppTypes extends BaseAppTypes> {
             console.log(`Base URL: ${this._config.baseURL}`);
         });
     }
+
+    //#endregion
+
+    //#region Authentication --------------------------------------------------
+
+    /** Register an authentication strategy */
+    public registerAuthStrategy(strategy: AuthStrategy): void {
+        this._auth.registerStrategy(strategy);
+    }
+
+    /** @returns true if user is existing and allowed to connect */
+    protected abstract _isUserValid(profile: passport.Profile): Promise<boolean>;
 
     //#endregion
 

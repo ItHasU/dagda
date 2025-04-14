@@ -1,4 +1,4 @@
-import { AppContexts } from "src/entities/contexts";
+import { AppContexts } from "../entities/contexts";
 
 /** App types */
 export interface AppTypes {
