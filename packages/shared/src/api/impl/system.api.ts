@@ -1,4 +1,4 @@
-import { API } from "src/api/types";
+import { API } from "../types";
 
 export const SYSTEM_URL = "system";
 
@@ -7,6 +7,10 @@ export interface SystemInfo {
     startTimeMilliseconds: number;
     /** List of uncaught errors */
     errors: string[];
+    /** User display name */
+    userDisplayName: string;
+    /** User photo URL */
+    userPhotoUrl: string | null;
 }
 
 export type SystemGetInfoAPI<O> = API<"getSystemInfo", [], SystemInfo, O>;

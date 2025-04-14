@@ -5,7 +5,9 @@ export const getSystemInfo: SystemGetInfoAPI<RequestOptions> = async (options) =
     console.log("getSystemInfo", options);
     return {
         startTimeMilliseconds: Date.now(),
-        errors: []
+        errors: [],
+        userDisplayName: options.userProfile.displayName,
+        userPhotoUrl: options.userProfile.photos?.[0]?.value || null,
     };
 }
 

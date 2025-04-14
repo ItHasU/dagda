@@ -7,7 +7,10 @@ import "bootstrap/dist/css/bootstrap.css";
 import Handlebars from "handlebars";
 import { apiCall } from "../api";
 
-export class AbstractClientApp<AppTypes extends BaseAppTypes & { pageNames: string }> {
+/**
+ * This class gather all the common code for the client application.
+ */
+export abstract class AbstractClientApp<AppTypes extends BaseAppTypes & { pageNames: string }> {
 
     constructor() {
         this._injectHeaders();
@@ -20,6 +23,19 @@ export class AbstractClientApp<AppTypes extends BaseAppTypes & { pageNames: stri
         });
         document.head.insertAdjacentHTML("beforeend", headers);
     }
+
+    protected abstract _injectUserInfos(displayName: string, photoUrl: string | null): void;
+
+    public async refresh(): Promise<void> {
+        // -- Refresh the user --
+        await this.getSystemInfo().then((info) => {
+            this._injectUserInfos(info.userDisplayName, info.userPhotoUrl);
+        }).catch((err) => {
+            console.error("Error while refreshing user info", err);
+            this._injectUserInfos("Unknown", null);
+        });
+    }
+
 
     public getSystemInfo(): Promise<SystemInfo> {
         return apiCall<SystemGetInfoAPI<CallOptions<[], SystemInfo>>, "getSystemInfo", [], SystemInfo>("getSystemInfo", {});
