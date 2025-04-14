@@ -1,16 +1,17 @@
 import { API } from "@dagda/shared/src/api/types";
 import { IRouter } from "express";
+import { PassportProfile } from "../app";
 
 /** Information retrieved from the request before calling the callback */
-export type RequestOptions<Name> = {
-    name: Name;
+export type RequestOptions = {
     request: Express.Request;
     response: Express.Response;
-    userUID: string; // Ajout de l'UID de l'utilisateur connecté
+    /** Gives the user profile that made the request */
+    userProfile: PassportProfile;
 }
 
 export function apiRegister<
-    Route extends API<Name, Parameters, ReturnType, RequestOptions<Name>>,
+    Route extends API<Name, Parameters, ReturnType, RequestOptions>,
     Name extends string,
     Parameters extends any[],
     ReturnType>(
@@ -18,18 +19,17 @@ export function apiRegister<
     // Register the route with the server
     router.post(`/${name}`, async (req, res) => {
         // Vérification de l'authentification
-        const user = (req as any)["user"];
+        const user = (req as any)["user"] as PassportProfile;
         if (!user) {
             res.status(401).json({ error: "Unauthorized" });
             return;
         }
 
         const args: any[] = req.body ?? [];
-        const options: RequestOptions<Name> = {
-            name,
+        const options: RequestOptions = {
             request: req,
             response: res,
-            userUID: "?" // Ajout de l'UID de l'utilisateur connecté
+            userProfile: user
         };
 
         try {

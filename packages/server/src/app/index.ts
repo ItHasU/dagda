@@ -1,7 +1,11 @@
+import { SystemInfo } from "@dagda/shared/src/api/impl/system.api";
+import { API } from "@dagda/shared/src/api/types";
 import { BaseAppTypes } from "@dagda/shared/src/app/types";
 import express from "express";
 import passport from "passport";
 import { resolve } from "path";
+import { apiRegister, RequestOptions } from "../api";
+import { getSystemInfo } from "../api/impl/system.api";
 import { AuthHandler, AuthStrategy } from "../auth";
 import { getEnvNumber, getEnvString, getEnvStringOptional } from "../tools/config";
 
@@ -67,7 +71,13 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes> {
         const path: string = resolve(this._params.staticFolder);
         console.log(`Serving static folder: ${path}`);
         this._app.use(express.static(path));
+
+        // -- Register standard APIs --
+        console.log("Registering standard APIs...");
+        this.registerAPI<typeof getSystemInfo, "getSystemInfo", [], SystemInfo>("getSystemInfo", getSystemInfo);
     }
+
+    //#region HTTP Server -----------------------------------------------------
 
     /** Listen */
     public listen(): Promise<void> {
@@ -80,6 +90,15 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes> {
         });
     }
 
+    /** Register an api on the server */
+    public registerAPI<
+        Route extends API<Name, Parameters, ReturnType, RequestOptions>,
+        Name extends string,
+        Parameters extends any[],
+        ReturnType>(name: Name, callback: Route): void {
+        // Register the route with the server
+        apiRegister(this._app, name, callback);
+    }
     //#endregion
 
     //#region Authentication --------------------------------------------------
@@ -122,81 +141,3 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes> {
         throw new Error("Method not implemented.");
     }
 }
-
-
-
-const APP_START_TIME_MS = new Date().getTime();
-
-// /** Initialize an Express app and register the routes */
-// export async function initHTTPServer(db: AbstractSQLRunner, baseURL: string, port: number): Promise<void> {
-//     const app = express();
-
-//     // -- Update pictures with status computing --
-//     // Mark all pictures with status computing to error as once the server is restarted
-//     // there is no way to handle pictures with this state.
-//     // Note : We could also have passed the status to pending, but if the server reboots due to an
-//     // error during generation, this could create an infinite loop and the user would not be 
-//     // notified of the problem.
-//     try {
-//         await db.run(`UPDATE ${qt("pictures")} SET ${qf("pictures", "status", false)}=${ComputationStatus.ERROR} WHERE ${qf("pictures", "status", false)}=${ComputationStatus.COMPUTING}`);
-//     } catch (e) {
-//         console.error("An error occurred while handing computing pictures at startup");
-//         console.error(e);
-//     }
-
-//     // -- Create the authentication handler --
-//     // Read the google client id and secret from the environment variables
-//     const clientID = getEnvStringOptional("GOOGLE_CLIENT_ID");
-//     const clientSecret = getEnvStringOptional("GOOGLE_CLIENT_SECRET");
-//     if (clientID == null || clientSecret == null) {
-//         console.warn(`GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET not found in environment variables, authentication is disabled`);
-//         const noAuth = getEnvStringOptional("NO_AUTH");
-//         if (noAuth == null) {
-//             throw "For security reason, NO_AUTH variable is required when auth variables are left empty";
-//         } else {
-//             console.log("Authentication is disabled on purpose, continuing...");
-//         }
-//     } else {
-//         const auth: AuthHandler = new AuthHandler(app, baseURL, async (profile: passport.Profile) => {
-//             try {
-//                 const handler = buildServerEntitiesHandler(db);
-//                 await handler.fetch({ type: "users", "options": undefined });
-//                 // Search for the user
-//                 const userEntity = handler.getItems("users").find(user => user.uid === profile.id);
-//                 if (userEntity == null) {
-//                     // We need to create the user
-//                     await handler.withTransaction((tr) => {
-//                         tr.insert("users", {
-//                             id: asNamed(0),
-//                             uid: asNamed(profile.id),
-//                             displayName: asNamed(profile.displayName),
-//                             enabled: asNamed(false)
-//                         });
-//                     });
-//                     await handler.waitForSubmit();
-//                     return false;
-//                 } else {
-//                     return userEntity.enabled;
-//                 }
-//             } catch (err) {
-//                 console.error(err);
-//                 return false;
-//             }
-//         });
-//         auth.registerGoogleStrategy(clientID, clientSecret);
-//     }
-
-//     // -- JSON parsing middleware --
-//     app.use(express.json());
-
-//     // -- Register client files routes --
-//     const path: string = resolve("./apps/client/dist");
-//     app.use(express.static(path));
-
-//     // -- Register SQL routes --
-//     registerAdapterAPI<AppTables, AppContexts>(app, APP_MODEL, db, sqlFetch);
-
-//     // -- Register models routes --
-//     _registerAPIs(app);
-
-// }

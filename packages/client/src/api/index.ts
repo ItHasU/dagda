@@ -1,6 +1,6 @@
 import { API } from "@dagda/shared/src/api/types";
 
-type CallOptions<Parameters extends any[], ReturnType> = {
+export type CallOptions<Parameters extends any[], ReturnType> = {
     parametersTransformer?: (args: Parameters) => RequestInit["body"];
     returnTransformer?: (response: Response) => ReturnType;
 }
@@ -11,8 +11,10 @@ export async function apiCall<
     Name extends string,
     Parameters extends any[],
     ReturnType
->(name: Route extends API<infer Name, unknown[], unknown, unknown> ? Name : never,
-    options: CallOptions<Parameters, ReturnType>, ...args: Parameters): Promise<ReturnType> {
+>(
+    name: Name,
+    options: CallOptions<Parameters, ReturnType>, ...args: Parameters
+): Promise<ReturnType> {
     const URL = `/${name}`;
     const response = await fetch(URL, {
         method: "POST",

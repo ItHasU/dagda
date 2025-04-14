@@ -1,8 +1,11 @@
+import { CallOptions } from "@dagda/client/src/api";
+import { SystemGetInfoAPI, SystemInfo } from "@dagda/shared/src/api/impl/system.api";
 import { BaseAppTypes } from "@dagda/shared/src/app/types";
 import "bootstrap";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import "bootstrap/dist/css/bootstrap.css";
 import Handlebars from "handlebars";
+import { apiCall } from "../api";
 
 export class AbstractClientApp<AppTypes extends BaseAppTypes & { pageNames: string }> {
 
@@ -11,12 +14,15 @@ export class AbstractClientApp<AppTypes extends BaseAppTypes & { pageNames: stri
     }
 
     protected _injectHeaders(): void {
-        debugger;
         const headersTemplate = Handlebars.compile(require("./index.header.html").default);
         const headers = headersTemplate({
             title: "Dagda"
         });
         document.head.insertAdjacentHTML("beforeend", headers);
+    }
+
+    public getSystemInfo(): Promise<SystemInfo> {
+        return apiCall<SystemGetInfoAPI<CallOptions<[], SystemInfo>>, "getSystemInfo", [], SystemInfo>("getSystemInfo", {});
     }
 }
 

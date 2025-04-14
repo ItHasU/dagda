@@ -2,6 +2,7 @@ import { Express, Router } from 'express';
 import * as session from "express-session";
 import passport from 'passport';
 import * as google from 'passport-google-oauth20';
+import { PassportProfile } from '../app';
 
 export interface AuthStrategy {
     name: string;
@@ -13,8 +14,8 @@ enum AuthStrategyType {
     GOOGLE = "google"
 }
 
-
 export type Verifier = (profile: passport.Profile) => Promise<boolean> | boolean;
+
 export class AuthHandler {
 
     private readonly _router: Router = Router();
@@ -55,8 +56,15 @@ export class AuthHandler {
             done(null, user);
         });
 
-        passport.deserializeUser(function (id, done) {
-            done(null, { id });
+        passport.deserializeUser(function (user, done) {
+            const { id, displayName, emails, provider, photos } = user as PassportProfile;
+            done(null, {
+                id,
+                displayName,
+                emails,
+                provider,
+                photos
+            } satisfies PassportProfile);
         });
 
         this._app.use(this._router);
