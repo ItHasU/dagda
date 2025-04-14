@@ -1,0 +1,41 @@
+<nav class="navbar navbar-expand-sm bg-body-tertiary">
+    <div class="container-fluid flex-nowrap">
+        <a id="projectsButton" class="navbar-brand me-auto" href="javascript: void(0);">
+            <i class="bi bi-cpu"></i>
+            <span class="d-none d-md-inline">&nbsp;{{title}}</span>
+        </a>
+        <ul class="navbar-nav flex-row" style="overflow-x: auto;">
+            <li id="generationSpan" class="nav-item d-none">
+                <a class="nav-link text-nowrap px-1" href="javascript: void(0);">
+                    <div class="badge rounded-pill text-bg-warning">
+                        <i class="bi bi-lightning-fill"></i>&nbsp;<span id="generationCount">-</span>
+                    </div>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a id="statusPlaceholder" class="nav-link text-nowrap pulse" href="javascript: void(0);"></a>
+            </li>
+            <li class="nav-item">
+                <a id="lockButton" class="nav-link text-nowrap px-1" aria-current="page" href="javascript: void(0);">
+                    <i class="bi bi-lock onlocked" title="Hide lockables"></i>
+                    <i class="bi bi-unlock text-danger onunlocked" title="Show lockables"></i>
+                    <span class="onlocked">Locked</span>
+                    <span class="onunlocked">Unlocked</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a id="maintenanceButton" class="nav-link text-nowrap px-1" href="javascript: void(0);"
+                    title="Maintenance">
+                    <i class="bi bi-wrench"></i>
+                    <span class="d-none d-md-inline">Maintenance</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link text-nowrap px-1" aria-current="page" href="/logout">
+                    <i class="bi bi-person-circle"></i>
+                    <span class="d-none d-md-inline">Logout</span>
+                </a>
+            </li>
+        </ul>
+    </div>
+</nav>

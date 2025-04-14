@@ -1,4 +1,4 @@
-import { API } from "@dagda/shared/api/types";
+import { API } from "@dagda/shared/src/api/types";
 
 type CallOptions<Parameters extends any[], ReturnType> = {
     parametersTransformer?: (args: Parameters) => RequestInit["body"];

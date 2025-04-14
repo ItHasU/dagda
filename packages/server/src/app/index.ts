@@ -2,8 +2,8 @@ import { BaseAppTypes } from "@dagda/shared/src/app/types";
 import express from "express";
 import passport from "passport";
 import { resolve } from "path";
-import { AuthHandler, AuthStrategy } from "../express/auth";
-import { getEnvNumber, getEnvString } from "../tools/config";
+import { AuthHandler, AuthStrategy } from "../auth";
+import { getEnvNumber, getEnvString, getEnvStringOptional } from "../tools/config";
 
 /** Parameters */
 export interface ServerParams {
@@ -28,13 +28,22 @@ export interface EnvConfig {
     port: number;
     /** Base URL */
     baseURL: string;
+
+    // -- Google auth --
+    /** Google client ID */
+    clientID?: string;
+    /** Google client secret */
+    clientSecret?: string;
 }
+
+/** Alias to avoid importing passport in project */
+export type PassportProfile = passport.Profile;
 
 /** 
  * Base server app. 
  * This class stores all information about the app and manages the HTTP server.
  */
-export abstract class AbstractApp<AppTypes extends BaseAppTypes> {
+export abstract class AbstractServerApp<AppTypes extends BaseAppTypes> {
 
     protected _config: EnvConfig;
     protected _app: express.Express;
@@ -80,8 +89,16 @@ export abstract class AbstractApp<AppTypes extends BaseAppTypes> {
         this._auth.registerStrategy(strategy);
     }
 
+    /** Register google strategy */
+    public registerGoogleStrategy(): void {
+        if (this._config.clientID == null || this._config.clientSecret == null) {
+            throw "For security reason, GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET variables are required to register the google strategy";
+        }
+        this._auth.registerGoogleStrategy(this._config.clientID, this._config.clientSecret);
+    }
+
     /** @returns true if user is existing and allowed to connect */
-    protected abstract _isUserValid(profile: passport.Profile): Promise<boolean>;
+    protected abstract _isUserValid(profile: PassportProfile): Promise<boolean>;
 
     //#endregion
 
@@ -93,6 +110,9 @@ export abstract class AbstractApp<AppTypes extends BaseAppTypes> {
         return {
             port: getEnvNumber(`${prefix}PORT`),
             baseURL: getEnvString(`${prefix}BASE_URL`),
+            // -- google auth --
+            clientID: getEnvStringOptional(`${prefix}GOOGLE_CLIENT_ID`),
+            clientSecret: getEnvStringOptional(`${prefix}GOOGLE_CLIENT_SECRET`)
         };
     }
 

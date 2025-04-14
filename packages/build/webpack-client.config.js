@@ -72,7 +72,7 @@ function getWebpackConfig(dirname, entry = "src/index.ts", assets = "assets/") {
       }
     },
     plugins: [
-      new HtmlWebpackPlugin({ template: "./src/index.html" }),
+      new HtmlWebpackPlugin({ template: "src/index.html" }),
       new CopyWebpackPlugin({
         patterns: [
           {

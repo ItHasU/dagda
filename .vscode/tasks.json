@@ -1,12 +1,23 @@
 {
     "tasks": [
         {
+            "label": "Watch all",
+        },
+        {
             "type": "npm",
             "script": "w",
             "path": "bootstrap/server",
             "group": "build",
             "problemMatcher": [],
             "label": "bootstrap - server",
+        },
+        {
+            "type": "npm",
+            "script": "w",
+            "path": "bootstrap/client",
+            "group": "build",
+            "problemMatcher": [],
+            "label": "bootstrap - client",
         }
     ]
 }

@@ -6,7 +6,13 @@
     "license": "ISC",
     "scripts": {},
     "devDependencies": {
-        "@dagda/build": "^1.0.0",
-        "@dagda/shared": "^1.0.0"
+        "@dagda/build": "*",
+        "@dagda/shared": "*",
+        "@types/bootstrap": "=5.2.10"
+    },
+    "dependencies": {
+        "bootstrap": "=5.3.5",
+        "bootstrap-icons": "=1.11.3",
+        "handlebars": "^4.7.8"
     }
 }

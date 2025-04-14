@@ -7,12 +7,16 @@
     "scripts": {},
     "dependencies": {
         "express": "=5.1.0",
-        "express-session": "=1.18.1"
+        "express-session": "=1.18.1",
+        "passport": "=0.7.0",
+        "passport-google-oauth20": "=2.0.0"
     },
     "devDependencies": {
-        "@dagda/build": "^1.0.0",
-        "@dagda/shared": "^1.0.0",
+        "@dagda/build": "*",
+        "@dagda/shared": "*",
         "@types/express": "=5.0.1",
-        "@types/express-session": "=1.18.1"
+        "@types/express-session": "=1.18.1",
+        "@types/passport": "=1.0.17",
+        "@types/passport-google-oauth20": "=2.0.16"
     }
 }
