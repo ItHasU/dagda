@@ -1,19 +1,19 @@
 import { AppTypes } from "@dagda-app/shared/src/app/types";
 import { AbstractClientApp } from "@dagda/client/src/app";
 import { AbstractPageElement } from "@dagda/client/src/app/abstract.page.element";
+import { LoginComponent } from "@dagda/client/src/components/login/login.component";
+
+LoginComponent;
 
 export class ClientApp extends AbstractClientApp<AppTypes> {
 
     /** @inheritdoc */
     protected override _injectUserInfos(displayName: string, photoUrl: string | null): void {
-        const userName = document.getElementById("userName") as HTMLSpanElement | null;
-        const userPhoto = document.getElementById("userPhoto") as HTMLImageElement | null;
-        if (userName != null) {
-            userName.innerText = displayName;
-        }
-        if (userPhoto != null) {
-            userPhoto.src = photoUrl ?? "";
-            userPhoto.classList.toggle("d-none", userPhoto == null);
+        const login = document.querySelector("login-component") as LoginComponent | null;
+        if (login != null) {
+            login.setAttribute("displayName", displayName);
+            login.setAttribute("photo", photoUrl ?? "");
+            login.refresh();
         }
     }
 

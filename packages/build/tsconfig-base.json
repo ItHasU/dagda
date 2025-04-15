@@ -21,8 +21,10 @@
     //Advanced
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
+    "experimentalDecorators": true,
+    "useDefineForClassFields": false, // For decorators to work
     "lib": [
-      "ES2022"
+      "ES2024"
     ]
   }
 }
