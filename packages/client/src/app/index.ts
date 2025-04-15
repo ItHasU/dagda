@@ -6,27 +6,26 @@ import "bootstrap-icons/font/bootstrap-icons.css";
 import "bootstrap/dist/css/bootstrap.css";
 import Handlebars from "handlebars";
 import { apiCall } from "../api";
+import { AbstractPageElement } from "./abstract.page.element";
 
 /**
  * This class gather all the common code for the client application.
  */
-export abstract class AbstractClientApp<AppTypes extends BaseAppTypes & { pageNames: string }> {
+export abstract class AbstractClientApp<AppTypes extends BaseAppTypes> {
+
+    protected _currentPage: AbstractPageElement | null = null;
 
     constructor() {
         this._injectHeaders();
     }
 
-    protected _injectHeaders(): void {
-        const headersTemplate = Handlebars.compile(require("./index.header.html").default);
-        const headers = headersTemplate({
-            title: "Dagda"
-        });
-        document.head.insertAdjacentHTML("beforeend", headers);
-    }
-
-    protected abstract _injectUserInfos(displayName: string, photoUrl: string | null): void;
-
-    public async refresh(): Promise<void> {
+    /**
+     * Start the application. 
+     * This will refresh the user info and navigate to the default page.
+     * 
+     * Use this method once you have initialized your application (register pages, etc).
+     */
+    public async start(): Promise<void> {
         // -- Refresh the user --
         await this.getSystemInfo().then((info) => {
             this._injectUserInfos(info.userDisplayName, info.userPhotoUrl);
@@ -36,10 +35,70 @@ export abstract class AbstractClientApp<AppTypes extends BaseAppTypes & { pageNa
         });
     }
 
+    //#region Page management
+
+    /** 
+     * Toggle current page.
+     * If no page is given, the default page will be used.
+     */
+    public setPage<Page extends AbstractPageElement>(page: { new(): Page }): Page {
+        // -- Empty page --
+        if (this._currentPage != null) {
+            try {
+                this._disposePage(this._currentPage);
+            } catch (err) {
+                console.error("Error while disposing page", err);
+            }
+            this._currentPage = null;
+        }
+
+        // -- Create page --
+        try {
+            this._currentPage = new page();
+        } catch (err) {
+            console.error("Error while creating page", err);
+            this._currentPage = null;
+            throw err;
+        }
+
+        // -- Append page --
+        this._injectPage(this._currentPage);
+        this._currentPage.refresh(); // Catched by the page
+
+        return this._currentPage as Page;
+    }
+
+    //#endregion
+
+    //#region HTML manipulation
+
+    /** Inject app headers in the page so you don't have to bother */
+    protected _injectHeaders(): void {
+        const headersTemplate = Handlebars.compile(require("./index.header.html").default);
+        const headers = headersTemplate({
+            title: "Dagda"
+        });
+        document.head.insertAdjacentHTML("beforeend", headers);
+    }
+
+    /** Display user infos in your page */
+    protected abstract _injectUserInfos(displayName: string, photoUrl: string | null): void;
+
+    /** Inject the page into the application */
+    protected abstract _injectPage(page: AbstractPageElement): void;
+
+    /** Dispose current page */
+    protected abstract _disposePage(page: AbstractPageElement): void;
+
+    //#endregion
+
+    //#region API calls
 
     public getSystemInfo(): Promise<SystemInfo> {
         return apiCall<SystemGetInfoAPI<CallOptions<[], SystemInfo>>, "getSystemInfo", [], SystemInfo>("getSystemInfo", {});
     }
+
+    //#endregion
 }
 
 
