@@ -2,7 +2,7 @@ import { Client, Pool, PoolClient } from "pg";
 import { AbstractSQLRunner, BaseRow, SQLConnection, SQLValue } from "../runner";
 
 /**
- * A SQL connection for PostgreSQL.
+ * Implements a SQL operations for PostgreSQL through a single connection.
  */
 export class PGConnection implements SQLConnection {
 
