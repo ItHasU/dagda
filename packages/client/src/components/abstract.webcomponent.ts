@@ -19,7 +19,7 @@ export interface WebComponentOptions {
  * The component will never refresh itself. 
  * You need to call the refresh() method to re-render the component once all attributes are set.
  */
-export abstract class AbstractWebComponent<Data = never> extends HTMLElement {
+export abstract class AbstractWebComponent<Data> extends HTMLElement {
 
     protected _initialized = false;
     protected _data: Data | undefined;
@@ -92,12 +92,15 @@ export abstract class AbstractWebComponent<Data = never> extends HTMLElement {
         }
     }
 
-    protected _getElementByRef<T extends HTMLElement>(ref: string): T | null {
-        const element = this.querySelector(`[ref="${ref}"]`) as T | null;
-        if (!element) {
-            throw `Element with ref "${ref}" not found`;
-        }
-        return element;
+    /** Bind callback to element with ref passed. Callback is surrounded by a try/catch. */
+    protected _bindClickForRef(ref: string, cb: () => Promise<void> | void): void {
+        (this.querySelector(`*[ref="${ref}"]`) as HTMLButtonElement | undefined)?.addEventListener("click", async function () {
+            try {
+                await cb();
+            } catch (e) {
+                console.error(e);
+            }
+        });
     }
 }
 

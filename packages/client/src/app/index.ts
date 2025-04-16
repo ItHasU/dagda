@@ -7,12 +7,18 @@ import Handlebars from "handlebars";
 import { apiCall } from "../api";
 import { AbstractPageElement } from "./abstract.page.element";
 
+export interface BaseClientAppTypes extends BaseAppTypes {
+    /** Pages */
+    pages: { [pageName: string]: AbstractPageElement<unknown> };
+}
+
 /**
  * This class gather all the common code for the client application.
  */
-export abstract class AbstractClientApp<AppTypes extends BaseAppTypes> {
+export abstract class AbstractClientApp<AppTypes extends BaseClientAppTypes> {
 
-    protected _currentPage: AbstractPageElement | null = null;
+    protected _registeredPages: { [pageName in keyof AppTypes["pages"]]?: { new(): AbstractPageElement<unknown> } } = {};
+    protected _currentPage: AbstractPageElement<unknown> | null = null;
 
     constructor() {
         this._injectHeaders();
@@ -36,35 +42,48 @@ export abstract class AbstractClientApp<AppTypes extends BaseAppTypes> {
 
     //#region Page management
 
+    public registerPage<PageName extends keyof AppTypes["pages"]>(
+        name: PageName,
+        page: { new(): AppTypes["pages"][PageName] }
+    ): void {
+        this._registeredPages[name] = page;
+    }
+
     /** 
      * Toggle current page.
      * If no page is given, the default page will be used.
      */
-    public setPage<Page extends AbstractPageElement>(page: { new(): Page }): Page {
+    public async setPage<PageName extends keyof AppTypes["pages"]>(page: PageName): Promise<AppTypes["pages"][PageName]> {
         // -- Empty page --
         if (this._currentPage != null) {
             try {
                 this._disposePage(this._currentPage);
             } catch (err) {
                 console.error("Error while disposing page", err);
+            } finally {
+                this._currentPage = null;
             }
-            this._currentPage = null;
         }
 
-        // -- Create page --
         try {
-            this._currentPage = new page();
+            const constructor = this._registeredPages[page];
+            if (constructor != null) {
+                // -- Create page --
+                const newPage = new constructor();
+                this._currentPage = newPage
+                // -- Append page --
+                this._injectPage(this._currentPage);
+                await this._currentPage.refresh(); // Catch by the page
+                return newPage as AppTypes["pages"][PageName];
+            } else {
+                console.error(`Page ${page.toString()} not found, cannot set page`);
+                return Promise.reject(new Error(`Page ${page.toString()} not found`));
+            }
         } catch (err) {
             console.error("Error while creating page", err);
             this._currentPage = null;
             throw err;
         }
-
-        // -- Append page --
-        this._injectPage(this._currentPage);
-        this._currentPage.refresh(); // Catched by the page
-
-        return this._currentPage as Page;
     }
 
     //#endregion
@@ -84,10 +103,10 @@ export abstract class AbstractClientApp<AppTypes extends BaseAppTypes> {
     protected abstract _injectUserInfos(displayName: string, photoUrl: string | null): void;
 
     /** Inject the page into the application */
-    protected abstract _injectPage(page: AbstractPageElement): void;
+    protected abstract _injectPage(page: AbstractPageElement<unknown>): void;
 
     /** Dispose current page */
-    protected abstract _disposePage(page: AbstractPageElement): void;
+    protected abstract _disposePage(page: AbstractPageElement<unknown>): void;
 
     //#endregion
 

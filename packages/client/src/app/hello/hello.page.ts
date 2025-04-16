@@ -1,17 +1,15 @@
 import { AbstractPageElement } from "../abstract.page.element";
 
-export class HelloPage extends AbstractPageElement {
+/** A static page sample, no init, no refresh, just a template */
+export class HelloPage extends AbstractPageElement<{ name: string }> {
 
     constructor() {
-        super(require("./hello.page.html").default);
+        super({
+            template: require("./hello.page.html").default,
+            templateApplyOnRefresh: true
+        });
     }
 
-    /** @inheritdoc */
-    protected _refresh(): Promise<void> {
-        // Refresh logic here
-        console.log("HelloPage refreshed");
-        return Promise.resolve();
-    }
 }
 
 customElements.define("hello-page", HelloPage);
