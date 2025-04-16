@@ -1,24 +1,20 @@
-import { API } from "@dagda/shared/src/api/types";
+import { APICollection } from "@dagda/shared/src/api/types";
 
-export type CallOptions<Parameters extends any[], ReturnType> = {
-    parametersTransformer?: (args: Parameters) => RequestInit["body"];
-    returnTransformer?: (response: Response) => ReturnType;
-}
+export type CallOptions = {}
 
 /** Call a method on the server */
 export async function apiCall<
-    Route extends API<Name, Parameters, ReturnType, CallOptions<Parameters, ReturnType>>,
-    Name extends string,
-    Parameters extends any[],
-    ReturnType
+    Name extends keyof Collection,
+    Collection extends APICollection
 >(
     name: Name,
-    options: CallOptions<Parameters, ReturnType>, ...args: Parameters
-): Promise<ReturnType> {
-    const URL = `/${name}`;
+    options: CallOptions,
+    ...args: Parameters<Collection[Name]>
+): Promise<ReturnType<Collection[Name]>> {
+    const URL = `/${name.toString()}`;
     const response = await fetch(URL, {
         method: "POST",
-        body: options.parametersTransformer ? options.parametersTransformer(args) : JSON.stringify(args),
+        body: JSON.stringify(args),
         headers: {
             'Content-Type': 'application/json',
         }
@@ -27,7 +23,7 @@ export async function apiCall<
         throw new Error(`Method call failed: ${URL}() => ${response.status} ${response.statusText}`);
     } else {
         try {
-            const data = await (options.returnTransformer ? options.returnTransformer(response) : response.json());
+            const data = await response.json();
             return data;
         } catch (err) {
             throw new Error(`Error while parsing response: ${err}`);

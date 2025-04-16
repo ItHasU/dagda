@@ -1,4 +1,3 @@
-import { API } from "../types";
 
 export const SYSTEM_URL = "system";
 
@@ -13,5 +12,9 @@ export interface SystemInfo {
     userPhotoUrl: string | null;
 }
 
-export type SystemGetInfoAPI<O> = API<"getSystemInfo", [], SystemInfo, O>;
-export type SystemTriggerErrorAPI<O> = API<"triggerError", [], void, O>;
+export type SystemAPI = {
+    /** Get system information */
+    getSystemInfo: () => SystemInfo;
+    /** Trigger an error */
+    triggerError: () => void;
+};

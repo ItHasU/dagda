@@ -1,8 +1,7 @@
-import { SystemGetInfoAPI, SystemTriggerErrorAPI } from "@dagda/shared/src/api/impl/system.api";
-import { RequestOptions } from "..";
+import { SystemAPI, SystemInfo } from "@dagda/shared/src/api/impl/system.api";
+import { RequestCallback, RequestOptions } from "..";
 
-export const getSystemInfo: SystemGetInfoAPI<RequestOptions> = async (options) => {
-    console.log("getSystemInfo", options);
+export const getSystemInfo: RequestCallback<"getSystemInfo", SystemAPI> = async function (options: RequestOptions): Promise<SystemInfo> {
     return {
         startTimeMilliseconds: Date.now(),
         errors: [],
@@ -11,7 +10,7 @@ export const getSystemInfo: SystemGetInfoAPI<RequestOptions> = async (options) =
     };
 }
 
-export const triggerError: SystemTriggerErrorAPI<RequestOptions> = async (options) => {
+export const triggerError: RequestCallback<"triggerError", SystemAPI> = async function (options: RequestOptions): Promise<void> {
     return new Promise<void>((resolve, reject) => {
         // Simulate an error
         // This is a test error

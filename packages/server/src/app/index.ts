@@ -1,10 +1,8 @@
-import { SystemInfo } from "@dagda/shared/src/api/impl/system.api";
-import { API } from "@dagda/shared/src/api/types";
 import { BaseAppTypes } from "@dagda/shared/src/app/types";
 import express from "express";
 import passport from "passport";
 import { resolve } from "path";
-import { apiRegister, RequestOptions } from "../api";
+import { apiRegister, RequestCallback } from "../api";
 import { getSystemInfo } from "../api/impl/system.api";
 import { AuthHandler, AuthStrategy } from "../auth";
 import { getEnvNumber, getEnvString, getEnvStringOptional } from "../tools/config";
@@ -74,7 +72,7 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes> {
 
         // -- Register standard APIs --
         console.log("Registering standard APIs...");
-        this.registerAPI<typeof getSystemInfo, "getSystemInfo", [], SystemInfo>("getSystemInfo", getSystemInfo);
+        this.registerAPI("getSystemInfo", getSystemInfo);
     }
 
     //#region HTTP Server -----------------------------------------------------
@@ -91,11 +89,7 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes> {
     }
 
     /** Register an api on the server */
-    public registerAPI<
-        Route extends API<Name, Parameters, ReturnType, RequestOptions>,
-        Name extends string,
-        Parameters extends any[],
-        ReturnType>(name: Name, callback: Route): void {
+    public registerAPI<Name extends keyof AppTypes["apis"]>(name: Name, callback: RequestCallback<Name, AppTypes["apis"]>): void {
         // Register the route with the server
         apiRegister(this._app, name, callback);
     }

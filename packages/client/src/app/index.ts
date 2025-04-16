@@ -1,5 +1,4 @@
-import { CallOptions } from "@dagda/client/src/api";
-import { SystemGetInfoAPI, SystemInfo } from "@dagda/shared/src/api/impl/system.api";
+import { SystemAPI } from "@dagda/shared/src/api/impl/system.api";
 import { BaseAppTypes } from "@dagda/shared/src/app/types";
 import "bootstrap";
 import "bootstrap-icons/font/bootstrap-icons.css";
@@ -27,7 +26,7 @@ export abstract class AbstractClientApp<AppTypes extends BaseAppTypes> {
      */
     public async start(): Promise<void> {
         // -- Refresh the user --
-        await this.getSystemInfo().then((info) => {
+        await apiCall<"getSystemInfo", SystemAPI>("getSystemInfo", {}).then((info) => {
             this._injectUserInfos(info.userDisplayName, info.userPhotoUrl);
         }).catch((err) => {
             console.error("Error while refreshing user info", err);
@@ -94,8 +93,11 @@ export abstract class AbstractClientApp<AppTypes extends BaseAppTypes> {
 
     //#region API calls
 
-    public getSystemInfo(): Promise<SystemInfo> {
-        return apiCall<SystemGetInfoAPI<CallOptions<[], SystemInfo>>, "getSystemInfo", [], SystemInfo>("getSystemInfo", {});
+    public call<APIName extends keyof AppTypes["apis"]>(
+        name: APIName,
+        ...args: Parameters<AppTypes["apis"][APIName]>
+    ): Promise<ReturnType<AppTypes["apis"][APIName]>> {
+        return apiCall<APIName, AppTypes['apis']>(name, {}, ...args);
     }
 
     //#endregion

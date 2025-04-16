@@ -1,4 +1,4 @@
-import { API } from "@dagda/shared/src/api/types";
+import { APICollection } from "@dagda/shared/src/api/types";
 import { IRouter } from "express";
 import { PassportProfile } from "../app";
 
@@ -10,14 +10,15 @@ export type RequestOptions = {
     userProfile: PassportProfile;
 }
 
-export function apiRegister<
-    Route extends API<Name, Parameters, ReturnType, RequestOptions>,
-    Name extends string,
-    Parameters extends any[],
-    ReturnType>(
-        router: IRouter, name: Name, callback: Route): void {
+export type RequestCallback<Name extends keyof Collection, Collection extends APICollection> = (
+    options: RequestOptions,
+    ...args: Parameters<Collection[Name]>
+) => Promise<ReturnType<Collection[Name]>>;
+
+export function apiRegister<Name extends keyof Collection, Collection extends APICollection>(
+    router: IRouter, name: Name, callback: RequestCallback<Name, Collection>): void {
     // Register the route with the server
-    router.post(`/${name}`, async (req, res) => {
+    router.post(`/${name.toString()}`, async (req, res) => {
         // Vérification de l'authentification
         const user = (req as any)["user"] as PassportProfile;
         if (!user) {
@@ -33,7 +34,7 @@ export function apiRegister<
         };
 
         try {
-            let result = await callback(options, ...args as Parameters); // Here we do not expect args to be invalid
+            let result = await callback(options, ...args as any); // Here we do not expect args to be invalid
             if (result === void (0)) {
                 res.json(null); // No content
             } else {
