@@ -1,3 +1,5 @@
+import Handlebars from "handlebars";
+
 export interface WebComponentOptions {
     /** If specified the template will be rendered in the inner HTML of the component */
     template?: string;
@@ -17,7 +19,7 @@ export interface WebComponentOptions {
  * The component will never refresh itself. 
  * You need to call the refresh() method to re-render the component once all attributes are set.
  */
-export abstract class AbstractWebComponent<AttributeNames extends string = string, Data = never> extends HTMLElement {
+export abstract class AbstractWebComponent<Data = never> extends HTMLElement {
 
     protected _initialized = false;
     protected _data: Data | undefined;
@@ -26,25 +28,29 @@ export abstract class AbstractWebComponent<AttributeNames extends string = strin
         super();
     }
 
-    /** Set attribute */
-    public override setAttribute(attribute: AttributeNames, value?: string): void {
-        if (value === undefined) {
-            super.removeAttribute(attribute);
-        } else {
-            super.setAttribute(attribute, value);
-        }
+    /** Get the component data */
+    public get data(): Data | undefined {
+        return this._data;
+    }
+
+    /** 
+     * Set the component data.
+     * Call refresh() to re-render the component.
+     */
+    public set data(data: Data | undefined) {
+        this._data = data;
     }
 
     /** 
      * This method must initialize static elements of the component.
      * It is called after the template is rendered in the inner HTML.
      */
-    protected abstract _init(): Promise<void>;
+    protected _init(): Promise<void> { return Promise.resolve(); }
 
     /**
-     * This method must be called to render the component.
+     * This method is called to render the component.
      */
-    protected abstract _refresh(): Promise<void>;
+    protected _refresh(): Promise<void> { return Promise.resolve(); }
 
     /**
      * Call this method to refresh the component.
@@ -76,7 +82,14 @@ export abstract class AbstractWebComponent<AttributeNames extends string = strin
     }
 
     protected _applyTemplate(): void {
-        this.innerHTML = this._options?.template ?? "";
+        if (this._options?.template) {
+            const template = Handlebars.compile(this._options.template);
+            this.innerHTML = template(this, {
+                allowProtoPropertiesByDefault: true
+            });
+        } else {
+            this.innerHTML = "";
+        }
     }
 
     protected _getElementByRef<T extends HTMLElement>(ref: string): T | null {
@@ -92,20 +105,79 @@ export abstract class AbstractWebComponent<AttributeNames extends string = strin
 
 /** 
  * Utility decorator to get the element with ref attribute set to the name of the property.
+ * 
+ * The ref value is set as the kebab-case of the property name without the leading underscore.
+ * For example, if the property name is "_myProperty", the ref value will be "my-property".
  * For convenience, you can also override the name of the ref.
  */
 export function Ref(refName?: string): PropertyDecorator {
     return function (classPrototype: unknown, propertyKey: string | symbol): void {
+        // 
+        const ref = refName ?? camelToKebabCase(propertyKey.toString());
         Object.defineProperty(classPrototype, propertyKey, {
             get(): HTMLElement {
-                const ref = refName ?? propertyKey.toString();
                 const element = this.querySelector(`[ref="${ref}"]`) as HTMLElement | null;
                 if (!element) {
                     throw `Element with ref "${ref}" not found`;
                 }
                 return element;
-            },
-            enumerable: true,
+            }
         });
     };
 };
+
+
+/** 
+ * Utility decorator to access an attribute of the web component.
+ */
+export interface AttributeMarshaller<T = any> {
+    read: (value: string | null) => T | null;
+    write: (value: T) => string | null;
+}
+export function Attribute<T = string>(options?: { name?: string; marshaller?: AttributeMarshaller<T>; defaultValue?: T }): PropertyDecorator {
+    return function (classPrototype: unknown, propertyKey: string | symbol): void {
+        // Use custom attribute name if specified or convert property name to kebab case
+        const attributeName = options?.name ?? camelToKebabCase(propertyKey.toString());
+
+        Object.defineProperty(classPrototype, propertyKey, {
+            get(): T | null {
+                const rawValue = (this as HTMLElement).getAttribute(attributeName);
+                if (rawValue == null) {
+                    return options?.defaultValue ?? null;
+                }
+                return options?.marshaller?.read ? options.marshaller.read(rawValue) : (rawValue as unknown as T);
+            },
+            set(value: T): void {
+                const rawValue = options?.marshaller?.write ? options.marshaller.write(value) : (value as unknown as string | null);
+                if (rawValue == null) {
+                    (this as HTMLElement).removeAttribute(attributeName);
+                } else {
+                    (this as HTMLElement).setAttribute(attributeName, rawValue);
+                }
+            }
+        });
+    };
+};
+
+export const NumberMarshaller: AttributeMarshaller<number> = {
+    read: (value: string | null): number | null => {
+        if (value == null) {
+            return null;
+        }
+        const parsed = Number(value);
+        if (isNaN(parsed)) {
+            throw new Error(`Invalid number: ${value}`);
+        }
+        return parsed;
+    },
+    write: (value: number): string | null => {
+        return value.toString();
+    }
+};
+
+/**
+ * Utility function to convert a camelCase string to kebab-case and remove trailing underscores.
+ */
+export function camelToKebabCase(input: string): string {
+    return input.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase().replace(/^_+/, '');
+}

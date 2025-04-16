@@ -8,11 +8,11 @@ LoginComponent;
 export class ClientApp extends AbstractClientApp<AppTypes> {
 
     /** @inheritdoc */
-    protected override _injectUserInfos(displayName: string, photoUrl: string | null): void {
+    protected override _injectUserInfos(displayName: string, photoURL: string | null): void {
         const login = document.querySelector("login-component") as LoginComponent | null;
         if (login != null) {
+            login.data = { displayName, photoURL };
             login.setAttribute("displayName", displayName);
-            login.setAttribute("photo", photoUrl ?? "");
             login.refresh();
         }
     }
