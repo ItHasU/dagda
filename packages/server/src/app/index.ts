@@ -89,7 +89,7 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes> {
     }
 
     /** Register an api on the server */
-    public registerAPI<Name extends keyof AppTypes["apis"]>(name: Name, callback: RequestCallback<Name, AppTypes["apis"]>): void {
+    public registerAPI<Name extends keyof AppTypes["apis"]>(name: Name, callback: RequestCallback<AppTypes["apis"], Name>): void {
         // Register the route with the server
         apiRegister(this._app, name, callback);
     }

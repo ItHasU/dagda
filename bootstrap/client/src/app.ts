@@ -31,4 +31,5 @@ export class ClientApp extends AbstractClientApp<AppTypes> {
             container.appendChild(page);
         }
     }
+
 }

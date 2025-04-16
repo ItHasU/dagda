@@ -10,13 +10,13 @@ export type RequestOptions = {
     userProfile: PassportProfile;
 }
 
-export type RequestCallback<Name extends keyof Collection, Collection extends APICollection> = (
+export type RequestCallback<Collection extends APICollection, Name extends keyof Collection> = (
     options: RequestOptions,
     ...args: Parameters<Collection[Name]>
 ) => Promise<ReturnType<Collection[Name]>>;
 
-export function apiRegister<Name extends keyof Collection, Collection extends APICollection>(
-    router: IRouter, name: Name, callback: RequestCallback<Name, Collection>): void {
+export function apiRegister<Collection extends APICollection, Name extends keyof Collection>(
+    router: IRouter, name: Name, callback: RequestCallback<Collection, Name>): void {
     // Register the route with the server
     router.post(`/${name.toString()}`, async (req, res) => {
         // Vérification de l'authentification
