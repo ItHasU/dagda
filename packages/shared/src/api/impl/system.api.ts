@@ -1,6 +1,3 @@
-
-export const SYSTEM_URL = "system";
-
 export interface SystemInfo {
     /** Start date */
     startTimeMilliseconds: number;

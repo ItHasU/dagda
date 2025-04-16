@@ -4,5 +4,5 @@
  */
 
 export interface APICollection {
-    [name: string]: (...args: unknown[]) => unknown;
+    [name: string]: (...args: any[]) => unknown;
 }
