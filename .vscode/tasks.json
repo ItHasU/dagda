@@ -2,6 +2,15 @@
     "tasks": [
         {
             "label": "Watch all",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "dependsOrder": "parallel",
+            "dependsOn": [
+                "Watch server",
+                "Watch client"
+            ]
         },
         {
             "type": "npm",
@@ -9,7 +18,7 @@
             "path": "bootstrap/server",
             "group": "build",
             "problemMatcher": [],
-            "label": "bootstrap - server",
+            "label": "Watch server"
         },
         {
             "type": "npm",
@@ -17,7 +26,7 @@
             "path": "bootstrap/client",
             "group": "build",
             "problemMatcher": [],
-            "label": "bootstrap - client",
+            "label": "Watch client"
         }
     ]
 }
