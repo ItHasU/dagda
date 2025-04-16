@@ -1,7 +1,39 @@
 const TsconfigPathsPlugin = require('tsconfig-paths-webpack-plugin');
+const path = require("path");
+
+function getDependenciesRecursively(packagePath, visited = new Set()) {
+  console.log(`Visiting: ${packagePath}`);
+  if (visited.has(packagePath)) return [];
+  visited.add(packagePath);
+
+  const packageJson = require(packagePath);
+  const dependencies = packageJson.dependencies || {};
+  const modules = Object.keys(dependencies);
+
+  let allModules = [...modules];
+
+  for (const [dep, version] of Object.entries(dependencies)) {
+    if (version === "*") {
+      try {
+        const depPackagePath = `${dep}/package.json`;
+        allModules = [
+          ...allModules,
+          ...getDependenciesRecursively(depPackagePath, visited),
+        ];
+      } catch (err) {
+        console.warn(`Could not resolve package: ${dep}`);
+      }
+    } else {
+      console.log(`Adding  : ${dep} (${version})`);
+      allModules.push(dep);
+    }
+  }
+
+  return allModules;
+}
 
 /** Inspired by https://github.com/appzuka/project-references-example */
-function getWebpackConfig(dirname, entry = "src/main.ts", node_modules = []) {
+function getWebpackConfig(dirname, entry = "src/main.ts", node_modules = getDependenciesRecursively(path.resolve(dirname, "./package.json"))) {
   return {
     mode: "development", // or "production"
     watch: false,

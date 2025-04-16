@@ -9,10 +9,11 @@
     "w": "webpack --watch"
   },
   "devDependencies": {
-    "@dagda/build": "*",
+    "@dagda/build": "*"
+  },
+  "dependencies": {
     "@dagda/server": "*",
     "@dagda/shared": "*",
     "@dagda-app/shared": "*"
-  },
-  "dependencies": {}
+  }
 }
