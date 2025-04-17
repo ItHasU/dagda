@@ -2,27 +2,30 @@ import * as assert from "assert";
 import { describe } from "mocha";
 import { PublicationStatus, TEST_MODEL } from "./_data.spec";
 import { EntitiesHandler } from "./handler";
-import { EntityContext, TestSQLAdapter } from "./impl/test.adapter";
-import { asNamed } from "./named.types";
+import { TestContext, TestContextAdapter, TestPersistanceAdapter } from "./impl/test.adapters";
+import { asNamed } from "./tools/named";
 
 describe("EntitiesHandler", () => {
-    type Tables = typeof TEST_MODEL.tables;
+    type TablesFields = typeof TEST_MODEL.tablesFields;
 
     it("inserts independent entities and can refetch", async () => {
-        const adapter = new TestSQLAdapter<Tables>(TEST_MODEL);
-        const handler = new EntitiesHandler<Tables, EntityContext<keyof Tables>>(TEST_MODEL, adapter);
+        const comparator = new TestContextAdapter();
+        const adapter = new TestPersistanceAdapter<TablesFields>(TEST_MODEL);
+        const handler = new EntitiesHandler<TablesFields, TestContext<keyof TablesFields>>(TEST_MODEL, comparator, adapter);
 
-        const user1: Tables["users"] = {
+        const user1: TablesFields["users"] = {
             id: asNamed(0),
             name: asNamed("John"),
             surname: asNamed("Doe"),
-            age: asNamed(42)
+            age: asNamed(42),
+            size: null
         };
-        const user2: Tables["users"] = {
+        const user2: TablesFields["users"] = {
             id: asNamed(0),
             name: asNamed("Jane"),
             surname: asNamed("Doe"),
-            age: null // It is not polite to ask a lady her age
+            age: null, // It is not polite to ask a lady her age
+            size: null
         };
 
         // -- First user --
@@ -52,20 +55,22 @@ describe("EntitiesHandler", () => {
     });
 
     it("inserts a related item and refetch", async () => {
-        const adapter = new TestSQLAdapter<Tables>(TEST_MODEL);
-        const handler = new EntitiesHandler<Tables, EntityContext<keyof Tables>>(TEST_MODEL, adapter);
+        const comparator = new TestContextAdapter();
+        const adapter = new TestPersistanceAdapter<TablesFields>(TEST_MODEL);
+        const handler = new EntitiesHandler<TablesFields, TestContext<keyof TablesFields>>(TEST_MODEL, comparator, adapter);
 
         // -- Insert an user and its first post -------------------------------
         await handler.withTransaction((tr) => {
-            const user1: Tables["users"] = {
+            const user1: TablesFields["users"] = {
                 id: asNamed(0),
                 name: asNamed("John"),
                 surname: asNamed("Doe"),
-                age: asNamed(42)
+                age: asNamed(42),
+                size: null
             };
             tr.insert("users", user1);
             const user1TmpId = user1.id;
-            const post1: Tables["posts"] = {
+            const post1: TablesFields["posts"] = {
                 id: asNamed(0),
                 author: user1TmpId, // Here we use the temporary id of the author
                 title: asNamed("My first post"),
@@ -87,11 +92,12 @@ describe("EntitiesHandler", () => {
 
         // -- Update the post with a newly inserted user ----------------------
         await handler.withTransaction((tr) => {
-            const user2: Tables["users"] = {
+            const user2: TablesFields["users"] = {
                 id: asNamed(0),
                 name: asNamed("Jane"),
                 surname: asNamed("Doe"),
-                age: null // It is not polite to ask a lady her age
+                age: null, // It is not polite to ask a lady her age
+                size: null
             };
             tr.insert("users", user2);
             tr.update("posts", post1, { author: user2.id });

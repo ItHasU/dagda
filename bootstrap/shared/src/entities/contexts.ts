@@ -1,4 +1,5 @@
-import { BaseContext } from "@dagda/shared/src/entities/handler.tools";
+import { ContextAdapter } from "@dagda/shared/src/entities/tools/adapters";
+import { BaseContext } from "@dagda/shared/src/entities/types";
 import { assertUnreachable } from "@dagda/shared/src/tools/asserts";
 import { ProjectId, UserId } from "./types";
 
@@ -14,25 +15,33 @@ export type ProjectContext = BaseContext<"project", { projectId: ProjectId }>;
 /** List of all contexts */
 export type AppContexts = UsersContext | ProjectsContext | ProjectContext;
 
-/** Compare contexts */
-export function appContextEquals(newContext: AppContexts, oldContext: AppContexts): boolean {
-    if (newContext.type !== oldContext.type) {
-        return false;
-    } else {
-        switch (newContext.type) {
-            case "users": {
-                return true; // No options to compare
-            }
-            case "projects": {
-                return newContext.options.userId === (oldContext as ProjectsContext).options.userId;
-            }
-            case "project": {
-                return newContext.options.projectId === (oldContext as ProjectContext).options.projectId;
-            }
-            default: {
-                assertUnreachable(newContext);
+/** Implementation of context adapter for the app */
+export class AppContextAdapter implements ContextAdapter<AppContexts> {
+    /** @inheritdoc */
+    public contextEquals(newContext: AppContexts, oldContext: AppContexts): boolean {
+        if (newContext.type !== oldContext.type) {
+            return false;
+        } else {
+            switch (newContext.type) {
+                case "users": {
+                    return true; // No options to compare
+                }
+                case "projects": {
+                    return newContext.options.userId === (oldContext as ProjectsContext).options.userId;
+                }
+                case "project": {
+                    return newContext.options.projectId === (oldContext as ProjectContext).options.projectId;
+                }
+                default: {
+                    assertUnreachable(newContext);
+                }
             }
         }
+    }
+
+    /** @inheritdoc */
+    public contextIntersects(newContext: AppContexts, oldContext: AppContexts): boolean {
+        return this.contextEquals(newContext, oldContext);
     }
 }
 

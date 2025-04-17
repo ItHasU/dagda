@@ -1,12 +1,34 @@
 import { OperationType, SQLTransactionData } from "../../sql/transaction";
 import { _updateForeignKeys } from "../handler";
 import { EntitiesModel } from "../model";
-import { Data, SQLAdapter, SQLTransactionResult, TablesDefinition } from "../types";
+import { ContextAdapter, Data, PersistenceAdapter, SQLTransactionResult } from "../tools/adapters";
+import { EntitiesTypes } from "../types";
 
-export type EntityContext<TableNames> = { table: TableNames, id?: number };
+/**
+ * Simple context based on the table name and possibly the id of an entity in this table.
+ */
+export type TestContext<TableNames> = { table: TableNames, id?: number };
 
+/**
+ * Test context comparator.
+ * It compares the context based on the table name and the id of the entity if provided.
+ */
+export class TestContextAdapter implements ContextAdapter<TestContext<keyof EntitiesTypes>> {
 
-export class TestSQLAdapter<Tables extends TablesDefinition> implements SQLAdapter<Tables, EntityContext<keyof Tables>> {
+    public contextEquals<TableNames extends string>(newContext: TestContext<TableNames>, oldContext: TestContext<TableNames>) {
+        return newContext.table === oldContext.table && newContext.id === oldContext.id;
+    }
+
+    public contextIntersects<TableNames extends string>(newContext: TestContext<TableNames>, oldContext: TestContext<TableNames>) {
+        return newContext.table === oldContext.table && (newContext.id === undefined || oldContext.id === undefined || newContext.id === oldContext.id);
+    }
+}
+
+/**
+ * Test persistence handler for the entities.
+ * It stores the data in memory and does not use any database.
+ */
+export class TestPersistanceAdapter<Tables extends EntitiesTypes> implements PersistenceAdapter<Tables, TestContext<keyof Tables>> {
 
     /** Last id generated */
     protected _lastId = 0;
@@ -20,15 +42,7 @@ export class TestSQLAdapter<Tables extends TablesDefinition> implements SQLAdapt
         this._repositories = {};
     }
 
-    public contextEquals<TableNames extends string>(newContext: EntityContext<TableNames>, oldContext: EntityContext<TableNames>) {
-        return newContext.table === oldContext.table && newContext.id === oldContext.id;
-    }
-
-    public contextIntersects<TableNames extends string>(newContext: EntityContext<TableNames>, oldContext: EntityContext<TableNames>) {
-        return newContext.table === oldContext.table && (newContext.id === undefined || oldContext.id === undefined || newContext.id === oldContext.id);
-    }
-
-    public fetch(context: EntityContext<keyof Tables>): Promise<Data<Tables>> {
+    public fetch(context: TestContext<keyof Tables>): Promise<Data<Tables>> {
         const result: Data<Tables> = {};
         if (context.id == null) {
             // Return the full table
@@ -63,7 +77,7 @@ export class TestSQLAdapter<Tables extends TablesDefinition> implements SQLAdapt
         return Promise.resolve(result);
     }
 
-    public submit(transactionData: SQLTransactionData<Tables, EntityContext<keyof Tables>>): Promise<SQLTransactionResult> {
+    public submit(transactionData: SQLTransactionData<Tables, TestContext<keyof Tables>>): Promise<SQLTransactionResult> {
         const result: SQLTransactionResult = {
             updatedIds: {}
         };

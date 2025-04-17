@@ -4,8 +4,8 @@ export type CallOptions = {}
 
 /** Call a method on the server */
 export async function apiCall<
-    Name extends keyof Collection,
-    Collection extends APICollection
+    Collection extends APICollection,
+    Name extends keyof Collection
 >(
     name: Name,
     options: CallOptions,

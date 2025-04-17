@@ -1,14 +1,15 @@
-import { JSStaticType, JSTypes, Nullable } from "./javascript.types";
-import { Named } from "./named.types";
+import { JSStaticType, JSTypes, Nullable } from "./tools/javascript.types";
+import { Named } from "./tools/named";
 
-export type NamedType<Name, T> = T extends TypeDefinition<infer RawType, infer Custom> ? Named<Name, JSStaticType<RawType, Custom>> : never;
+/** Utility type to constrain the value of a field */
+export type NamedType<Name, T> = T extends FieldTypeDefinition<infer RawType, infer Custom> ? Named<Name, JSStaticType<RawType, Custom>> : never;
 
 /** 
  * Type definition that can be used for the properties of the entities.
  * @param Custom Can be used for a custom JS type
  * @param RawType The type of the value when stored in JS
  */
-export type TypeDefinition<RawType extends JSTypes, Custom> = {
+export type FieldTypeDefinition<RawType extends JSTypes, Custom> = {
     /** The type of the value when stored in JS */
     rawType: RawType;
 }
@@ -22,23 +23,25 @@ export type FieldDefinition<Types, Tables> = {
     type: keyof Types;
     identity?: boolean;
     optional?: true;
-    foreignTable?: keyof Tables;
+    foreignTable?: Tables;
     fromVersion?: number;
     toVersion?: number;
 }
 
-export type IdFieldDefinition<Types, Tables> = {
+export type IdFieldDefinition<Types> = {
     type: keyof Types;
     identity: true;
     fromVersion?: never; // Force from the first version
     toVersion?: never;   // Force until the last version
 };
 
-export type TypeDefinitions = Record<string, TypeDefinition<JSTypes, any>>;
-export type FieldDefinitions<Types, Tables> = Record<keyof Tables, {
-    id: IdFieldDefinition<Types, Tables>;
-    [key: string]: FieldDefinition<Types, Tables>;
-}>
+/** Mapping of FieldType to its TypeDefinition */
+export type FieldTypesDefinition = Record<string, FieldTypeDefinition<JSTypes, any>>;
+/** Mapping of fields types for each table */
+export type TablesFieldsDefinition<FieldTypes extends FieldTypesDefinition, Tables extends string | symbol | number> = Record<Tables, {
+    id: IdFieldDefinition<FieldTypes>;
+    [field: string]: FieldDefinition<FieldTypes, Tables>;
+}>;
 
 export type KeysWithToVersion<T> = { [K in keyof T]: T[K] extends { toVersion: any } ? never : K }[keyof T];
 
@@ -50,23 +53,21 @@ export type KeysWithToVersion<T> = { [K in keyof T]: T[K] extends { toVersion: a
  * @param Tables are for the entities themselves.
  */
 export class EntitiesModel<
-    Types extends TypeDefinitions,
-    Tables extends FieldDefinitions<Types, Tables>,
-    Version extends number = 1
+    FieldTypes extends FieldTypesDefinition,
+    TablesFields extends TablesFieldsDefinition<FieldTypes, keyof TablesFields>
 > {
-
     /**
      * Create a new entity model.
      * @param _types The map of types used in the application
      * @param _tables The map of tables used in the application
      */
-    constructor(protected readonly _types: Types, protected readonly _tables: Tables) {
+    constructor(protected readonly _types: FieldTypes, protected readonly _tables: TablesFields) {
     }
 
     //#region Utility methods
 
     /** Utility method to the create type definition with custom types easily */
-    public static type<RawType extends JSTypes, Custom>(definition: TypeDefinition<RawType, Custom>): TypeDefinition<RawType, Custom> {
+    public static type<RawType extends JSTypes, Custom>(definition: FieldTypeDefinition<RawType, Custom>): FieldTypeDefinition<RawType, Custom> {
         return definition;
     }
 
@@ -74,44 +75,33 @@ export class EntitiesModel<
 
     //#region Typing methods, to be used with typeof
 
-    public get typeNames(): keyof Types {
+    public get modelFieldTypes(): FieldTypes {
         return undefined as any;
     }
 
-    public get types(): { [K in keyof Types]: NamedType<K, Types[K]> } {
+    public get modelTablesFields(): TablesFields {
+        return undefined as any;
+    }
+
+    public get typeNames(): keyof FieldTypes {
+        return undefined as any;
+    }
+
+    public get fieldTypes(): { [K in keyof FieldTypes]: NamedType<K, FieldTypes[K]> } {
         return undefined as any;
     }
 
     /** Use this property with typeof to get the list */
-    public get tableNames(): keyof Tables {
+    public get tableNames(): keyof TablesFields {
         return undefined as any;
     }
 
-    /** Get the current version of the model */
-    public get version(): number {
-        let version: number = 0;
-        for (const table of this.getTableNames()) {
-            for (const field of this.getTableFieldNames(table)) {
-                const fromFieldVersion = this._tables[table][field].fromVersion;
-                if (fromFieldVersion != null && version < fromFieldVersion) {
-                    version = fromFieldVersion;
-                }
-                const toFieldVersion = this._tables[table][field].toVersion;
-                if (toFieldVersion != null && version < toFieldVersion) {
-                    version = toFieldVersion;
-                }
-            }
-        }
-        return version;
-    }
-
     /** Use this property to get the list of types associated to table names */
-    public get tables(): { [Table in keyof Tables]: {
-        [K in KeysWithToVersion<Tables[Table]>]:
-        undefined extends Tables[Table][K]["toVersion"] ?
-        (Tables[Table][K] extends { optional: true } ? Nullable<NamedType<Tables[Table][K]["type"], Types[Tables[Table][K]["type"]]>> :
-            NamedType<Tables[Table][K]["type"], Types[Tables[Table][K]["type"]]>) :
-        undefined
+    public get tablesFields(): { [Table in keyof TablesFields]: {
+        [K in keyof TablesFields[Table]]:
+        TablesFields[Table][K] extends { optional: true } ?
+        Nullable<NamedType<TablesFields[Table][K]["type"], FieldTypes[TablesFields[Table][K]["type"]]>> :
+        NamedType<TablesFields[Table][K]["type"], FieldTypes[TablesFields[Table][K]["type"]]>
     } } {
         return undefined as any;
     }
@@ -120,17 +110,17 @@ export class EntitiesModel<
 
     //#region Get information about the types
 
-    public getTypeNames(): (keyof Types)[] {
+    public getTypeNames(): (keyof FieldTypes)[] {
         return Object.keys(this._types);
     }
 
     /** Get the list of tables */
-    public getTableNames(): (keyof Tables)[] {
-        return Object.keys(this._tables) as (keyof Tables)[];
+    public getTableNames(): (keyof TablesFields)[] {
+        return Object.keys(this._tables) as (keyof TablesFields)[];
     }
 
     /** Get the list of fields for a table */
-    public getTableFieldNames<T extends keyof Tables>(tableName: T, version?: number): (keyof Tables[T])[] {
+    public getTableFieldNames<T extends keyof TablesFields>(tableName: T, version?: number): (keyof TablesFields[T])[] {
         return Object.keys(this._tables[tableName]).filter(field => {
             if (version == null) {
                 return this._tables[tableName][field].toVersion == null
@@ -148,36 +138,36 @@ export class EntitiesModel<
         });
     }
 
-    public getFieldTypeName<T extends keyof Tables, F extends keyof Tables[T]>(tableName: T, fieldName: F): Tables[T][F]["type"] {
+    public getFieldTypeName<T extends keyof TablesFields, F extends keyof TablesFields[T]>(tableName: T, fieldName: F): TablesFields[T][F]["type"] {
         return this._tables[tableName][fieldName]["type"];
     }
 
-    public isFieldIdentity<T extends keyof Tables, F extends keyof Tables[T]>(tableName: T, fieldName: F): boolean {
+    public isFieldIdentity<T extends keyof TablesFields, F extends keyof TablesFields[T]>(tableName: T, fieldName: F): boolean {
         return this._tables[tableName][fieldName]["identity"] === true;
     }
 
-    public isFieldOptional<T extends keyof Tables, F extends keyof Tables[T]>(tableName: T, fieldName: F): boolean {
+    public isFieldOptional<T extends keyof TablesFields, F extends keyof TablesFields[T]>(tableName: T, fieldName: F): boolean {
         return this._tables[tableName][fieldName]["optional"] === true;
     }
 
-    public isFieldForeign<T extends keyof Tables, F extends keyof Tables[T]>(tableName: T, fieldName: F): boolean {
+    public isFieldForeign<T extends keyof TablesFields, F extends keyof TablesFields[T]>(tableName: T, fieldName: F): boolean {
         return this._tables[tableName][fieldName]["foreignTable"] != null;
     }
 
-    public getFieldForeignTableName<T extends keyof Tables, F extends keyof Tables[T]>(tableName: T, fieldName: F): (keyof Tables) | null {
+    public getFieldForeignTableName<T extends keyof TablesFields, F extends keyof TablesFields[T]>(tableName: T, fieldName: F): keyof TablesFields | null {
         return this._tables[tableName][fieldName]["foreignTable"] ?? null;
     }
 
-    public getTableForeignKeys<T extends keyof Tables>(table: T): { [K in keyof Tables[T]]: (keyof Tables) | null } {
-        const foreignKeys: { [K in keyof Tables[T]]: (keyof Tables) | null } = {} as any;
+    public getTableForeignKeys<T extends keyof TablesFields>(table: T): { [K in keyof TablesFields[T]]: (keyof TablesFields) | null } {
+        const foreignKeys: { [K in keyof TablesFields[T]]: (keyof TablesFields) | null } = {} as any;
         for (const field of this.getTableFieldNames(table)) {
             foreignKeys[field] = this.getFieldForeignTableName(table, field);
         }
         return foreignKeys;
     }
 
-    public getForeignKeys(): { [T in keyof Tables]: { [K in keyof Tables[T]]: boolean } } {
-        const foreignKeys: { [T in keyof Tables]: { [K in keyof Tables[T]]: boolean } } = {} as any;
+    public getForeignKeys(): { [T in keyof TablesFields]: { [K in keyof TablesFields[T]]: boolean } } {
+        const foreignKeys: { [T in keyof TablesFields]: { [K in keyof TablesFields[T]]: boolean } } = {} as any;
         for (const table of this.getTableNames()) {
             foreignKeys[table] = {} as any;
             for (const field of this.getTableFieldNames(table)) {
@@ -204,10 +194,10 @@ export class EntitiesModel<
         }
     }
 
-    protected _validateType(type: keyof Types): void {
+    protected _validateType(type: keyof FieldTypes): void {
     }
 
-    protected _validateTable(table: keyof Tables): void {
+    protected _validateTable(table: keyof TablesFields): void {
         // Check that there is only one identity field
         let idFieldCount: number = 0;
         for (const field of this.getTableFieldNames(table)) {
@@ -224,46 +214,4 @@ export class EntitiesModel<
 
     //#endregion
 
-    //#region Versioning methods
-
-    /** 
-     * Get the list of fields that are new in the given version
-     * @param version The version to check
-     */
-    public getAddedFields(version: number): { [T in keyof Tables]?: (keyof Tables[T])[] } {
-        const newFields: { [T in keyof Tables]?: (keyof Tables[T])[] } = {} as any;
-        for (const table of this.getTableNames()) {
-            for (const field of this.getTableFieldNames(table, version)) {
-                const fromFieldVersion = this._tables[table][field].fromVersion;
-                if (fromFieldVersion != null && version === fromFieldVersion) {
-                    const newFieldsForTable = newFields[table] ?? [];
-                    newFieldsForTable.push(field);
-                    newFields[table] = newFieldsForTable;
-                }
-            }
-        }
-        return newFields;
-    }
-
-    /** 
-     * Get the list of fields that are removed in the given version
-     * @param version The version to check
-     */
-    public getRemovedFields(version: number): { [T in keyof Tables]?: (keyof Tables[T])[] } {
-        const removedFields: { [T in keyof Tables]?: (keyof Tables[T])[] } = {} as any;
-        for (const table of this.getTableNames()) {
-            // On récupère les champs à la version précédente, parce que si le champ a été supprimé, il n'existe plus à la version actuelle
-            for (const field of this.getTableFieldNames(table, version - 1)) {
-                const toFieldVersion = this._tables[table][field].toVersion;
-                if (toFieldVersion != null && version === toFieldVersion) {
-                    const removedFieldsForTable = removedFields[table] ?? [];
-                    removedFieldsForTable.push(field);
-                    removedFields[table] = removedFieldsForTable;
-                }
-            }
-        }
-        return removedFields;
-    }
-
-    //#endregion
 }

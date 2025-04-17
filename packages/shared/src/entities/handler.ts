@@ -2,10 +2,12 @@ import { OperationType, SQLTransaction } from "../sql/transaction";
 import { Event, EventHandler, EventHandlerData, EventHandlerImpl, EventListener } from "../tools/events";
 import { NotificationHelper } from "../tools/notification.helper";
 import { Queue } from "../tools/queue";
-import { EntitiesCache, EntitiesCacheHandler } from "./cache";
 import { EntitiesModel } from "./model";
-import { Named, asNamed } from "./named.types";
-import { BaseEntity, ContextEvents, EntitiesEvents, ForeignKeys, SQLAdapter, SQLTransactionResult, TablesDefinition } from "./types";
+import { ContextAdapter, PersistenceAdapter, SQLTransactionResult } from "./tools/adapters";
+import { EntitiesCache, EntitiesCacheHandler } from "./tools/cache";
+import { ContextEvents, EntitiesEvents } from "./tools/events";
+import { Named, asNamed } from "./tools/named";
+import { BaseEntity, EntitiesTypes, ForeignKeys } from "./types";
 
 /** Internal structure to represent the current state of a context in the handler */
 interface ContextState<Contexts> {
@@ -27,7 +29,7 @@ interface ContextState<Contexts> {
  * Utility class allowing to fetch data, store them in a cache and submit modifications.  
  * The cache can then be accessed through synchronous methods.
  */
-export class EntitiesHandler<Tables extends TablesDefinition, Contexts> implements EntitiesCacheHandler<Tables>, EventHandler<EntitiesEvents> {
+export class EntitiesHandler<Tables extends EntitiesTypes, Contexts> implements EntitiesCacheHandler<Tables>, EventHandler<EntitiesEvents> {
 
     /** List of contexts loaded */
     protected _loadedContexts: ContextState<Contexts>[] = [];
@@ -43,7 +45,7 @@ export class EntitiesHandler<Tables extends TablesDefinition, Contexts> implemen
     /** Queue for submit of transactions */
     protected _submitQueue: Queue<void> = new Queue(void (0));
 
-    constructor(protected _model: EntitiesModel<any, any>, protected _adapter: SQLAdapter<Tables, Contexts>) {
+    constructor(protected _model: EntitiesModel<any, any>, protected _comparator: ContextAdapter<Contexts>, protected _persistenceHandler: PersistenceAdapter<Tables, Contexts>) {
         // When a notification is received mark my cache as dirty
         NotificationHelper.on<ContextEvents<Contexts>>("contextChanged", (event: Event<ContextEvents<Contexts>["contextChanged"]>) => {
             this.markCacheDirty(...event.data);
@@ -94,7 +96,7 @@ export class EntitiesHandler<Tables extends TablesDefinition, Contexts> implemen
             // Only mark contexts intersecting with the provided contexts as dirty
             for (const context of contexts) {
                 for (const loadedContext of this._loadedContexts) {
-                    if (this._adapter.contextIntersects(context, loadedContext.context)) {
+                    if (this._comparator.contextIntersects(context, loadedContext.context)) {
                         loadedContext.dirty = true;
                         if (loadedContext.active) {
                             // Only trigger a dirty state if the context is active
@@ -152,7 +154,7 @@ export class EntitiesHandler<Tables extends TablesDefinition, Contexts> implemen
                 // Seek for existing context matching the context to load
                 let contextAlreadyExisting = false;
                 for (const existingState of this._loadedContexts) {
-                    if (this._adapter.contextEquals(contextToLoad, existingState.context)) {
+                    if (this._comparator.contextEquals(contextToLoad, existingState.context)) {
                         contextAlreadyExisting = true;
                         statesToMarkActiveAndNotDirty.add(existingState);
                         if (existingState.dirty) {
@@ -178,7 +180,7 @@ export class EntitiesHandler<Tables extends TablesDefinition, Contexts> implemen
 
             // -- Fetch the missing contexts --
             for (const context of contextsToFetch) {
-                const result = await this._adapter.fetch(context);
+                const result = await this._persistenceHandler.fetch(context);
                 // Merge loaded items with current cache
                 for (const [table, items] of Object.entries(result)) {
                     const cache = this.getCache(table);
@@ -291,7 +293,7 @@ export class EntitiesHandler<Tables extends TablesDefinition, Contexts> implemen
                 }
                 // -- Call submit on the connector --
                 // Perform the action on the database
-                const result = await this._adapter.submit({
+                const result = await this._persistenceHandler.submit({
                     // Only serialize the serializable entries
                     operations: transaction.operations,
                     contexts: transaction.contexts
@@ -422,7 +424,7 @@ export class EntitiesHandler<Tables extends TablesDefinition, Contexts> implemen
  * Update item's foreign keys to new uids.
  * @throws If id cannot be updated.
  */
-export function _updateForeignKeys<Tables extends TablesDefinition, TableName extends keyof Tables>(foreignKeys: ForeignKeys<Tables>, result: SQLTransactionResult, table: TableName, item: Tables[TableName]): void {
+export function _updateForeignKeys<Tables extends EntitiesTypes, TableName extends keyof Tables>(foreignKeys: ForeignKeys<Tables>, result: SQLTransactionResult, table: TableName, item: Tables[TableName]): void {
     const tableForeignKeys = foreignKeys[table];
     for (const key in tableForeignKeys) {
         if (tableForeignKeys[key]) {

@@ -1,4 +1,4 @@
-import { BaseEntity, TablesDefinition } from "./types";
+import { BaseEntity, EntitiesTypes } from "../types";
 
 /** Cache for fetched entities from a table */
 export class EntitiesCache<Entity extends BaseEntity> {
@@ -34,7 +34,7 @@ export class EntitiesCache<Entity extends BaseEntity> {
 }
 
 /** Gather caches for all tables */
-export interface EntitiesCacheHandler<Tables extends TablesDefinition> {
+export interface EntitiesCacheHandler<Tables extends EntitiesTypes> {
 
     /** Get or build an empty cache */
     getCache<TableName extends keyof Tables>(tableName: TableName): EntitiesCache<Tables[TableName]>

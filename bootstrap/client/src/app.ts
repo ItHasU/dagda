@@ -1,4 +1,6 @@
 import { AppTypes } from "@dagda-app/shared/src/app/types";
+import { AppContextAdapter } from "@dagda-app/shared/src/entities/contexts";
+import { APP_MODEL } from "@dagda-app/shared/src/entities/model";
 import { AbstractClientApp } from "@dagda/client/src/app";
 import { AbstractPageElement } from "@dagda/client/src/app/abstract.page.element";
 import { HelloPage } from "@dagda/client/src/app/hello/hello.page";
@@ -13,6 +15,11 @@ export interface ClientAppTypes extends AppTypes {
 }
 
 export class ClientApp extends AbstractClientApp<ClientAppTypes> {
+
+    constructor() {
+        super(APP_MODEL, new AppContextAdapter());
+        this.registerPage("hello", HelloPage);
+    }
 
     /** @inheritdoc */
     protected override _injectUserInfos(displayName: string, photoURL: string | null): void {

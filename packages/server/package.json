@@ -10,7 +10,8 @@
         "express-session": "=1.18.1",
         "passport": "=0.7.0",
         "passport-google-oauth20": "=2.0.0",
-        "pg": "=8.14.1"
+        "pg": "=8.14.1",
+        "pg-format": "=1.0.4"
     },
     "devDependencies": {
         "@dagda/build": "*",
@@ -19,6 +20,7 @@
         "@types/express-session": "=1.18.1",
         "@types/passport": "=1.0.17",
         "@types/passport-google-oauth20": "=2.0.16",
-        "@types/pg": "^8.11.13"
+        "@types/pg": "=8.11.13",
+        "@types/pg-format": "^1.0.5"
     }
 }

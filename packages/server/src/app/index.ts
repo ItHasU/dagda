@@ -1,9 +1,15 @@
+import { EntitiesAPI } from "@dagda/shared/src/api/impl/entities.api";
 import { BaseAppTypes } from "@dagda/shared/src/app/types";
+import { EntitiesHandler } from "@dagda/shared/src/entities/handler";
+import { EntitiesModel } from "@dagda/shared/src/entities/model";
+import { ContextAdapter, Data } from "@dagda/shared/src/entities/tools/adapters";
+import { SQLTransactionData, SQLTransactionResult } from "@dagda/shared/src/sql/transaction";
 import express from "express";
 import passport from "passport";
 import { resolve } from "path";
-import { apiRegister, RequestCallback } from "../api";
-import { getSystemInfo } from "../api/impl/system.api";
+import { apiRegister, RequestCallback, RequestOptions } from "../api";
+import { submit } from "../api/impl/entities.api";
+import { getSystemInfo, triggerError } from "../api/impl/system.api";
 import { AuthHandler, AuthStrategy } from "../auth";
 import { PGRunner } from "../sql/impl/pg.runner";
 import { getEnvNumber, getEnvString, getEnvStringOptional } from "../tools/config";
@@ -62,8 +68,9 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes> {
     protected _app: express.Express;
     protected _auth: AuthHandler;
     protected _db: PGRunner;
+    protected _handler: EntitiesHandler<AppTypes["entities"], AppTypes["contexts"]>;
 
-    constructor(protected _params: ServerParams) {
+    constructor(protected _params: ServerParams, protected _model: EntitiesModel<any, any>, protected _contextAdapter: ContextAdapter<AppTypes["contexts"]>) {
         console.log("Reading config for environment variables...");
         // Read the config from env variables
         this._config = this._readConfigFromEnv();
@@ -81,10 +88,6 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes> {
         const path: string = resolve(this._params.staticFolder);
         console.log(`Serving static folder: ${path}`);
         this._app.use(express.static(path));
-
-        // -- Register standard APIs --
-        console.log("Registering standard APIs...");
-        this.registerAPI("getSystemInfo", getSystemInfo);
 
         // -- Init DB connection --
         console.log("Initializing database connection...");
@@ -116,6 +119,30 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes> {
         }).catch((error) => {
             console.error("Error fetching database stats:", error);
         });
+
+        // -- Init the entities handler --
+        console.log("Initializing entities handler...");
+        this._handler = new EntitiesHandler(this._model, this._contextAdapter, {
+            fetch: this._fetch.bind(this),
+            submit: this._submit.bind(this)
+        });
+
+        // -- Register standard APIs --
+        console.log("Registering standard APIs...");
+        this.registerAPI("getSystemInfo", getSystemInfo);
+        this.registerAPI("triggerError", triggerError);
+        // Register the entities API
+        apiRegister<EntitiesAPI<AppTypes["contexts"], AppTypes["entities"]>, "fetch">(this._app, "fetch", (options: RequestOptions, context: AppTypes["contexts"]): Promise<Data<AppTypes["entities"]>> => {
+            return this._fetch(context, options);
+        });
+        apiRegister<EntitiesAPI<AppTypes["contexts"], AppTypes["entities"]>, "submit">(this._app, "submit", (options: RequestOptions, transactionData: SQLTransactionData<AppTypes["entities"], AppTypes["contexts"]>): Promise<SQLTransactionResult> => {
+            return this._submit(transactionData);
+        });
+        this.registerAPI("submit", (options: RequestOptions, ...args: any[]) => {
+            // Call the submit function
+            return Promise.reject("Not implemented"); //this._submit(transactionData);
+        });
+
     }
 
     //#region HTTP Server -----------------------------------------------------
@@ -180,16 +207,22 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes> {
 
     //#region Entities --------------------------------------------------------
 
-    protected _registerEntitiesService(): void {
-
+    /** 
+     * @returns the handler 
+     * The handler is exposed directly and should be used to access the entities.
+     */
+    public get handler(): EntitiesHandler<AppTypes["entities"], AppTypes["contexts"]> {
+        return this._handler;
     }
 
-    /** Can be used to perform a transaction on the server */
-    public fetch(context: AppTypes["contexts"]): Promise<unknown> {
-        throw new Error("Method not implemented.");
+    /** Fetch implementation to be provided by the app */
+    protected abstract _fetch(context: AppTypes["contexts"], request?: RequestOptions): Promise<Data<AppTypes["entities"]>>;
+
+    /** Implementation of submit with app's methods */
+    protected _submit(transactionData: SQLTransactionData<AppTypes["entities"], AppTypes["contexts"]>): Promise<SQLTransactionResult> {
+        return submit(this._db, this._model, transactionData);
     }
 
     //#endregion
-
 
 }

@@ -1,6 +1,6 @@
-import { EntitiesCacheHandler } from "../entities/cache";
-import { asNamed } from "../entities/named.types";
-import { BaseEntity, TablesDefinition } from "../entities/types";
+import { EntitiesCacheHandler } from "../entities/tools/cache";
+import { asNamed } from "../entities/tools/named";
+import { BaseEntity, EntitiesTypes } from "../entities/types";
 
 export enum OperationType {
     INSERT = 1,
@@ -26,12 +26,12 @@ export interface DeleteOptions<TableName> {
 
 export type BaseOperation<OT extends OperationType, Options> = { type: OT, options: Options };
 
-export type SQLOperation<Tables extends TablesDefinition, TableName extends keyof Tables> =
+export type SQLOperation<Tables extends EntitiesTypes, TableName extends keyof Tables> =
     BaseOperation<OperationType.INSERT, InsertOptions<TableName, Tables[TableName]>>
     | BaseOperation<OperationType.UPDATE, UpdateOptions<TableName>>
     | BaseOperation<OperationType.DELETE, DeleteOptions<TableName>>;
 
-export type SQLTransactionData<Tables extends TablesDefinition, Contexts> = {
+export type SQLTransactionData<Tables extends EntitiesTypes, Contexts> = {
     operations: SQLOperation<Tables, keyof Tables>[];
     contexts: Contexts[];
 };
@@ -45,7 +45,7 @@ export interface SQLTransactionResult {
  * The transaction will apply changes to DTO but changes will only be applied in 
  * database only after the submission.
  */
-export class SQLTransaction<Tables extends TablesDefinition, Contexts> {
+export class SQLTransaction<Tables extends EntitiesTypes, Contexts> {
 
     //#region Temporary ids ---------------------------------------------------
 

@@ -6,3 +6,5 @@ export const APP: ClientApp = new ClientApp();
 APP.start();
 APP.registerPage("hello", HelloPage);
 APP.setPage("hello");
+
+(window as any)["APP"] = APP;

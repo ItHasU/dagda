@@ -1,15 +1,15 @@
 import * as assert from "assert";
 import { describe, it } from "mocha";
 import { TEST_MODEL } from "./_data.spec";
-import { asNamed } from "./named.types";
+import { asNamed } from "./tools/named";
 
 describe("EntitiesModel", () => {
 
     it("returns undefined for typing getters", () => {
         assert.equal(undefined, TEST_MODEL.typeNames);
-        assert.equal(undefined, TEST_MODEL.types);
+        assert.equal(undefined, TEST_MODEL.fieldTypes);
         assert.equal(undefined, TEST_MODEL.tableNames);
-        assert.equal(undefined, TEST_MODEL.tables);
+        assert.equal(undefined, TEST_MODEL.tablesFields);
     });
 
     it("returns the list of types", () => {
@@ -68,27 +68,13 @@ describe("EntitiesModel", () => {
     });
 
     it("provides typings", () => {
-        const user: typeof TEST_MODEL.tables["users"] = {
+        const user: typeof TEST_MODEL.tablesFields["users"] = {
             id: asNamed(0),
             name: asNamed("John"),
             surname: asNamed("Doe"),
-            age: null
+            age: null,
+            size: null
         };
     });
 
-    it("gives fields added", () => {
-        assert.deepEqual(TEST_MODEL.getAddedFields(0), {});
-        assert.deepEqual(TEST_MODEL.getAddedFields(1), {
-            "users": ["age"]
-        });
-        assert.deepEqual(TEST_MODEL.getAddedFields(2), {});
-    });
-
-    it("gives fields removed", () => {
-        assert.deepEqual(TEST_MODEL.getRemovedFields(0), {});
-        assert.deepEqual(TEST_MODEL.getRemovedFields(1), {
-            "users": ["size"]
-        });
-        assert.deepEqual(TEST_MODEL.getRemovedFields(2), {});
-    });
 });

@@ -1,5 +1,5 @@
-import { JSTypes } from "./javascript.types";
 import { EntitiesModel } from "./model";
+import { JSTypes } from "./tools/javascript.types";
 
 /** Custom type */
 export enum PublicationStatus {

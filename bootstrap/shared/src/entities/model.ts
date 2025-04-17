@@ -1,5 +1,5 @@
-import { JSTypes } from "@dagda/shared/src/entities/javascript.types";
 import { EntitiesModel } from "@dagda/shared/src/entities/model";
+import { JSTypes } from "@dagda/shared/src/entities/tools/javascript.types";
 
 //#region Custom field types --------------------------------------------------
 

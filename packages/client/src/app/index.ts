@@ -1,5 +1,9 @@
+import { EntitiesAPI } from "@dagda/shared/src/api/impl/entities.api";
 import { SystemAPI } from "@dagda/shared/src/api/impl/system.api";
 import { BaseAppTypes } from "@dagda/shared/src/app/types";
+import { EntitiesHandler } from "@dagda/shared/src/entities/handler";
+import { EntitiesModel } from "@dagda/shared/src/entities/model";
+import { ContextAdapter } from "@dagda/shared/src/entities/tools/adapters";
 import "bootstrap";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import "bootstrap/dist/css/bootstrap.css";
@@ -19,9 +23,18 @@ export abstract class AbstractClientApp<AppTypes extends BaseClientAppTypes> {
 
     protected _registeredPages: { [pageName in keyof AppTypes["pages"]]?: { new(): AbstractPageElement<unknown> } } = {};
     protected _currentPage: AbstractPageElement<unknown> | null = null;
+    protected _handler: EntitiesHandler<AppTypes["entities"], AppTypes["contexts"]>;
 
-    constructor() {
+    constructor(model: EntitiesModel<any, any>, contextAdapter: ContextAdapter<AppTypes["contexts"]>) {
         this._injectHeaders();
+        this._handler = new EntitiesHandler<AppTypes["entities"], AppTypes["contexts"]>(model, contextAdapter, {
+            fetch: async (context) => {
+                return apiCall<EntitiesAPI<AppTypes["contexts"], AppTypes["entities"]>, "fetch">("fetch", {}, context);
+            },
+            submit: async (data) => {
+                return apiCall<EntitiesAPI<AppTypes["contexts"], AppTypes["entities"]>, "submit">("submit", {}, data);
+            }
+        });
     }
 
     /**
@@ -32,7 +45,7 @@ export abstract class AbstractClientApp<AppTypes extends BaseClientAppTypes> {
      */
     public async start(): Promise<void> {
         // -- Refresh the user --
-        await apiCall<"getSystemInfo", SystemAPI>("getSystemInfo", {}).then((info) => {
+        await apiCall<SystemAPI, "getSystemInfo">("getSystemInfo", {}).then((info) => {
             this._injectUserInfos(info.userDisplayName, info.userPhotoUrl);
         }).catch((err) => {
             console.error("Error while refreshing user info", err);
@@ -116,7 +129,7 @@ export abstract class AbstractClientApp<AppTypes extends BaseClientAppTypes> {
         name: APIName,
         ...args: Parameters<AppTypes["apis"][APIName]>
     ): Promise<ReturnType<AppTypes["apis"][APIName]>> {
-        return apiCall<APIName, AppTypes['apis']>(name, {}, ...args);
+        return apiCall<AppTypes['apis'], APIName>(name, {}, ...args);
     }
 
     //#endregion
