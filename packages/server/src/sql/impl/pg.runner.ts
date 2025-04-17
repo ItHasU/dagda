@@ -53,7 +53,7 @@ export class PGConnection implements SQLConnection {
             if (result.rowCount !== 1) {
                 return null; // Failed to get an id
             } else {
-                return result.rows[0].id;
+                return +result.rows[0].id;
             }
         } catch (error) {
             console.error("Failed pg.insert()", query, params);
