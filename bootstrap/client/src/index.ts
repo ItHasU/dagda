@@ -1,10 +1,22 @@
+import { AppTypes } from "@dagda-app/shared/src/app/types";
+import { AppContextAdapter } from "@dagda-app/shared/src/entities/contexts";
+import { APP_MODEL } from "@dagda-app/shared/src/entities/model";
+import { Dagda } from "@dagda/client/src/app";
 import { HelloPage } from "@dagda/client/src/app/hello/hello.page";
-import { ClientApp } from "./app";
+import { PageContainer } from "@dagda/client/src/components/container/container.component";
+import { LoginComponent } from "@dagda/client/src/components/login/login.component";
 
-/** Singleton of the App */
-export const APP: ClientApp = new ClientApp();
-APP.start();
-APP.registerPage("hello", HelloPage);
-APP.setPage("hello");
+// Add all components here to make sure they are registered
+LoginComponent;
+PageContainer;
+HelloPage;
 
-(window as any)["APP"] = APP;
+// Custom types
+export interface ClientAppTypes extends AppTypes {
+    pages: {
+        "hello": HelloPage;
+    };
+}
+
+Dagda.init<ClientAppTypes>(APP_MODEL, new AppContextAdapter());
+// dagda.registerPage("hello", HelloPage);

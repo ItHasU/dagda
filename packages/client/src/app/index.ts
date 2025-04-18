@@ -4,6 +4,7 @@ import { BaseAppTypes } from "@dagda/shared/src/app/types";
 import { EntitiesHandler } from "@dagda/shared/src/entities/handler";
 import { EntitiesModel } from "@dagda/shared/src/entities/model";
 import { ContextAdapter } from "@dagda/shared/src/entities/tools/adapters";
+import { EventHandlerData, EventHandlerImpl, EventListener } from "@dagda/shared/src/tools/events";
 import "bootstrap";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import "bootstrap/dist/css/bootstrap.css";
@@ -13,20 +14,37 @@ import { AbstractPageElement } from "./abstract.page.element";
 
 export interface BaseClientAppTypes extends BaseAppTypes {
     /** Pages */
-    pages: { [pageName: string]: AbstractPageElement<unknown> };
+    pages: { [pageName: string]: AbstractPageElement };
+}
+
+export type DagdaEvents = {
+    userInfoChanged: {
+        /** The user display name */
+        displayName: string;
+        /** The user photo URL */
+        photoURL?: string;
+    };
+
+    /** Event triggered when the page is changed */
+    pageChanged: {
+        /** The page that was set */
+        page: AbstractPageElement;
+    }
 }
 
 /**
  * This class gather all the common code for the client application.
  */
-export abstract class AbstractClientApp<AppTypes extends BaseClientAppTypes> {
+export class Dagda {
 
-    protected _registeredPages: { [pageName in keyof AppTypes["pages"]]?: { new(): AbstractPageElement<unknown> } } = {};
-    protected _currentPage: AbstractPageElement<unknown> | null = null;
-    protected _handler: EntitiesHandler<AppTypes["entities"], AppTypes["contexts"]>;
 
-    constructor(model: EntitiesModel<any, any>, contextAdapter: ContextAdapter<AppTypes["contexts"]>) {
-        this._injectHeaders();
+    //#region App initialization
+
+    protected static _handler: EntitiesHandler<any, any> | null = null;
+
+    /** Initialize Dagda */
+    public static async init<AppTypes extends BaseAppTypes>(model: EntitiesModel<any, any>, contextAdapter: ContextAdapter<AppTypes["contexts"]>): Promise<void> {
+        // -- Create the handler --
         this._handler = new EntitiesHandler<AppTypes["entities"], AppTypes["contexts"]>(model, contextAdapter, {
             fetch: async (context) => {
                 return apiCall<EntitiesAPI<AppTypes["contexts"], AppTypes["entities"]>, "fetch">("fetch", {}, context);
@@ -35,76 +53,31 @@ export abstract class AbstractClientApp<AppTypes extends BaseClientAppTypes> {
                 return apiCall<EntitiesAPI<AppTypes["contexts"], AppTypes["entities"]>, "submit">("submit", {}, data);
             }
         });
-    }
 
-    /**
-     * Start the application. 
-     * This will refresh the user info and navigate to the default page.
-     * 
-     * Use this method once you have initialized your application (register pages, etc).
-     */
-    public async start(): Promise<void> {
+        // -- Inject headers in the app --
+        this._injectHeaders();
+
         // -- Refresh the user --
         await apiCall<SystemAPI, "getSystemInfo">("getSystemInfo", {}).then((info) => {
-            this._injectUserInfos(info.userDisplayName, info.userPhotoUrl);
+            EventHandlerImpl.fire<DagdaEvents, "userInfoChanged">(this._eventHandlerData, "userInfoChanged", {
+                displayName: info.userDisplayName,
+                photoURL: info.userPhotoUrl ?? undefined
+            });
         }).catch((err) => {
             console.error("Error while refreshing user info", err);
-            this._injectUserInfos("Unknown", null);
         });
     }
 
-    //#region Page management
-
-    public registerPage<PageName extends keyof AppTypes["pages"]>(
-        name: PageName,
-        page: { new(): AppTypes["pages"][PageName] }
-    ): void {
-        this._registeredPages[name] = page;
-    }
-
-    /** 
-     * Toggle current page.
-     * If no page is given, the default page will be used.
-     */
-    public async setPage<PageName extends keyof AppTypes["pages"]>(page: PageName): Promise<AppTypes["pages"][PageName]> {
-        // -- Empty page --
-        if (this._currentPage != null) {
-            try {
-                this._disposePage(this._currentPage);
-            } catch (err) {
-                console.error("Error while disposing page", err);
-            } finally {
-                this._currentPage = null;
-            }
+    /** Get the handler */
+    public static handler<AppTypes extends BaseAppTypes>(): EntitiesHandler<AppTypes["entities"], AppTypes["contexts"]> {
+        if (Dagda._handler == null) {
+            throw new Error("Handler not initialized");
         }
-
-        try {
-            const constructor = this._registeredPages[page];
-            if (constructor != null) {
-                // -- Create page --
-                const newPage = new constructor();
-                this._currentPage = newPage
-                // -- Append page --
-                this._injectPage(this._currentPage);
-                await this._currentPage.refresh(); // Catch by the page
-                return newPage as AppTypes["pages"][PageName];
-            } else {
-                console.error(`Page ${page.toString()} not found, cannot set page`);
-                return Promise.reject(new Error(`Page ${page.toString()} not found`));
-            }
-        } catch (err) {
-            console.error("Error while creating page", err);
-            this._currentPage = null;
-            throw err;
-        }
+        return Dagda._handler;
     }
-
-    //#endregion
-
-    //#region HTML manipulation
 
     /** Inject app headers in the page so you don't have to bother */
-    protected _injectHeaders(): void {
+    protected static _injectHeaders(): void {
         const headersTemplate = Handlebars.compile(require("./index.header.html").default);
         const headers = headersTemplate({
             title: "Dagda"
@@ -112,20 +85,72 @@ export abstract class AbstractClientApp<AppTypes extends BaseClientAppTypes> {
         document.head.insertAdjacentHTML("beforeend", headers);
     }
 
-    /** Display user infos in your page */
-    protected abstract _injectUserInfos(displayName: string, photoUrl: string | null): void;
-
-    /** Inject the page into the application */
-    protected abstract _injectPage(page: AbstractPageElement<unknown>): void;
-
-    /** Dispose current page */
-    protected abstract _disposePage(page: AbstractPageElement<unknown>): void;
-
     //#endregion
+
+    //#region Events
+
+    /** Event listeners storage */
+    private static readonly _eventHandlerData: EventHandlerData<Record<string, unknown>> = {};
+
+    /** Register a listener on any notification kind */
+    public static on<EventName extends keyof DagdaEvents>(name: EventName, listener: EventListener<DagdaEvents[EventName]>): void {
+        EventHandlerImpl.on<DagdaEvents, EventName>(this._eventHandlerData, name, listener);
+    }
+
+    // //#region Page management
+
+    // protected _registeredPages: { [pageName in keyof AppTypes["pages"]]?: { new(): AbstractPageElement } } = {};
+    // protected _currentPage: AbstractPageElement | null = null;
+
+    // public registerPage<PageName extends keyof AppTypes["pages"]>(
+    //     name: PageName,
+    //     page: { new(): AppTypes["pages"][PageName] }
+    // ): void {
+    //     this._registeredPages[name] = page;
+    // }
+
+    // /** 
+    //  * Toggle current page.
+    //  * If no page is given, the default page will be used.
+    //  */
+    // public async setPage<PageName extends keyof AppTypes["pages"]>(page: PageName): Promise<AppTypes["pages"][PageName]> {
+    //     // -- Empty page --
+    //     if (this._currentPage != null) {
+    //         try {
+    //             // FIXME this._disposePage(this._currentPage);
+    //         } catch (err) {
+    //             console.error("Error while disposing page", err);
+    //         } finally {
+    //             this._currentPage = null;
+    //         }
+    //     }
+
+    //     try {
+    //         const constructor = this._registeredPages[page];
+    //         if (constructor != null) {
+    //             // -- Create page --
+    //             const newPage = new constructor();
+    //             this._currentPage = newPage
+    //             // -- Append page --
+    //             // FIXME this._injectPage(this._currentPage);
+    //             await this._currentPage.refresh(); // Catch by the page
+    //             return newPage as AppTypes["pages"][PageName];
+    //         } else {
+    //             console.error(`Page ${page.toString()} not found, cannot set page`);
+    //             return Promise.reject(new Error(`Page ${page.toString()} not found`));
+    //         }
+    //     } catch (err) {
+    //         console.error("Error while creating page", err);
+    //         this._currentPage = null;
+    //         throw err;
+    //     }
+    // }
+
+    // //#endregion
 
     //#region API calls
 
-    public call<APIName extends keyof AppTypes["apis"]>(
+    public static call<AppTypes extends BaseAppTypes, APIName extends keyof AppTypes["apis"]>(
         name: APIName,
         ...args: Parameters<AppTypes["apis"][APIName]>
     ): Promise<ReturnType<AppTypes["apis"][APIName]>> {
@@ -134,97 +159,3 @@ export abstract class AbstractClientApp<AppTypes extends BaseClientAppTypes> {
 
     //#endregion
 }
-
-
-// class App {
-
-//     protected readonly _pageDiv: HTMLDivElement;
-//     protected readonly _statusPlaceholder: HTMLSpanElement;
-
-//     protected _currentPage: AbstractPageElement | null = null;
-
-//     protected _lastRefreshed: DOMHighResTimeStamp | null = null;
-
-//     constructor() {
-//         // -- SQLHandler --
-//         this._statusPlaceholder = document.getElementById("statusPlaceholder") as HTMLSpanElement;
-//         this._statusPlaceholder.append(new SQLStatusComponent(StaticDataProvider.entitiesHandler));
-//         this._statusPlaceholder.addEventListener("click", async () => {
-//             StaticDataProvider.entitiesHandler.markCacheDirty();
-//             if (this._currentPage) {
-//                 await this._currentPage.refresh();
-//             }
-//         });
-
-//         // -- Bind lock button --
-//         const lockButton = document.getElementById("lockButton");
-//         if (lockButton) {
-//             lockButton.addEventListener("click", () => this._toggleLocked());
-//         }
-//         // -- Bind pages --
-//         this._pageDiv = document.getElementById("pageDiv") as HTMLDivElement;
-//         this._bindPage("projectsButton", ProjectsPage);
-//         this._bindPage("maintenanceButton", MaintenancePage);
-
-//         this.setPage(ProjectsPage);
-
-//         // -- Auto-lock on inactivity --
-//         // Wait for next frame animation and if delta is > to 5 seconds, lock
-//         const step = (timestamp: DOMHighResTimeStamp) => {
-//             if (this._lastRefreshed == null || (timestamp - this._lastRefreshed) > 5000) {
-//                 this._toggleLocked(true);
-//             }
-//             this._lastRefreshed = timestamp;
-//             window.requestAnimationFrame(step);
-//         }
-//         window.requestAnimationFrame(step);
-
-//         // -- Notification helper --
-//         NotificationHelper.set(new ClientNotificationImpl());
-
-//         // -- Generation display --
-//         const generationSpan = document.getElementById("generationSpan");
-//         const generationCount = document.getElementById("generationCount");
-//         if (generationSpan && generationCount) {
-//             let previousCount = 0;
-//             NotificationHelper.on<AppEvents>("generating", (event) => {
-//                 generationSpan.classList.toggle("d-none", event.data.count === 0);
-//                 generationCount.innerText = "" + event.data.count;
-//                 if (previousCount != 0 && event.data.count === 0) {
-//                     showNotificationIfPossible({
-//                         body: `All images generated`
-//                     });
-//                     previousCount = 0;
-//                 }
-//                 previousCount = event.data.count;
-//             });
-//         }
-//     }
-
-//     protected _bindPage(buttonId: string, pageConstructor: PageConstructor): void {
-//         const button = document.getElementById(buttonId);
-//         if (button) {
-//             button.addEventListener("click", this.setPage.bind(this, pageConstructor));
-//         } else {
-//             console.error(`Button ${buttonId} not found, cannot bind page`);
-//         }
-//     }
-
-//     public setPage(pageConstructor: PageConstructor): void {
-//         // -- Empty page --
-//         this._pageDiv.innerHTML = "";
-//         // -- Create page --
-//         this._currentPage = new pageConstructor();
-//         this._pageDiv.appendChild(this._currentPage);
-//         this._currentPage.refresh(); // Catched by the page
-//     }
-
-//     public refresh(): void {
-//         this._currentPage?.refresh();
-//     }
-
-//     protected _toggleLocked(locked?: boolean): void {
-//         document.body.classList.toggle("locked", locked);
-//     }
-
-// }

@@ -1,13 +1,7 @@
-import Handlebars from "handlebars";
 
 export interface WebComponentOptions {
     /** If specified the template will be rendered in the inner HTML of the component */
     template?: string;
-    /** 
-     * If true, the template is re-rendered on each refresh
-     * You will need to rebind all events on each _refresh()
-     */
-    templateApplyOnRefresh?: boolean;
 }
 
 /**
@@ -16,29 +10,58 @@ export interface WebComponentOptions {
  * - the rendering of the template HTML
  * - typed methods to set attributes
  * 
- * The component will never refresh itself. 
- * You need to call the refresh() method to re-render the component once all attributes are set.
+ * The component will refresh itself :
+ * - when the component is connected to the DOM,
+ * - when an attribute is set.
+ * 
+ * For all other changes, you must call the refresh() method manually.
  */
-export abstract class AbstractWebComponent<Data> extends HTMLElement {
-
-    protected _initialized = false;
-    protected _data: Data | undefined;
+export abstract class AbstractWebComponent extends HTMLElement {
 
     constructor(protected _options?: WebComponentOptions) {
         super();
-    }
-
-    /** Get the component data */
-    public get data(): Data | undefined {
-        return this._data;
+        this.innerHTML = this._options?.template ?? "";
     }
 
     /** 
-     * Set the component data.
-     * Call refresh() to re-render the component.
+     * This method must be called to initialize the component.
+     * It will set the template and call _init() method.
      */
-    public set data(data: Data | undefined) {
-        this._data = data;
+    public connectedCallback(): void {
+        this.refresh();
+    }
+
+    //#region Refresh methods -------------------------------------------------
+
+    protected _initialized = false;
+    protected _refreshing = false;
+
+    /**
+     * Call this method to refresh the component.
+     * This can be done only once all attributes are set.
+     */
+    public async refresh(): Promise<void> {
+        if (this._refreshing) {
+            console.debug("Component is already refreshing, ignoring refresh call");
+            return;
+        }
+
+        this._refreshing = true;
+        try {
+            // Initialize the component if needed
+            if (!this._initialized) {
+                this._initialized = true;
+                await this._init();
+            }
+
+            await this._refresh();
+        } catch (e) {
+            console.error('Error during component refresh', e);
+            this.innerHTML = `<code>An error occurred while refreshing the component\n${"" + e}</code>`;
+            this._initialized = false;
+        } finally {
+            this._refreshing = false;
+        }
     }
 
     /** 
@@ -52,45 +75,9 @@ export abstract class AbstractWebComponent<Data> extends HTMLElement {
      */
     protected _refresh(): Promise<void> { return Promise.resolve(); }
 
-    /**
-     * Call this method to refresh the component.
-     * This can be done only once all attributes are set.
-     */
-    public async refresh(): Promise<void> {
-        try {
-            // Initialize the component if needed
-            if (!this._initialized) {
-                this._initialized = true;
+    //#endregion
 
-                if (!this._options?.templateApplyOnRefresh) {
-                    // If the template is not applied on refresh, we need to set it here
-                    this._applyTemplate();
-                }
-                await this._init();
-            }
-
-            if (this._options?.templateApplyOnRefresh) {
-                // If the template is applied on refresh, we need to set it here
-                this._applyTemplate();
-            }
-            await this._refresh();
-        } catch (e) {
-            console.error('Error during component refresh', e);
-            this.innerHTML = `<code>An error occurred while refreshing the component\n${"" + e}</code>`;
-            this._initialized = false;
-        }
-    }
-
-    protected _applyTemplate(): void {
-        if (this._options?.template) {
-            const template = Handlebars.compile(this._options.template);
-            this.innerHTML = template(this, {
-                allowProtoPropertiesByDefault: true
-            });
-        } else {
-            this.innerHTML = "";
-        }
-    }
+    //#region Utility methods -------------------------------------------------
 
     /** Bind callback to element with ref passed. Callback is surrounded by a try/catch. */
     protected _bindClickForRef(ref: string, cb: () => Promise<void> | void): void {
@@ -102,9 +89,10 @@ export abstract class AbstractWebComponent<Data> extends HTMLElement {
             }
         });
     }
+
+    //#endregion
+
 }
-
-
 
 /** 
  * Utility decorator to get the element with ref attribute set to the name of the property.
@@ -156,6 +144,9 @@ export function Attribute<T = string>(options?: { name?: string; marshaller?: At
                     (this as HTMLElement).removeAttribute(attributeName);
                 } else {
                     (this as HTMLElement).setAttribute(attributeName, rawValue);
+                }
+                if (this instanceof AbstractWebComponent) {
+                    (this as AbstractWebComponent).refresh();
                 }
             }
         });

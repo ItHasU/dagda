@@ -1,12 +1,13 @@
-import { EntitiesHandler } from "@dagda/shared/entities/handler";
-import { EntitiesEvents, TablesDefinition } from "@dagda/shared/entities/types";
-import { NotificationHelper } from "@dagda/shared/tools/notification.helper";
+import { EntitiesHandler } from "@dagda/shared/src/entities/handler";
+import { EntitiesEvents } from "@dagda/shared/src/entities/tools/events";
+import { EntitiesTypes } from "@dagda/shared/src/entities/types";
+import { NotificationHelper } from "@dagda/shared/src/tools/notification.helper";
 
 /** 
  * A simple component to display communication status of the SQLHandler.
  * This component cannot be inserted in HTML as it requires and handler at construction.
  */
-export class SQLStatusComponent<Tables extends TablesDefinition, Contexts> extends HTMLElement {
+export class EntitiesStatusComponent<Tables extends EntitiesTypes, Contexts> extends HTMLElement {
 
     protected _downloadIcon: HTMLElement;
     protected _uploadIcon: HTMLElement;
@@ -50,4 +51,4 @@ export class SQLStatusComponent<Tables extends TablesDefinition, Contexts> exten
     }
 }
 
-customElements.define("dagda-sql-status", SQLStatusComponent);
+customElements.define("entities-status", EntitiesStatusComponent);

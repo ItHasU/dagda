@@ -1,8 +1,15 @@
+import { Event } from "@dagda/shared/src/tools/events";
+import { Dagda, DagdaEvents } from "../../app";
 import { AbstractWebComponent, Attribute, NumberMarshaller, Ref } from "../abstract.webcomponent";
 
 export const DEFAULT_SIZE = 32;
 
-export class LoginComponent extends AbstractWebComponent<{ displayName: string, photoURL: string | null }> {
+export interface LoginComponentData {
+    displayName: string;
+    photoURL: string | null;
+}
+
+export class LoginComponent extends AbstractWebComponent {
 
     @Attribute({ defaultValue: "true" })
     public rounded!: "true" | "false";
@@ -17,17 +24,28 @@ export class LoginComponent extends AbstractWebComponent<{ displayName: string, 
 
     constructor() {
         super({
-            template: require("./login.component.html").default,
-            templateApplyOnRefresh: true
+            template: require("./login.component.html").default
         });
     }
 
-    protected override async _refresh(): Promise<void> {
-        const displayName = this.data?.displayName ?? "Unknown";
+    protected _data: DagdaEvents["userInfoChanged"] = {
+        displayName: "Unknown"
+    };
 
+    protected override _init(): Promise<void> {
+        Dagda.on("userInfoChanged", (event: Event<DagdaEvents["userInfoChanged"]>) => {
+            this._data = event.data;
+            this.refresh();
+        });
+        return Promise.resolve();
+    }
+
+    protected override async _refresh(): Promise<void> {
+        this._photo.style.maxWidth = `${this.size}px`;
+        this._photo.style.maxHeight = `${this.size}px`;
         this._photo.classList.toggle("rounded-circle", this.rounded === "true");
-        this._photo.src = this.data?.photoURL ?? LoginComponent._getInitialsAsIconBase64(this.data?.displayName ?? "Unknown", this.size);
-        this._link.title = displayName;
+        this._photo.src = this._data.photoURL ?? LoginComponent._getInitialsAsIconBase64(this._data.displayName, this.size);
+        this._link.title = this._data.displayName;
     }
 
     protected static _getInitialsAsIconBase64(name: string, size: number): string {
