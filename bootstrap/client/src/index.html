@@ -1,11 +1,14 @@
 <!doctype html>
-<html lang="en" class="w-100 h-100" data-bs-theme="dark">
+<html lang="en" translate="no" data-bs-theme="dark">
 
 
 <body>
-    <login-component class="m-2"></login-component>
     <page-container>
         <div slot="header">
+            <app-navbar>
+                <span slot="brand"><i class="bi bi-bootstrap" slot="brand"></i> Dagda</span>
+                <login-component slot="right"></login-component>
+            </app-navbar>
         </div>
     </page-container>
 </body>

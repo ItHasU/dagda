@@ -5,9 +5,11 @@ import { Dagda } from "@dagda/client/src/app";
 import { HelloPage } from "@dagda/client/src/app/hello/hello.page";
 import { PageContainer } from "@dagda/client/src/components/container/container.component";
 import { LoginComponent } from "@dagda/client/src/components/login/login.component";
+import { Navbar } from "@dagda/client/src/components/navbar/navbar.component";
 
 // Add all components here to make sure they are registered
 LoginComponent;
+Navbar;
 PageContainer;
 HelloPage;
 

@@ -20,7 +20,24 @@ export abstract class AbstractWebComponent extends HTMLElement {
 
     constructor(protected _options?: WebComponentOptions) {
         super();
+
+        // Save existing children
+        const existingChildren = Array.from(this.childNodes);
+
+        // Set the template
         this.innerHTML = this._options?.template ?? "";
+
+        // Distribute existing children into corresponding slots
+        existingChildren.forEach(child => {
+            if (child.nodeType === Node.ELEMENT_NODE && (child as HTMLElement).hasAttribute("slot")) {
+                const slotName = (child as HTMLElement).getAttribute("slot");
+                const slot = this.querySelector(`slot[name="${slotName}"]`);
+                slot?.appendChild(child);
+            } else {
+                const defaultSlot = this.querySelector("slot:not([name])");
+                defaultSlot?.appendChild(child);
+            }
+        });
     }
 
     /** 
@@ -107,7 +124,7 @@ export function Ref(refName?: string): PropertyDecorator {
         const ref = refName ?? camelToKebabCase(propertyKey.toString());
         Object.defineProperty(classPrototype, propertyKey, {
             get(): HTMLElement {
-                const element = this.querySelector(`[ref="${ref}"]`) as HTMLElement | null;
+                const element = (this as AbstractWebComponent).querySelector(`[ref="${ref}"]`) as HTMLElement | null;
                 if (!element) {
                     throw `Element with ref "${ref}" not found`;
                 }
