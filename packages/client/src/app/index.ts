@@ -210,6 +210,17 @@ export class Dagda {
         }
     }
 
+    /** Refresh the current page (if any) */
+    public static refreshPage(): Promise<void> {
+        if (this._currentPage) {
+            return this._currentPage.refresh();
+        } else {
+            return Promise.resolve();
+        }
+    }
+
+    //#endregion
+
     //#region API calls
 
     public static call<AppTypes extends BaseAppTypes, APIName extends keyof AppTypes["apis"]>(
