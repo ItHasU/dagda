@@ -231,4 +231,12 @@ export class Dagda {
     }
 
     //#endregion
+
+    //#region Error handling
+
+    /** Handle an error */
+    public static handleError(err: unknown): void {
+        console.error("Error", err);
+    }
+
 }

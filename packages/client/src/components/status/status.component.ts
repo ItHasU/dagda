@@ -1,44 +1,61 @@
-import { EntitiesHandler } from "@dagda/shared/src/entities/handler";
 import { EntitiesEvents } from "@dagda/shared/src/entities/tools/events";
 import { EntitiesTypes } from "@dagda/shared/src/entities/types";
+import { Event } from "@dagda/shared/src/tools/events";
 import { NotificationHelper } from "@dagda/shared/src/tools/notification.helper";
+import { Dagda } from "../../app";
+import { AbstractWebComponent, Ref } from "../abstract.webcomponent";
 
 /** 
  * A simple component to display communication status of the SQLHandler.
  * This component cannot be inserted in HTML as it requires and handler at construction.
  */
-export class EntitiesStatusComponent<Tables extends EntitiesTypes, Contexts> extends HTMLElement {
+export class EntitiesStatusComponent<Tables extends EntitiesTypes, Contexts> extends AbstractWebComponent {
 
-    protected _downloadIcon: HTMLElement;
-    protected _uploadIcon: HTMLElement;
-    protected _uploadCountSpan: HTMLSpanElement;
-    protected _refreshIcon: HTMLElement;
-    protected _disconnectedIcon: HTMLElement;
+    @Ref()
+    protected _downloadIcon!: HTMLElement;
+    @Ref()
+    protected _uploadIcon!: HTMLElement;
+    @Ref()
+    protected _uploadCountSpan!: HTMLSpanElement;
+    @Ref()
+    protected _refreshIcon!: HTMLElement;
+    @Ref()
+    protected _disconnectedIcon!: HTMLElement;
 
-    constructor(handler: EntitiesHandler<Tables, Contexts>) {
-        super();
-        this.innerHTML = require("./status.component.html").default;
-        this._downloadIcon = this.querySelector(`i[ref="downloadIcon"]`)!;
-        this._uploadIcon = this.querySelector(`i[ref="uploadIcon"]`)!;
-        this._uploadCountSpan = this.querySelector(`span[ref="uploadCountSpan"]`)!;
-        this._refreshIcon = this.querySelector(`i[ref="refreshIcon"]`)!;
-        this._disconnectedIcon = this.querySelector(`i[ref="disconnectedIcon"]`)!;
+    protected _state: EntitiesEvents["state"] = {
+        downloading: 0,
+        uploading: 0,
+        dirty: false
+    };
 
-        handler.on("state", (event) => {
-            this._refresh(event.data);
+    constructor() {
+        super({
+            template: require("./status.component.html").default
         });
+    }
+
+    protected override async _init(): Promise<void> {
+        // -- Register the handler --
+        try {
+            Dagda.handler().on("state", (event: Event<EntitiesEvents["state"]>) => {
+                this._state = event.data;
+                this.refresh().catch(Dagda.handleError);
+            });
+        } catch (e) {
+            Dagda.handleError(e);
+        }
         NotificationHelper.on("connected", (event) => {
             this._disconnectedIcon.classList.toggle("d-none", !!event.data);
         });
     }
 
-    protected _refresh(data: EntitiesEvents["state"]): void {
-        this._downloadIcon.classList.toggle("d-none", data.downloading === 0);
-        this._uploadIcon.classList.toggle("d-none", data.uploading === 0);
-        this._uploadCountSpan.classList.toggle("d-none", data.uploading < 2);
-        this._uploadCountSpan.innerHTML = "" + data.uploading;
-        this._refreshIcon.classList.toggle("text-danger", data.dirty);
-        if (data.dirty) {
+    protected override async _refresh(): Promise<void> {
+        this._downloadIcon.classList.toggle("d-none", this._state.downloading === 0);
+        this._uploadIcon.classList.toggle("d-none", this._state.uploading === 0);
+        this._uploadCountSpan.classList.toggle("d-none", this._state.uploading < 2);
+        this._uploadCountSpan.innerHTML = "" + this._state.uploading;
+        this._refreshIcon.classList.toggle("text-danger", this._state.dirty);
+        if (this._state.dirty) {
             this._refreshIcon.parentElement?.parentElement?.animate([
                 { transform: "scale(1)" },
                 { transform: "scale(1.2)" },
