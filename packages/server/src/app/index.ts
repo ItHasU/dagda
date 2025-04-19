@@ -68,7 +68,6 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes> {
     protected _app: express.Express;
     protected _auth: AuthHandler;
     protected _db: PGRunner;
-    protected _handler: EntitiesHandler<AppTypes["entities"], AppTypes["contexts"]>;
 
     constructor(protected _params: ServerParams, protected _model: EntitiesModel<any, any>, protected _contextAdapter: ContextAdapter<AppTypes["contexts"]>) {
         console.log("Reading config for environment variables...");
@@ -118,13 +117,6 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes> {
             }
         }).catch((error) => {
             console.error("Error fetching database stats:", error);
-        });
-
-        // -- Init the entities handler --
-        console.log("Initializing entities handler...");
-        this._handler = new EntitiesHandler(this._model, this._contextAdapter, {
-            fetch: (contexts) => this._fetch(contexts, { type: "server" }),
-            submit: this._submit.bind(this)
         });
 
         // -- Register standard APIs --
@@ -211,8 +203,16 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes> {
      * @returns the handler 
      * The handler is exposed directly and should be used to access the entities.
      */
-    public get handler(): EntitiesHandler<AppTypes["entities"], AppTypes["contexts"]> {
-        return this._handler;
+    public getTemporaryHandler(): EntitiesHandler<AppTypes["entities"], AppTypes["contexts"]> {
+        // -- Init the entities handler --
+        console.log("Initializing entities handler...");
+        const handler: EntitiesHandler<AppTypes["entities"], AppTypes["contexts"]> = new EntitiesHandler(this._model, this._contextAdapter, {
+            fetch: (contexts) => this._fetch(contexts, { type: "server" }),
+            submit: this._submit.bind(this)
+        });
+
+
+        return handler;
     }
 
     /** Fetch implementation to be provided by the app */

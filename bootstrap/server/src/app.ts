@@ -10,8 +10,9 @@ export class ServerApp extends AbstractServerApp<AppTypes> {
 
     /** @inheritdoc */
     protected override async _isUserValid(profile: PassportProfile): Promise<boolean> {
-        await this.handler.fetch({ type: "users", options: undefined });
-        const users = this.handler.getItems("users");
+        const handler = this.getTemporaryHandler();
+        await handler.fetch({ type: "users", options: undefined });
+        const users = handler.getItems("users");
         for (const user of users) {
             if (user.uid === profile.id) {
                 return user.enabled ? true : false;
@@ -24,7 +25,7 @@ export class ServerApp extends AbstractServerApp<AppTypes> {
             displayName: asNamed(profile.displayName),
             enabled: asNamed(false)
         };
-        await this.handler.withTransaction(async (tr) => {
+        await handler.withTransaction(async (tr) => {
             console.log(`User created ${newUser.displayName} [${profile.emails?.join(", ")}]`);
             await tr.insert("users", newUser);
         });
