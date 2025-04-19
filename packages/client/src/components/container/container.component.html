@@ -1,9 +1,11 @@
-<slot name="header">
-    <!-- Navbar -->
-</slot>
-<div ref="pageContainer" class="d-flex-grow-1">
-
+<div class="d-flex flex-column w-100 h-100">
+    <slot name="header">
+        <!-- Navbar -->
+    </slot>
+    <div ref="page-container" class="d-flex-grow-1">
+        <!-- Not a slot, only used by the component itself to display the page -->
+    </div>
+    <slot name="footer">
+        <!-- Footer -->
+    </slot>
 </div>
-<slot name="footer">
-    <!-- Footer -->
-</slot>

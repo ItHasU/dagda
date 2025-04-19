@@ -1,4 +1,7 @@
-
+/** 
+ * Options for the web component creation
+ * They should all be provider by the child class constructor to allow empty constructor.
+ */
 export interface WebComponentOptions {
     /** If specified the template will be rendered in the inner HTML of the component */
     template?: string;
@@ -6,6 +9,7 @@ export interface WebComponentOptions {
 
 /**
  * An utility class to create a web component.
+ * 
  * This class handles :
  * - the rendering of the template HTML
  * - typed methods to set attributes
@@ -18,7 +22,11 @@ export interface WebComponentOptions {
  */
 export abstract class AbstractWebComponent extends HTMLElement {
 
-    constructor(protected _options?: WebComponentOptions) {
+    /** 
+     * Constructor can only be called by child class. 
+     * All parameters must be provided by the child class constructor.
+     */
+    protected constructor(protected _options?: WebComponentOptions) {
         super();
 
         // Save existing children
@@ -50,7 +58,9 @@ export abstract class AbstractWebComponent extends HTMLElement {
 
     //#region Refresh methods -------------------------------------------------
 
+    /** Store state of init */
     protected _initialized = false;
+    /** Prevent calling refresh while already refreshing */
     protected _refreshing = false;
 
     /**
@@ -84,13 +94,15 @@ export abstract class AbstractWebComponent extends HTMLElement {
     /** 
      * This method must initialize static elements of the component.
      * It is called after the template is rendered in the inner HTML.
+     * 
+     * This method is called only once on the first call to refresh().
      */
     protected _init(): Promise<void> { return Promise.resolve(); }
 
     /**
      * This method is called to render the component.
      */
-    protected _refresh(): Promise<void> { return Promise.resolve(); }
+    protected abstract _refresh(): Promise<void>;
 
     //#endregion
 

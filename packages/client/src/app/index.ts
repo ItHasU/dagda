@@ -32,15 +32,24 @@ export type DagdaEvents = {
     }
 }
 
+/** Page information mostly for the menu plus the constructor */
+export interface PageInfo<Page extends AbstractPageElement> {
+    /** Option icon for the page. Space between icon and title will be automatically helped */
+    iconHTML?: string;
+    /** Page order in the menu */
+    order?: number;
+    /** Display name of the page, mostly used by the menu */
+    title: string;
+    /** Page constructor */
+    constructor: { new(): Page };
+}
+
 /**
  * This class gather all the common code for the client application.
  */
 export class Dagda {
 
-
     //#region App initialization
-
-    protected static _handler: EntitiesHandler<any, any> | null = null;
 
     /** Initialize Dagda */
     public static async init<AppTypes extends BaseAppTypes>(model: EntitiesModel<any, any>, contextAdapter: ContextAdapter<AppTypes["contexts"]>): Promise<void> {
@@ -68,14 +77,6 @@ export class Dagda {
         });
     }
 
-    /** Get the handler */
-    public static handler<AppTypes extends BaseAppTypes>(): EntitiesHandler<AppTypes["entities"], AppTypes["contexts"]> {
-        if (Dagda._handler == null) {
-            throw new Error("Handler not initialized");
-        }
-        return Dagda._handler;
-    }
-
     /** Inject app headers in the page so you don't have to bother */
     protected static _injectHeaders(): void {
         const headersTemplate = Handlebars.compile(require("./index.header.html").default);
@@ -83,6 +84,20 @@ export class Dagda {
             title: "Dagda"
         });
         document.head.insertAdjacentHTML("beforeend", headers);
+    }
+
+    //#endregion
+
+    //#region Entities handler
+
+    protected static _handler: EntitiesHandler<any, any> | null = null;
+
+    /** Get the handler */
+    public static handler<AppTypes extends BaseAppTypes>(): EntitiesHandler<AppTypes["entities"], AppTypes["contexts"]> {
+        if (Dagda._handler == null) {
+            throw new Error("Handler not initialized");
+        }
+        return Dagda._handler;
     }
 
     //#endregion
@@ -97,56 +112,103 @@ export class Dagda {
         EventHandlerImpl.on<DagdaEvents, EventName>(this._eventHandlerData, name, listener);
     }
 
-    // //#region Page management
+    //#endregion
 
-    // protected _registeredPages: { [pageName in keyof AppTypes["pages"]]?: { new(): AbstractPageElement } } = {};
-    // protected _currentPage: AbstractPageElement | null = null;
+    //#region Page management
 
-    // public registerPage<PageName extends keyof AppTypes["pages"]>(
-    //     name: PageName,
-    //     page: { new(): AppTypes["pages"][PageName] }
-    // ): void {
-    //     this._registeredPages[name] = page;
-    // }
+    // Storage for registered pages
+    private static _registeredPages: { [pageName: string]: PageInfo<any> } = {};
 
-    // /** 
-    //  * Toggle current page.
-    //  * If no page is given, the default page will be used.
-    //  */
-    // public async setPage<PageName extends keyof AppTypes["pages"]>(page: PageName): Promise<AppTypes["pages"][PageName]> {
-    //     // -- Empty page --
-    //     if (this._currentPage != null) {
-    //         try {
-    //             // FIXME this._disposePage(this._currentPage);
-    //         } catch (err) {
-    //             console.error("Error while disposing page", err);
-    //         } finally {
-    //             this._currentPage = null;
-    //         }
-    //     }
+    // Current active page
+    private static _currentPage: AbstractPageElement | null = null;
+    private static _currentPageUID: string | null = null;
 
-    //     try {
-    //         const constructor = this._registeredPages[page];
-    //         if (constructor != null) {
-    //             // -- Create page --
-    //             const newPage = new constructor();
-    //             this._currentPage = newPage
-    //             // -- Append page --
-    //             // FIXME this._injectPage(this._currentPage);
-    //             await this._currentPage.refresh(); // Catch by the page
-    //             return newPage as AppTypes["pages"][PageName];
-    //         } else {
-    //             console.error(`Page ${page.toString()} not found, cannot set page`);
-    //             return Promise.reject(new Error(`Page ${page.toString()} not found`));
-    //         }
-    //     } catch (err) {
-    //         console.error("Error while creating page", err);
-    //         this._currentPage = null;
-    //         throw err;
-    //     }
-    // }
+    /** Get the current page */
+    public static get currentPageUID(): string | null {
+        return this._currentPageUID;
+    }
 
-    // //#endregion
+    /** Register a page */
+    public static registerPage<AppTypes extends BaseClientAppTypes, PageName extends keyof AppTypes["pages"]>(
+        name: PageName,
+        page: PageInfo<AppTypes["pages"][PageName]>
+    ): void {
+        this._registeredPages[name as string] = page;
+    }
+
+    /** Get the list of pages, sorted */
+    public static getPageInfos(): ({ uid: string } & Omit<PageInfo<any>, "constructor">)[] {
+        const result: ({ uid: string } & Omit<PageInfo<any>, "constructor">)[] = [];
+        for (const [uid, info] of Object.entries(this._registeredPages)) {
+            result.push({
+                uid,
+                iconHTML: info.iconHTML,
+                order: info.order,
+                title: info.title
+            });
+        }
+        result.sort((a, b) => {
+            let res = 0;
+            if (res === 0) {
+                // Sort by order
+                res = (a.order ?? 0) - (b.order ?? 0);
+            }
+            if (res === 0) {
+                // Sort by title
+                res = a.title.localeCompare(b.title);
+            }
+            if (res === 0) {
+                // Sort by uid
+                res = a.uid.localeCompare(b.uid);
+            }
+            return res;
+        });
+        return result;
+    }
+
+    /** Set and display a page */
+    public static async setPage<AppTypes extends BaseClientAppTypes, PageName extends keyof AppTypes["pages"]>(
+        name: PageName
+    ): Promise<AppTypes["pages"][PageName]> {
+        // Dispose the current page if it exists
+        if (this._currentPage) {
+            try {
+                await this._currentPage.dispose();
+            } catch (err) {
+                console.error("Error while disposing the current page", err);
+            } finally {
+                this._currentPage = null;
+            }
+        }
+
+        // Retrieve the page constructor
+        const pageInfo = this._registeredPages[name as string];
+        if (!pageInfo) {
+            console.error(`Page ${String(name)} not found`);
+            throw new Error(`Page ${String(name)} not found`);
+        }
+
+        // Create and initialize the new page
+        try {
+            const newPage = new pageInfo.constructor();
+            this._currentPage = newPage;
+            this._currentPageUID = name as string;
+
+            // Refresh the page (if applicable)
+            await newPage.refresh();
+
+            // Fire the pageChanged event
+            EventHandlerImpl.fire<DagdaEvents, "pageChanged">(this._eventHandlerData, "pageChanged", {
+                page: newPage
+            });
+
+            return newPage as AppTypes["pages"][PageName];
+        } catch (err) {
+            console.error("Error while setting the page", err);
+            this._currentPage = null;
+            throw err;
+        }
+    }
 
     //#region API calls
 

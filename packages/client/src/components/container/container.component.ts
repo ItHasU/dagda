@@ -1,18 +1,26 @@
-import { AbstractWebComponent } from "../abstract.webcomponent";
+import { Dagda } from "../../app";
+import { AbstractWebComponent, Ref } from "../abstract.webcomponent";
 
 /** A container */
 export class PageContainer extends AbstractWebComponent {
+
+    @Ref()
+    protected _pageContainer!: HTMLDivElement;
 
     constructor() {
         super({
             template: require("./container.component.html").default
         });
-
-        this.classList.add("w-100", "h-100", "d-flex", "flex-column");
     }
 
     protected override async _init(): Promise<void> {
-        // Register to APP to react on page change
+        // Register a callback to handle page changes
+        Dagda.on("pageChanged", (event) => {
+            if (this._pageContainer) {
+                this._pageContainer.innerHTML = ""; // Clear the container
+                this._pageContainer.appendChild(event.data.page); // Append the new page
+            }
+        });
     }
 
     protected override _refresh(): Promise<void> {

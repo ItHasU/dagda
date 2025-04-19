@@ -1,16 +1,12 @@
 import { AbstractPageElement } from "../abstract.page.element";
 
-var count = 0;
-
 /** A static page sample, no init, no refresh, just a template */
-export class HelloPage extends AbstractPageElement {
+export class GoodbyePage extends AbstractPageElement {
 
     constructor() {
         super({
-            template: require("./hello.page.html").default
+            template: require("./goodbye.page.html").default
         });
-        count++;
-        console.log("Active HelloPage pages:", count);
     }
 
     /** Nothing to be done here */
@@ -20,11 +16,9 @@ export class HelloPage extends AbstractPageElement {
 
     /** Nothing to be done here */
     public override dispose(): Promise<void> {
-        count--;
-        console.log("Active HelloPage pages:", count);
         return Promise.resolve();
     }
 
 }
 
-customElements.define("hello-page", HelloPage);
+customElements.define("goodbye-page", GoodbyePage);
