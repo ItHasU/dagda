@@ -2,16 +2,23 @@ import { APICollection } from "@dagda/shared/src/api/types";
 import { IRouter } from "express";
 import { PassportProfile } from "../app";
 
-/** Information retrieved from the request before calling the callback */
-export type RequestOptions = {
+export type RequestOptionsFromClient = {
+    type: "client";
     request: Express.Request;
     response: Express.Response;
     /** Gives the user profile that made the request */
     userProfile: PassportProfile;
 }
 
+export type RequestOptionsFromServer = {
+    type: "server";
+}
+
+/** Information retrieved from the request before calling the callback */
+export type RequestOptions = RequestOptionsFromClient | RequestOptionsFromServer;
+
 export type RequestCallback<Collection extends APICollection, Name extends keyof Collection> = (
-    options: RequestOptions,
+    options: RequestOptionsFromClient,
     ...args: Parameters<Collection[Name]>
 ) => Promise<ReturnType<Collection[Name]>>;
 
@@ -27,7 +34,8 @@ export function apiRegister<Collection extends APICollection, Name extends keyof
         }
 
         const args: any[] = req.body ?? [];
-        const options: RequestOptions = {
+        const options: RequestOptionsFromClient = {
+            type: "client",
             request: req,
             response: res,
             userProfile: user

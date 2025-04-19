@@ -123,7 +123,7 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes> {
         // -- Init the entities handler --
         console.log("Initializing entities handler...");
         this._handler = new EntitiesHandler(this._model, this._contextAdapter, {
-            fetch: this._fetch.bind(this),
+            fetch: (contexts) => this._fetch(contexts, { type: "server" }),
             submit: this._submit.bind(this)
         });
 
@@ -216,7 +216,7 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes> {
     }
 
     /** Fetch implementation to be provided by the app */
-    protected abstract _fetch(context: AppTypes["contexts"], request?: RequestOptions): Promise<Data<AppTypes["entities"]>>;
+    protected abstract _fetch(context: AppTypes["contexts"], request: RequestOptions): Promise<Data<AppTypes["entities"]>>;
 
     /** Implementation of submit with app's methods */
     protected _submit(transactionData: SQLTransactionData<AppTypes["entities"], AppTypes["contexts"]>): Promise<SQLTransactionResult> {
