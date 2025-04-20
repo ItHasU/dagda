@@ -1,6 +1,6 @@
+import { NotificationHelper } from "../notification/notification.helper";
 import { OperationType, SQLTransaction } from "../sql/transaction";
 import { Event, EventHandler, EventHandlerData, EventHandlerImpl, EventListener } from "../tools/events";
-import { NotificationHelper } from "../tools/notification.helper";
 import { Queue } from "../tools/queue";
 import { EntitiesModel } from "./model";
 import { ContextAdapter, PersistenceAdapter, SQLTransactionResult } from "./tools/adapters";

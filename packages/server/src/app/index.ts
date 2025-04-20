@@ -11,6 +11,7 @@ import { apiRegister, RequestCallback, RequestOptions } from "../api";
 import { submit } from "../api/impl/entities.api";
 import { getSystemInfo, triggerError } from "../api/impl/system.api";
 import { AuthHandler, AuthStrategy } from "../auth";
+import { ServerNotificationImpl } from "../notification/notification.impl";
 import { PGRunner } from "../sql/impl/pg.runner";
 import { getEnvNumber, getEnvString, getEnvStringOptional } from "../tools/config";
 
@@ -68,6 +69,7 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes> {
     protected _app: express.Express;
     protected _auth: AuthHandler;
     protected _db: PGRunner;
+    protected _notification: ServerNotificationImpl<AppTypes["notifications"]> | null = null;
 
     constructor(protected _params: ServerParams, protected _model: EntitiesModel<any, any>, protected _contextAdapter: ContextAdapter<AppTypes["contexts"]>) {
         console.log("Reading config for environment variables...");
@@ -143,6 +145,7 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes> {
     public listen(): Promise<void> {
         return new Promise((resolve, reject) => {
             const server = this._app.listen(this._config.port, resolve);
+            this._notification = new ServerNotificationImpl(server);
         }).then(() => {
             ;
             console.log(`Server listening on port ${this._config.port}`);
@@ -154,6 +157,14 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes> {
     public registerAPI<Name extends keyof AppTypes["apis"]>(name: Name, callback: RequestCallback<AppTypes["apis"], Name>): void {
         // Register the route with the server
         apiRegister(this._app, name, callback);
+    }
+
+    public broadcast<NotificationKind extends keyof AppTypes["notifications"]>(kind: NotificationKind, data: AppTypes["notifications"][NotificationKind]): void {
+        if (this._notification == null) {
+            console.warn("Notification server is not initialized. Notification will be lost.");
+            return;
+        }
+        this._notification.broadcast(kind, data);
     }
 
     //#endregion

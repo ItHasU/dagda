@@ -12,4 +12,6 @@ export interface BaseAppTypes {
     contexts: unknown;
     /** Collection of APIs */
     apis: APICollection;
+    /** Notification events (key is the name of the notification, value type is the data in the event) */
+    notifications: Record<string, unknown>;
 }

@@ -4,12 +4,14 @@ import { BaseAppTypes } from "@dagda/shared/src/app/types";
 import { EntitiesHandler } from "@dagda/shared/src/entities/handler";
 import { EntitiesModel } from "@dagda/shared/src/entities/model";
 import { ContextAdapter } from "@dagda/shared/src/entities/tools/adapters";
+import { NotificationHelper } from "@dagda/shared/src/notification/notification.helper";
 import { EventHandlerData, EventHandlerImpl, EventListener } from "@dagda/shared/src/tools/events";
 import "bootstrap";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import "bootstrap/dist/css/bootstrap.css";
 import Handlebars from "handlebars";
 import { apiCall } from "../api";
+import { ClientNotificationImpl } from "../notification/notification.impl";
 import { AbstractPageElement } from "./abstract.page.element";
 
 export interface BaseClientAppTypes extends BaseAppTypes {
@@ -52,7 +54,7 @@ export class Dagda {
     //#region App initialization
 
     /** Initialize Dagda */
-    public static async init<AppTypes extends BaseAppTypes>(model: EntitiesModel<any, any>, contextAdapter: ContextAdapter<AppTypes["contexts"]>): Promise<void> {
+    public static async init<AppTypes extends BaseClientAppTypes>(model: EntitiesModel<any, any>, contextAdapter: ContextAdapter<AppTypes["contexts"]>): Promise<void> {
         // -- Create the handler --
         this._handler = new EntitiesHandler<AppTypes["entities"], AppTypes["contexts"]>(model, contextAdapter, {
             fetch: async (context) => {
@@ -75,6 +77,9 @@ export class Dagda {
         }).catch((err) => {
             console.error("Error while refreshing user info", err);
         });
+
+        // -- Notifications --
+        NotificationHelper.set(new ClientNotificationImpl<any>() as any);
     }
 
     /** Inject app headers in the page so you don't have to bother */

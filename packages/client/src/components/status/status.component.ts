@@ -1,7 +1,7 @@
 import { EntitiesEvents } from "@dagda/shared/src/entities/tools/events";
 import { EntitiesTypes } from "@dagda/shared/src/entities/types";
+import { NotificationHelper } from "@dagda/shared/src/notification/notification.helper";
 import { Event } from "@dagda/shared/src/tools/events";
-import { NotificationHelper } from "@dagda/shared/src/tools/notification.helper";
 import { Dagda } from "../../app";
 import { AbstractWebComponent, Ref } from "../abstract.webcomponent";
 
