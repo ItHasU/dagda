@@ -1,11 +1,8 @@
-import { AbstractNotificationImpl } from "@dagda/shared/src/notification/notification.helper";
-
-export type SocketEvents = {
-    connected: boolean;
-}
+import { AbstractNotificationHandler } from "@dagda/shared/src/notification/abstract.notification.handler";
+import { DagdaEvents } from "@dagda/shared/src/notification/events";
 
 /** Notification server based on websocket protocol */
-export class ClientNotificationImpl<Notifications extends SocketEvents & Record<string, unknown>> extends AbstractNotificationImpl<Notifications> {
+export class ClientNotificationImpl<Notifications extends DagdaEvents & Record<string, unknown>> extends AbstractNotificationHandler<Notifications> {
 
     protected _socket: WebSocket | null = null;
 
@@ -24,22 +21,22 @@ export class ClientNotificationImpl<Notifications extends SocketEvents & Record<
             this._socket = new WebSocket(`ws${window.location.protocol.includes("s") ? "s" : ""}://${window.location.host}`);
             this._socket.onopen = () => {
                 console.log("Socket opened");
-                this._onNotificationReceived("connected", true);
+                this._fire("connected", true);
             };
             this._socket.onmessage = async (event) => {
                 // Convert the blob to a string
                 const str = typeof event.data === "string" ? event.data : (await (event.data as Blob).text());
                 const notification = JSON.parse(str);
-                this._onNotificationReceived(notification.kind, notification.data);
+                this._fire(notification.kind, notification.data);
             };
             this._socket.onclose = () => {
-                this._onNotificationReceived("connected", false);
+                this._fire("connected", false);
                 console.log("Socket closed, reconnecting in 1 seconds");
                 setTimeout(() => this._connect(), 1000);
             }
         } catch (e) {
             this._socket = null;
-            this._onNotificationReceived("connected", false);
+            this._fire("connected", false);
         }
     }
 

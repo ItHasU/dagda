@@ -1,11 +1,10 @@
-import { NotificationHelper } from "../notification/notification.helper";
 import { OperationType, SQLTransaction } from "../sql/transaction";
 import { Event, EventHandler, EventHandlerData, EventHandlerImpl, EventListener } from "../tools/events";
 import { Queue } from "../tools/queue";
+import { ContextEvents, EntitiesEvents } from "./events";
 import { EntitiesModel } from "./model";
 import { ContextAdapter, PersistenceAdapter, SQLTransactionResult } from "./tools/adapters";
 import { EntitiesCache, EntitiesCacheHandler } from "./tools/cache";
-import { ContextEvents, EntitiesEvents } from "./tools/events";
 import { Named, asNamed } from "./tools/named";
 import { BaseEntity, EntitiesTypes, ForeignKeys } from "./types";
 

@@ -1,7 +1,8 @@
 import { Dagda } from "@dagda/shared/src/dagda";
 import { EntitiesService } from "@dagda/shared/src/entities/service";
 import { EntitiesEvents } from "@dagda/shared/src/entities/tools/events";
-import { NotificationHelper } from "@dagda/shared/src/notification/notification.helper";
+import { DagdaEvents } from "@dagda/shared/src/notification/events";
+import { NotificationService } from "@dagda/shared/src/notification/service";
 import { Event } from "@dagda/shared/src/tools/events";
 import { LogService } from "@dagda/shared/src/tools/log";
 import { AbstractWebComponent, Ref } from "../abstract.webcomponent";
@@ -45,7 +46,7 @@ export class EntitiesStatusComponent extends AbstractWebComponent {
         } catch (e) {
             Dagda<LogService>("log").handleError(e);
         }
-        NotificationHelper.on("connected", (event) => {
+        Dagda<NotificationService<DagdaEvents>>("notification").on("connected", (event) => {
             this._disconnectedIcon.classList.toggle("d-none", !!event.data);
         });
     }

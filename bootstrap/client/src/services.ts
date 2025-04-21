@@ -4,6 +4,7 @@ import { SharedServices } from "@dagda-app/shared/src/services";
 import { GoodbyePage } from "@dagda/client/src/app/goodbye/goodbye.page";
 import { HelloPage } from "@dagda/client/src/app/hello/hello.page";
 import { buildClientEntitiesService } from "@dagda/client/src/entities/service";
+import { ClientNotificationImpl } from "@dagda/client/src/notification/notification.impl";
 import { PageHandler } from "@dagda/client/src/pages/handler";
 import { PageService } from "@dagda/client/src/pages/service";
 import { Dagda } from "@dagda/shared/src/dagda";
@@ -28,7 +29,8 @@ export function initServices(): void {
     // Initialize the services
     Dagda.init<ClientServices>({
         log: buildConsoleLogService(),
-        pages: pageHandler,
-        entities: buildClientEntitiesService(APP_MODEL, new AppContextAdapter())
+        notification: new ClientNotificationImpl(),
+        entities: buildClientEntitiesService(APP_MODEL, new AppContextAdapter()),
+        pages: pageHandler
     });
 }

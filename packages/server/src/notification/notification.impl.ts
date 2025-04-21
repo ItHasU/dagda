@@ -1,9 +1,9 @@
-import { AbstractNotificationImpl } from "@dagda/shared/src/notification/notification.helper";
+import { AbstractNotificationHandler } from "@dagda/shared/src/notification/abstract.notification.handler";
 import { Server } from "http";
 import { WebSocket, WebSocketServer } from "ws";
 
 /** Notification server based on websocket protocol */
-export class ServerNotificationImpl<Notifications extends Record<string, unknown>> extends AbstractNotificationImpl<Notifications> {
+export class ServerNotificationImpl<Notifications extends Record<string, unknown>> extends AbstractNotificationHandler<Notifications> {
 
     protected readonly _socket: WebSocketServer;
 
@@ -22,7 +22,7 @@ export class ServerNotificationImpl<Notifications extends Record<string, unknown
                 });
                 // Fire notification
                 const notification = JSON.parse(message.toString());
-                this._onNotificationReceived(notification.kind, notification.data);
+                this._fire(notification.kind, notification.data);
             });
         });
     }
