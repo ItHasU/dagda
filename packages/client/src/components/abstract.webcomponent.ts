@@ -1,3 +1,5 @@
+import { Dagda } from "@dagda/shared/src/dagda";
+
 /** 
  * Options for the web component creation
  * They should all be provider by the child class constructor to allow empty constructor.
@@ -75,6 +77,8 @@ export abstract class AbstractWebComponent extends HTMLElement {
 
         this._refreshing = true;
         try {
+            await Dagda.loaded; // Wait for Dagda to be loaded
+
             // Initialize the component if needed
             if (!this._initialized) {
                 this._initialized = true;

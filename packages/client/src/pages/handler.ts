@@ -35,10 +35,10 @@ export interface PageInfo<Page extends AbstractPageElement> {
 export class PageHandler<PageTypes extends BasePageTypes> {
 
     /** The event handler data */
-    private _eventHandlerData: EventHandlerData<PageEvents> = {};
+    private readonly _eventHandlerData: EventHandlerData<PageEvents> = {};
 
     // Storage for registered pages
-    private _registeredPages: { [PageName in keyof PageTypes]?: PageInfo<PageTypes[PageName]> } = {};
+    private readonly _registeredPages: { [PageName in keyof PageTypes]?: PageInfo<PageTypes[PageName]> } = {};
 
     // Current active page
     private _currentPage: AbstractPageElement | null = null;

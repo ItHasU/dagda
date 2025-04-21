@@ -25,7 +25,7 @@ export function initServices(): void {
     // Initialize the services
     Dagda.init<ClientServices>({
         log: ConsoleLogService,
-        pages: new PageHandler(),
+        pages: pageHandler,
         entities: {
             getHandler: () => {
                 throw new Error("Not implemented");

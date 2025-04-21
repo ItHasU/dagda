@@ -14,10 +14,12 @@ export class Navbar extends AbstractWebComponent {
     }
 
     protected async _refresh(): Promise<void> {
+        const pageService = Dagda<PageService>("pages");
+
         // Populate the menu with all pages
         this._pageMenu.innerHTML = ""; // Clear the menu
-        const currentPageUID = Dagda<PageService>("pages").currentPageUID;
-        for (const pageInfo of Dagda<PageService>("pages").getPageInfos()) {
+        const currentPageUID = pageService.currentPageUID;
+        for (const pageInfo of pageService.getPageInfos()) {
             const item = document.createElement("li");
             this._pageMenu.appendChild(item);
 
@@ -25,13 +27,13 @@ export class Navbar extends AbstractWebComponent {
             item.innerHTML = `<a class="nav-link ${currentPageUID === pageInfo.uid ? "active" : ""}" data-page="${pageInfo.uid}">${pageInfo.title}</a>`;
             this._pageMenu.appendChild(item);
             item.addEventListener("click", async () => {
-                if (Dagda<PageService>("pages").currentPageUID === pageInfo.uid) {
+                if (pageService.currentPageUID === pageInfo.uid) {
                     // Just refresh the page
-                    Dagda<PageService>("pages").refresh();
+                    pageService.refresh();
                 } else {
                     // Set the page
                     try {
-                        await Dagda<PageService>("pages").setPage(pageInfo.uid);
+                        await pageService.setPage(pageInfo.uid);
                         this.refresh();
                     } catch (err) {
                         console.error("Error while setting page", err);
