@@ -8,6 +8,7 @@ import { PageContainer } from "@dagda/client/src/components/container/container.
 import { LoginComponent } from "@dagda/client/src/components/login/login.component";
 import { Navbar } from "@dagda/client/src/components/navbar/navbar.component";
 import { EntitiesStatusComponent } from "@dagda/client/src/components/status/status.component";
+import { initServices } from "./services";
 
 // Add all components here to make sure they are registered
 LoginComponent;
@@ -15,11 +16,10 @@ Navbar;
 PageContainer;
 EntitiesStatusComponent;
 
+initServices();
 // Custom types
 export interface ClientAppTypes extends AppTypes {
     pages: { "hello": HelloPage, "goodbye": GoodbyePage };
 }
 
 Dagda.init<ClientAppTypes>(APP_MODEL, new AppContextAdapter());
-Dagda.registerPage<ClientAppTypes, "hello">("hello", { order: 1, title: "Hello", constructor: HelloPage });
-Dagda.registerPage<ClientAppTypes, "goodbye">("goodbye", { order: 2, title: "Goodbye", constructor: GoodbyePage });

@@ -1,4 +1,4 @@
-import { AbstractPageElement } from "../abstract.page.element";
+import { AbstractPageElement } from "../../pages/abstract.page.element";
 
 /** A static page sample, no init, no refresh, just a template */
 export class GoodbyePage extends AbstractPageElement {

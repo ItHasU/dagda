@@ -1,4 +1,4 @@
-import { AbstractPageElement } from "../abstract.page.element";
+import { AbstractPageElement } from "../../pages/abstract.page.element";
 
 var count = 0;
 
