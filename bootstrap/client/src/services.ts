@@ -1,10 +1,13 @@
+import { AppContextAdapter } from "@dagda-app/shared/src/entities/contexts";
+import { APP_MODEL } from "@dagda-app/shared/src/entities/model";
 import { SharedServices } from "@dagda-app/shared/src/services";
 import { GoodbyePage } from "@dagda/client/src/app/goodbye/goodbye.page";
 import { HelloPage } from "@dagda/client/src/app/hello/hello.page";
+import { buildClientEntitiesService } from "@dagda/client/src/entities/service";
 import { PageHandler } from "@dagda/client/src/pages/handler";
 import { PageService } from "@dagda/client/src/pages/service";
 import { Dagda } from "@dagda/shared/src/dagda";
-import { ConsoleLogService } from "@dagda/shared/src/tools/log";
+import { buildConsoleLogService } from "@dagda/shared/src/tools/log";
 
 export type AppPages = {
     "hello": HelloPage;
@@ -24,12 +27,8 @@ export function initServices(): void {
 
     // Initialize the services
     Dagda.init<ClientServices>({
-        log: ConsoleLogService,
+        log: buildConsoleLogService(),
         pages: pageHandler,
-        entities: {
-            getHandler: () => {
-                throw new Error("Not implemented");
-            }
-        }
+        entities: buildClientEntitiesService(APP_MODEL, new AppContextAdapter())
     });
 }

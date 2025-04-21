@@ -1,7 +1,5 @@
-import { EntitiesAPI } from "@dagda/shared/src/api/impl/entities.api";
 import { SystemAPI } from "@dagda/shared/src/api/impl/system.api";
 import { BaseAppTypes } from "@dagda/shared/src/app/types";
-import { EntitiesHandler } from "@dagda/shared/src/entities/handler";
 import { EntitiesModel } from "@dagda/shared/src/entities/model";
 import { ContextAdapter } from "@dagda/shared/src/entities/tools/adapters";
 import { NotificationHelper } from "@dagda/shared/src/notification/notification.helper";
@@ -34,16 +32,6 @@ export class Dagda {
 
     /** Initialize Dagda */
     public static async init<AppTypes extends BaseClientAppTypes>(model: EntitiesModel<any, any>, contextAdapter: ContextAdapter<AppTypes["contexts"]>): Promise<void> {
-        // -- Create the handler --
-        this._handler = new EntitiesHandler<AppTypes["entities"], AppTypes["contexts"]>(model, contextAdapter, {
-            fetch: async (context) => {
-                return apiCall<EntitiesAPI<AppTypes["contexts"], AppTypes["entities"]>, "fetch">("fetch", {}, context);
-            },
-            submit: async (data) => {
-                return apiCall<EntitiesAPI<AppTypes["contexts"], AppTypes["entities"]>, "submit">("submit", {}, data);
-            }
-        });
-
         // -- Inject headers in the app --
         this._injectHeaders();
 
@@ -72,20 +60,6 @@ export class Dagda {
 
     //#endregion
 
-    //#region Entities handler
-
-    protected static _handler: EntitiesHandler<any, any> | null = null;
-
-    /** Get the handler */
-    public static handler<AppTypes extends BaseAppTypes>(): EntitiesHandler<AppTypes["entities"], AppTypes["contexts"]> {
-        if (Dagda._handler == null) {
-            throw new Error("Handler not initialized");
-        }
-        return Dagda._handler;
-    }
-
-    //#endregion
-
     //#region Events
 
     /** Event listeners storage */
@@ -108,12 +82,5 @@ export class Dagda {
     }
 
     //#endregion
-
-    //#region Error handling
-
-    /** Handle an error */
-    public static handleError(err: unknown): void {
-        console.error("Error", err);
-    }
 
 }

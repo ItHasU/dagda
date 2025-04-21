@@ -1,15 +1,16 @@
+import { Dagda } from "@dagda/shared/src/dagda";
+import { EntitiesService } from "@dagda/shared/src/entities/service";
 import { EntitiesEvents } from "@dagda/shared/src/entities/tools/events";
-import { EntitiesTypes } from "@dagda/shared/src/entities/types";
 import { NotificationHelper } from "@dagda/shared/src/notification/notification.helper";
 import { Event } from "@dagda/shared/src/tools/events";
-import { Dagda } from "../../app";
+import { LogService } from "@dagda/shared/src/tools/log";
 import { AbstractWebComponent, Ref } from "../abstract.webcomponent";
 
 /** 
  * A simple component to display communication status of the SQLHandler.
  * This component cannot be inserted in HTML as it requires and handler at construction.
  */
-export class EntitiesStatusComponent<Tables extends EntitiesTypes, Contexts> extends AbstractWebComponent {
+export class EntitiesStatusComponent extends AbstractWebComponent {
 
     @Ref()
     protected _downloadIcon!: HTMLElement;
@@ -37,12 +38,12 @@ export class EntitiesStatusComponent<Tables extends EntitiesTypes, Contexts> ext
     protected override async _init(): Promise<void> {
         // -- Register the handler --
         try {
-            Dagda.handler().on("state", (event: Event<EntitiesEvents["state"]>) => {
+            Dagda<EntitiesService<any, any>>("entities").getHandler().on("state", (event: Event<EntitiesEvents["state"]>) => {
                 this._state = event.data;
-                this.refresh().catch(Dagda.handleError);
+                this.refresh().catch(Dagda<LogService>("log").handleError);
             });
         } catch (e) {
-            Dagda.handleError(e);
+            Dagda<LogService>("log").handleError(e);
         }
         NotificationHelper.on("connected", (event) => {
             this._disconnectedIcon.classList.toggle("d-none", !!event.data);

@@ -6,7 +6,7 @@ const _dagdaServices: { [name: string]: any } = {};
 let _dagdaInitialized: (() => void);
 
 /** This is the entry point to access to the services */
-export function Dagda<Services extends BaseServices>(name: keyof Services): Services[typeof name] {
+export function Dagda<Services extends BaseServices>(name: keyof Services): Services[keyof Services] {
     // This is a placeholder for the Dagda function
     return _dagdaServices[name as string];
 }
