@@ -1,11 +1,12 @@
 {
     "configurations": [
         {
-            "name": "Launch Program",
+            "name": "Server",
             "type": "node",
             "request": "launch",
             "skipFiles": [
-                "<node_internals>/**"
+                "<node_internals>/**",
+                "${workspaceFolder}/node_modules/**"
             ],
             "program": "${workspaceFolder}/bootstrap/server/dist/main.js",
             "cwd": "${workspaceFolder}/bootstrap/server",
