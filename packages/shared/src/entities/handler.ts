@@ -1,3 +1,5 @@
+import { Dagda } from "../dagda";
+import { NotificationService } from "../notification/service";
 import { OperationType, SQLTransaction } from "../sql/transaction";
 import { Event, EventHandler, EventHandlerData, EventHandlerImpl, EventListener } from "../tools/events";
 import { Queue } from "../tools/queue";
@@ -46,7 +48,8 @@ export class EntitiesHandler<Tables extends EntitiesTypes, Contexts> implements 
 
     constructor(protected _model: EntitiesModel<any, any>, protected _comparator: ContextAdapter<Contexts>, protected _persistenceHandler: PersistenceAdapter<Tables, Contexts>) {
         // When a notification is received mark my cache as dirty
-        NotificationHelper.on<ContextEvents<Contexts>>("contextChanged", (event: Event<ContextEvents<Contexts>["contextChanged"]>) => {
+        // FIXME
+        Dagda<NotificationService<ContextEvents<Contexts>>>("notification")?.on("contextChanged", (event: Event<ContextEvents<Contexts>["contextChanged"]>) => {
             this.markCacheDirty(...event.data);
         });
     }
@@ -298,7 +301,7 @@ export class EntitiesHandler<Tables extends EntitiesTypes, Contexts> implements 
                     contexts: transaction.contexts
                 });
                 // Trigger context changed event to notify other clients
-                NotificationHelper.broadcast<ContextEvents<Contexts>>("contextChanged", transaction.contexts);
+                Dagda<NotificationService<ContextEvents<Contexts>>>("notification").broadcast("contextChanged", transaction.contexts);
                 // -- Store updated ids --
                 // This needs to be done before updating the items
                 for (const originalId in result.updatedIds) {

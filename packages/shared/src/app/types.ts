@@ -1,5 +1,8 @@
 import { APICollection } from "../api/types";
 import { EntitiesTypes } from "../entities/types";
+import { DagdaEvents } from "../notification/events";
+import { NotificationService } from "../notification/service";
+import { LogService } from "../tools/log";
 
 /**
  * This interface contains the definition of types useful for the application.
@@ -13,5 +16,7 @@ export interface BaseAppTypes {
     /** Collection of APIs */
     apis: APICollection;
     /** Notification events (key is the name of the notification, value type is the data in the event) */
-    notifications: Record<string, unknown>;
+    events: DagdaEvents & Record<string, unknown>;
 }
+
+export type BaseAppServices<AppTypes extends BaseAppTypes> = LogService & NotificationService<AppTypes["events"]>;

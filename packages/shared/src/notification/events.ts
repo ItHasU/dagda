@@ -1,4 +1,4 @@
-import { AuthEvents } from "src/auth/events";
+import { AuthEvents } from "../auth/events";
 
 /** Web socket related events */
 export type SocketEvents = {

@@ -1,6 +1,6 @@
 import { Dagda } from "@dagda/shared/src/dagda";
+import { EntitiesEvents } from "@dagda/shared/src/entities/events";
 import { EntitiesService } from "@dagda/shared/src/entities/service";
-import { EntitiesEvents } from "@dagda/shared/src/entities/tools/events";
 import { DagdaEvents } from "@dagda/shared/src/notification/events";
 import { NotificationService } from "@dagda/shared/src/notification/service";
 import { Event } from "@dagda/shared/src/tools/events";

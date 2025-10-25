@@ -1,8 +1,9 @@
 import { EventListener } from "../tools/events";
 import { AbstractNotificationHandler } from "./abstract.notification.handler";
-import { DagdaEvents } from "./events";
 
-export interface NotificationService<Notifications extends DagdaEvents & Record<string, unknown>> {
+type BaseNotifications = Record<string, unknown>;
+
+export interface NotificationService<Notifications extends BaseNotifications> {
     notification: {
         /** Register a notification listener */
         on: <NotificationKind extends keyof Notifications>(kind: NotificationKind, listener: EventListener<Notifications[NotificationKind]>) => void;
@@ -11,7 +12,7 @@ export interface NotificationService<Notifications extends DagdaEvents & Record<
     }
 }
 
-export function buildNotificationService<Notifications extends DagdaEvents & Record<string, unknown>>(handler: AbstractNotificationHandler<Notifications>): NotificationService<Notifications> {
+export function buildNotificationService<Notifications extends BaseNotifications>(handler: AbstractNotificationHandler<Notifications>): NotificationService<Notifications> {
     return {
         notification: handler
     };

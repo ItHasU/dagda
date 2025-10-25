@@ -69,7 +69,7 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes> {
     protected _app: express.Express;
     protected _auth: AuthHandler;
     protected _db: PGRunner;
-    protected _notification: ServerNotificationImpl<AppTypes["notifications"]> | null = null;
+    protected _notification: ServerNotificationImpl<AppTypes["events"]> | null = null;
 
     constructor(protected _params: ServerParams, protected _model: EntitiesModel<any, any>, protected _contextAdapter: ContextAdapter<AppTypes["contexts"]>) {
         console.log("Reading config for environment variables...");
@@ -159,7 +159,7 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes> {
         apiRegister(this._app, name, callback);
     }
 
-    public broadcast<NotificationKind extends keyof AppTypes["notifications"]>(kind: NotificationKind, data: AppTypes["notifications"][NotificationKind]): void {
+    public broadcast<NotificationKind extends keyof AppTypes["events"]>(kind: NotificationKind, data: AppTypes["events"][NotificationKind]): void {
         if (this._notification == null) {
             console.warn("Notification server is not initialized. Notification will be lost.");
             return;
