@@ -168,7 +168,7 @@ Décisions structurantes qui expliquent plusieurs choix ci-dessous :
 | **ÉCARTÉ** — Point d'extension pour d'autres stratégies (`registerAuthStrategy`) | ❌ | ✅ | |
 | **ÉCARTÉ** — Plusieurs stratégies actives simultanément | | | sans objet : il n'en reste qu'une |
 | **ÉCARTÉ** — Un utilisateur rattaché à plusieurs méthodes de connexion | | | sans objet |
-| **NEW** — ↳ Bénéfice : `passport` et `passport-google-oauth20` sortent des dépendances | | | cohérent avec §0 |
+| **NEW** — ↳ Bénéfice : **`passport` disparaît entièrement**, pas seulement sa stratégie | | | quatre paquets sortent (`passport`, `passport-google-oauth20`, leurs `@types`). En local, `initialize()` / `session()` / `serializeUser` / `authenticate()` se remplacent par une vérification de mot de passe et un identifiant en session. `express-session` reste. Emporte au passage `PassportProfile`, `_isUserValid(profile)`, `registerAuthStrategy`, `registerGoogleStrategy` et les variables `GOOGLE_*` |
 | **NEW** — ↳ stockage sécurisé des mots de passe (hachage + sel) | | | |
 | **NEW** — ↳ création de compte **sur invitation d'un administrateur uniquement** | | | pas d'inscription publique : aucun formulaire d'inscription exposé |
 | **NEW** — ↳ mécanisme d'invitation (lien à usage unique, avec expiration) | | | l'administrateur crée le compte, l'utilisateur choisit son mot de passe |
@@ -212,13 +212,14 @@ comptes (§11.4) — pas fixés dans le code, à l'inverse des permissions.
 |---|:--:|:--:|---|
 | Injection automatique des `<head>` (meta, styles, manifest) | ❌ | ✅ | template Handlebars |
 | Web components : classe de base `AbstractWebComponent` | ⚠️ | ✅ | v1 : composants ad-hoc dans l'app |
-| Template HTML importé par `require()` et injecté | ✅ | ✅ | |
+| Template HTML importé et injecté | ✅ | ✅ | `import template from "./x.html"` — le `require()` d'origine rendait les composants intestables hors bundle |
 | Décorateur `@Ref()` : accès typé aux éléments par attribut `ref` | ❌ | ✅ | |
 | Décorateur `@Attribute()` + marshallers : attributs typés | ❌ | ✅ | déclenche le refresh automatiquement |
 | Cycle de vie `_init()` / `_refresh()` avec garde anti-réentrance | ❌ | ✅ | |
 | Gestion des slots pour les enfants existants | ❌ | ✅ | |
 | Système de pages / navigation (`PageHandler`, `AbstractPageElement`) | ⚠️ | ✅ | v1 : géré dans l'app EurekAI |
 | **NEW** — SPA fournie clé en main : menu de navigation + zone de contenu | | | l'application n'écrit pas sa coquille. Disposition détaillée dans [`specs/navigation.md`](specs/navigation.md) (paysage/portrait × déployé/rétracté) |
+| **NEW** — ↳ **Un seul `<dagda-app>` dans l'`index.html` de l'application** | | | il monte toute la coquille. Le framework enregistre ses propres éléments personnalisés : les imports « pour effet de bord » (`Navbar`, `PageContainer`, `EntitiesStatusComponent`) disparaissent des applications. Spec : `specs/navigation.md` §6.1 |
 | **NEW** — ↳ Les pages dérivent d'`ApplicationPage` | | | |
 | **NEW** — ↳ Inscription au menu **optionnelle**, avec hiérarchie par catégorie | | | une page non inscrite reste atteignable par le service de navigation |
 | **NEW** — ↳ Menu filtré par les permissions de l'utilisateur | | | conséquence de §7.1 : ne pas proposer ce qui sera refusé |

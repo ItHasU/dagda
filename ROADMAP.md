@@ -152,7 +152,13 @@ Le squelette complet de l'application, avec le minimum de fonctionnalités.
 - **Coquille SPA — disposition paysage** (FEATURES §8, spec détaillée dans
   [`specs/navigation.md`](specs/navigation.md)) : composants `PageContainer` et
   `Navbar`, menu piloté par la seule liste des pages enregistrées, page
-  courante marquée. **Seule la disposition paysage** (déployée et rétractée)
+  courante marquée. **L'application n'écrit qu'un `<dagda-app>` dans son
+  `index.html`** (`specs/navigation.md` §6.1) : la coquille entière est montée
+  par le framework, qui enregistre aussi ses propres éléments personnalisés —
+  les imports « pour effet de bord » de `Navbar`, `PageContainer` et
+  `EntitiesStatusComponent` disparaissent des applications. Une question reste
+  à trancher avant d'écrire le composant : par quoi une application
+  personnalise sa marque et son groupe secondaire. **Seule la disposition paysage** (déployée et rétractée)
   est construite ici ; la disposition portrait (barre + tiroir) attend la
   tranche 4, avec le reste du mobile. Trois questions de la spec sont à
   trancher avant d'écrire `Navbar`, pas en cours de route : le déclencheur du
@@ -254,8 +260,21 @@ pendant une publication est visible et rattrapable.
 **Ce que ça tire de Dagda**
 
 - Comptes locaux : mot de passe haché, création **sur invitation** d'un
-  administrateur (lien à usage unique, expiration). **Seul mode d'authentification** —
-  retirer au passage Google OAuth2, `passport` et `passport-google-oauth20`.
+  administrateur (lien à usage unique, expiration). **Seul mode d'authentification.**
+- **`passport` disparaît entièrement**, pas seulement sa stratégie Google.
+  Avec une authentification locale, il ne reste rien qui justifie l'abstraction :
+  `passport.initialize()`, `passport.session()`, `serializeUser` /
+  `deserializeUser` et `passport.authenticate()` se remplacent par une
+  vérification de mot de passe et un identifiant en session. Quatre paquets
+  sortent (`passport`, `passport-google-oauth20` et leurs `@types`) ;
+  `express-session` reste, c'est lui qui porte la session.
+  Deux conséquences sur la surface publique, à traiter ici :
+  - `PassportProfile` et la méthode abstraite `_isUserValid(profile)` de
+    `AbstractServerApp` disparaissent — les deux applications les implémentent
+    aujourd'hui ;
+  - `registerAuthStrategy` / `registerGoogleStrategy` et
+    `isGoogleStrategyConfigured` partent avec, ainsi que les variables
+    d'environnement `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`.
 - Rôles et matrice de permissions, super-admin intégré, premier compte `admin`.
 - **Générateur de formulaires** (FEATURES §8.1), construit ici plutôt qu'à
   l'apparition du premier écran métier : c'est lui qui rend possible, dans la

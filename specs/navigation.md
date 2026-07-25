@@ -107,12 +107,43 @@ distinctes quelle que soit la disposition, pas un sous-menu commun.
 
 ## 6. Composants concernés (FEATURES §8)
 
+- **`<dagda-app>`** — **le seul élément que l'application écrit dans son
+  `index.html`.** Il monte toute la coquille : disposition, `Navbar`, zone de
+  contenu, groupe secondaire, indicateur d'état. Voir §6.1.
 - **`PageContainer`** — porte la disposition (paysage/portrait) et son état
   (déployé/rétracté ou ouvert/fermé) ; orchestre `Navbar` et la zone de
-  contenu.
+  contenu. Interne à `<dagda-app>`.
 - **`Navbar`** — rend le groupe primaire et le groupe secondaire à partir de
-  l'arbre de menu, dans les quatre combinaisons ci-dessus.
-- **Marque** — expose un rendu compact en plus du rendu complet.
+  l'arbre de menu, dans les quatre combinaisons ci-dessus. Interne.
+- **Marque** — expose un rendu compact en plus du rendu complet. Interne.
+
+### 6.1 `<dagda-app>` : un seul élément dans la page
+
+L'`index.html` d'une application se réduit à :
+
+```html
+<body>
+    <dagda-app></dagda-app>
+</body>
+```
+
+Rien d'autre. Aujourd'hui l'application place elle-même `<page-container>` et
+doit en plus référencer `Navbar`, `PageContainer` et `EntitiesStatusComponent`
+depuis son `index.ts` pour forcer leur enregistrement — un effet de bord
+d'import qui n'a aucune raison d'être le problème de l'application.
+
+Conséquences à traiter en même temps :
+
+- **Le framework enregistre ses propres éléments personnalisés.** Les lignes
+  d'import « pour effet de bord » disparaissent des applications.
+- **La composition de la coquille appartient au framework.** Une application ne
+  choisit pas où va la barre ni où va l'indicateur d'état ; elle déclare ses
+  pages (`DagdaClient.start`), le reste en découle.
+- **Ce qu'il reste à trancher** : par quoi une application personnalise la
+  marque et le groupe secondaire. Un attribut sur `<dagda-app>`, un paramètre de
+  `DagdaClient.start()`, ou des `slot` nommés — les trois sont tenables, aucun
+  n'est décidé. À régler avant d'écrire le composant, comme les trois questions
+  ci-dessous l'ont été.
 
 ## 7. Hors de cette spec
 
