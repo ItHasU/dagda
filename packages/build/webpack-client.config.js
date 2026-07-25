@@ -52,6 +52,14 @@ function getWebpackConfig(dirname, entry = "src/index.ts", assets = "assets/") {
           test: /\.css$/i,
           use: ["style-loader", "css-loader"],
         },
+        {
+          // Fonts vendored by the framework (text and icons). They are
+          // referenced by url() from the stylesheets, never imported from
+          // code, and are emitted next to the bundle. Webpack 5 asset
+          // modules do this on their own: no loader to install.
+          test: /\.woff2$/i,
+          type: "asset/resource",
+        },
       ]
     },
     resolve: {

@@ -1,0 +1,252 @@
+/* ==========================================================================
+   Dagda themes — token sets only.
+
+   A theme is a complete set of tokens and nothing else: no selector, no rule.
+   The vocabulary and the rules live in `dagda-ui.css`, which never changes
+   from one theme to the next.
+
+   Rules of the file (FEATURES §8):
+   - every theme declares the WHOLE set, never a partial override. Shadows,
+     for instance, are tuned to the ground: a light theme that only overrode
+     the colours would inherit elevation computed for a dark one;
+   - all themes live in this single file, so switching is an attribute flip
+     on the root element and can never fail on a missing external sheet;
+   - blocks have equal specificity, so source order decides. The first block
+     also matches bare `:root`, which makes it the default theme; every other
+     theme must come after it.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Nocturne — dark. Derived from the Claude Design bundle of the same name
+   (its `theme.json`: hue 230, mono scheme, density 0.70, radius 8,
+   button style "outline", Inter, Phosphor icons).
+   -------------------------------------------------------------------------- */
+:root,
+[data-theme="nocturne"] {
+    color-scheme: dark;
+
+    /* -- Colour roles ---------------------------------------------------- */
+    --color-bg: #161826;
+    --color-surface: #232532;
+    --color-text: #e9e9ed;
+    /* Blurple at OKLCH hue 289.2 — the accent reads as an accent against
+       ramps this desaturated. */
+    --color-accent: #9184d9;
+    /* Mono scheme: no second accent was chosen. The stand-in is kept only so
+       both sets resolve; treat it as one role. */
+    --color-accent-2: #a7a1db;
+    --color-divider: color-mix(in srgb, var(--color-text) 16%, transparent);
+
+    /* -- Tonal ramps ------------------------------------------------------
+       Generated in OKLCH on one shared lightness scale, so the same step of
+       any role carries the same visual weight. On this dark ground: 700-900
+       for tinted fills, hovers and subtle borders, 500 as the role's base,
+       100-300 for text on those tints and for pressed states. */
+    --color-neutral-100: #f3f5fe;
+    --color-neutral-200: #e4e7f5;
+    --color-neutral-300: #cfd3e5;
+    --color-neutral-400: #b2b6ca;
+    --color-neutral-500: #9397ab;
+    --color-neutral-600: #75798c;
+    --color-neutral-700: #595d6c;
+    --color-neutral-800: #3f424d;
+    --color-neutral-900: #292b31;
+
+    --color-accent-100: #f5f4ff;
+    --color-accent-200: #e7e5fe;
+    --color-accent-300: #d2cefd;
+    --color-accent-400: #b5abfc;
+    --color-accent-500: #968ae0;
+    --color-accent-600: #796cbf;
+    --color-accent-700: #5d5294;
+    --color-accent-800: #423a6a;
+    --color-accent-900: #2b2741;
+
+    --color-accent-2-100: #f5f4ff;
+    --color-accent-2-200: #e7e5fe;
+    --color-accent-2-300: #d2cefd;
+    --color-accent-2-400: #b5afe8;
+    --color-accent-2-500: #9690c9;
+    --color-accent-2-600: #7972a9;
+    --color-accent-2-700: #5c5783;
+    --color-accent-2-800: #423e5d;
+    --color-accent-2-900: #2b293a;
+
+    /* Saturated grounds, at presentation scale only — never interface fills. */
+    --color-section: #262a60;
+    --color-section-glow: #353b80;
+    --color-section-ghost: #4c5397;
+
+    /* -- Derived text colours -------------------------------------------- */
+    --color-text-muted: color-mix(in srgb, var(--color-text) 55%, transparent);
+    --color-text-label: color-mix(in srgb, var(--color-text) 70%, transparent);
+    --color-text-meta: color-mix(in srgb, var(--color-text) 50%, transparent);
+    --color-text-table-head: color-mix(in srgb, var(--color-text) 60%, transparent);
+    --color-selection: color-mix(in srgb, var(--color-accent) 30%, transparent);
+
+    /* -- Typography ------------------------------------------------------- */
+    --font-heading: "Inter", system-ui, sans-serif;
+    --font-body: "Inter", system-ui, sans-serif;
+    /* Icon weight, as a theme token. One of the six Phosphor families
+       declared in `icons.css`: Phosphor-Thin, Phosphor-Light, Phosphor,
+       Phosphor-Bold, Phosphor-Fill, Phosphor-Duotone. */
+    --font-icon: "Phosphor";
+    --font-heading-weight: 500;
+    --font-body-weight: 400;
+
+    --font-size-base: 15px;
+    --font-size-h1: 42px;
+    --font-size-h2: 32px;
+    --font-size-h3: 25px;
+    --font-size-h4: 20px;
+    --font-size-h5: 16px;
+    --font-size-h6: 13px;
+    /* Buttons and inputs share one size: the pair sits side by side in rows. */
+    --font-size-control: 14px;
+    --font-size-sm: 13px;
+    --font-size-label: 12px;
+    --font-size-xs: 11px;
+    --font-size-xxs: 10px;
+    --font-size-card-title: 17px;
+    --font-size-nav-brand: 18px;
+    --font-size-dialog-title: 20px;
+
+    --line-height-base: 1.55;
+    --line-height-heading: 1.12;
+    --line-height-tight: 1.2;
+
+    --tracking-heading: -0.015em;
+    --tracking-caps: 0.08em;
+    --tracking-caps-wide: 0.1em;
+    --tracking-tag: 0.02em;
+
+    /* -- Density and spacing ----------------------------------------------
+       The scale is 4px steps scaled by the theme's density. Nocturne is dense
+       on purpose (0.70), which is why the steps land on fractional pixels. */
+    --density: 0.7;
+    --space-1: calc(4px * var(--density) * 1);
+    --space-2: calc(4px * var(--density) * 2);
+    --space-3: calc(4px * var(--density) * 3);
+    --space-4: calc(4px * var(--density) * 4);
+    --space-6: calc(4px * var(--density) * 6);
+    --space-8: calc(4px * var(--density) * 8);
+
+    /* -- Radii ------------------------------------------------------------ */
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 14px;
+    --radius-tag: calc(var(--radius-md) * 0.75);
+    --radius-round: 50%;
+
+    /* -- Lines ------------------------------------------------------------
+       Freestanding rules fade to transparent over `--rule-fade` at each end —
+       a Nocturne signature. Box outlines and in-control separators stay solid. */
+    --hairline: 1px;
+    --rule-fade: 48px;
+
+    /* -- Elevation --------------------------------------------------------
+       Tuned to the ground: on a dark one, a hairline edge plus ambient
+       darkness rather than a soft ink shadow. The black here is shade, not a
+       colour, which is why it is not taken from a ramp. */
+    --shadow-sm: 0 0 0 var(--hairline) var(--color-neutral-800);
+    --shadow-md: 0 0 0 var(--hairline) var(--color-neutral-700), 0 6px 18px rgba(0, 0, 0, 0.55);
+    --shadow-lg: 0 0 0 var(--hairline) var(--color-neutral-500), 0 16px 40px rgba(0, 0, 0, 0.65);
+
+    /* -- Focus ------------------------------------------------------------ */
+    --focus-ring-width: 2px;
+    --focus-ring-offset: 2px;
+    --focus-ring-color: var(--color-accent);
+
+    /* -- Control metrics --------------------------------------------------- */
+    --control-size: 36px;
+    --control-gap: 6px;
+    --disabled-opacity: 0.45;
+    --link-underline-offset: 3px;
+
+    --btn-padding-y: var(--space-2);
+    --btn-padding-x: calc(var(--space-3) * 1.2);
+
+    --input-padding-y: 6px;
+    --input-padding-x: 10px;
+    --input-label-gap: 5px;
+    --textarea-min-height: 90px;
+
+    --radio-size: 16px;
+    --radio-gap: 8px;
+    --radio-border-width: 1.5px;
+    --radio-dot-inset: 4px;
+
+    --seg-padding-y: 7px;
+    --seg-padding-x: 12px;
+
+    --tag-padding-y: 3px;
+    --tag-padding-x: 10px;
+
+    --card-body-opacity: 0.8;
+
+    --dialog-width: 440px;
+    --dialog-body-opacity: 0.85;
+
+    /* -- Buttons ----------------------------------------------------------
+       These tokens are what makes a theme's buttons outlined or flat.
+       Nocturne is outlined: an accent border on nothing, never a fill. A flat
+       theme sets `--btn-primary-bg` to the accent, `--btn-primary-fg` to the
+       colour that reads on it, and `--btn-primary-border` to transparent. */
+    --btn-fg: var(--color-text);
+    --btn-bg: transparent;
+    --btn-border: transparent;
+
+    --btn-primary-fg: var(--color-accent);
+    --btn-primary-bg: transparent;
+    --btn-primary-border: var(--color-accent);
+    --btn-primary-bg-hover: color-mix(in srgb, var(--color-accent) 12%, transparent);
+    --btn-primary-bg-active: color-mix(in srgb, var(--color-accent) 22%, transparent);
+
+    --btn-secondary-fg: var(--color-text);
+    --btn-secondary-bg: transparent;
+    --btn-secondary-border: var(--color-divider);
+    --btn-secondary-bg-hover: color-mix(in srgb, var(--color-text) 7%, transparent);
+    --btn-secondary-bg-active: color-mix(in srgb, var(--color-text) 14%, transparent);
+
+    --btn-ghost-fg: var(--color-accent);
+    --btn-ghost-bg-hover: color-mix(in srgb, var(--color-accent) 10%, transparent);
+    --btn-ghost-bg-active: color-mix(in srgb, var(--color-accent) 18%, transparent);
+
+    /* -- Surfaces and interactive tints ------------------------------------ */
+    --card-bg: var(--color-surface);
+
+    --input-bg: var(--color-surface);
+    --input-fg: var(--color-text);
+    --input-border: var(--color-divider);
+    --input-border-hover: color-mix(in srgb, var(--color-text) 45%, transparent);
+    --input-border-focus: var(--color-accent);
+    --input-caret: var(--color-accent);
+
+    --seg-border: var(--color-divider);
+    --seg-selected-fg: var(--color-accent);
+    --seg-selected-border: var(--color-accent);
+    --seg-bg-hover: color-mix(in srgb, var(--color-text) 7%, transparent);
+
+    --nav-link-active-fg: var(--color-accent);
+
+    --table-rule: color-mix(in srgb, var(--color-text) 8%, transparent);
+    --table-row-hover: color-mix(in srgb, var(--color-text) 4%, transparent);
+
+    --dialog-bg: var(--color-surface);
+    --dialog-backdrop: color-mix(in srgb, var(--color-neutral-900) 50%, transparent);
+
+    /* -- Tags -------------------------------------------------------------- */
+    --tag-accent-bg: var(--color-accent-800);
+    --tag-accent-fg: var(--color-accent-100);
+    --tag-accent-2-bg: var(--color-accent-2-800);
+    --tag-accent-2-fg: var(--color-accent-2-100);
+    --tag-neutral-bg: var(--color-neutral-800);
+    --tag-neutral-fg: var(--color-neutral-100);
+    --tag-outline-border: var(--color-accent);
+    --tag-outline-fg: var(--color-accent);
+
+    /* -- Imagery -----------------------------------------------------------
+       Photographs go through `.lighten`: anything darker than the backdrop
+       falls away, so a black photo background disappears on a dark page. */
+    --image-blend: lighten;
+}

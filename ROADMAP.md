@@ -182,8 +182,12 @@ Le squelette complet de l'application, avec le minimum de fonctionnalités.
   Un seul thème suffit à cette tranche — mais la séparation doit être faite
   maintenant, sinon les écrans des tranches 1 à 3 la rendront coûteuse.
 - **Icônes** : police Phosphor embarquée localement (six graisses déclarées, une
-  seule téléchargée à l'usage) et composant `<dagda-icon name="…">` qui porte
-  l'accessibilité et applique la graisse du thème.
+  seule téléchargée à l'usage), la graisse étant un jeton de thème. **Pas de
+  composant** : FEATURES §8 a écarté `<dagda-icon name="…">` — le thème d'icônes
+  étant tranché, un `<i class="ph ph-…">` direct suffit, sans l'indirection JS.
+  L'accessibilité (`aria-hidden` sur l'icône décorative, libellé obligatoire sur
+  un bouton sans texte) devient donc une règle d'écriture, documentée avec la
+  feuille de style.
 - Brancher le lint d'adhérence livré dans le bundle (`_adherence.oxlintrc.json`)
   dès maintenant : il refuse les hex bruts, les `px` bruts et les polices hors
   système. C'est lui qui garantit que les écrans des tranches 1 à 3 resteront
@@ -548,11 +552,15 @@ un signal à traiter, pas à ignorer.
   l'administrateur. Bascule par `data-theme`. Livré en tranche 4.
 - **Icônes** : Phosphor (MIT), livré en police d'icônes, embarquée localement.
   Le jeu est fixe pour toute l'application ; c'est la **graisse** qui est un jeton
-  de thème. Exposé par un composant `<dagda-icon>`.
+  de thème. Employé directement (`<i class="ph ph-…">`) : le composant
+  `<dagda-icon>` est écarté (FEATURES §8).
 - Le lint d'adhérence du bundle est branché en CI dès la tranche 1.
 
 ## Questions encore ouvertes
 
-- **Rangement du design system** : `Nocturne.zip` est aujourd'hui une archive
-  binaire à la racine de MQTTToolbox2. À dézipper dans l'arborescence — et plutôt
-  côté framework que côté application, puisque `dagda-ui.css` en est tiré.
+- ~~**Rangement du design system**~~ — tranché en tranche 1 : le bundle est
+  dézippé côté framework, sous `packages/client/src/styles/`. Seules les
+  sources utiles sont reprises (jetons, règles, polices, icônes) ; les
+  `templates/`, la photo de référence et les vignettes du bundle sont des
+  exemples de présentation et restent dehors. Voir le
+  [README du dossier](packages/client/src/styles/README.md).

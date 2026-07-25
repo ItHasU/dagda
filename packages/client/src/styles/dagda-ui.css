@@ -1,0 +1,492 @@
+/* ==========================================================================
+   dagda-ui.css — the framework's class vocabulary.
+
+   Taken as-is from the Claude Design "Nocturne" bundle: the class names and
+   the rules are the ones the bundle shipped, only the values were lifted into
+   tokens. Applications build their screens with these classes.
+
+   Hard constraint: NOT ONE literal value in this file. Every colour, size,
+   font, radius, shadow and duration comes from a `var()` defined in
+   `themes.css`. Structural values (0, 100%, `inherit`, `none`) are not design
+   decisions and stay literal.
+
+   This is the stable API. It is meant never to change again from one slice to
+   the next — a new look is a new token set, not a new rule here.
+
+   Not in this file: `@font-face` (see `fonts.css` and `icons.css`), because
+   adding a family would otherwise mean touching this file.
+   ========================================================================== */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-body);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-body-weight);
+    line-height: var(--line-height-base);
+}
+
+/* — headings —
+   Hierarchy here is size and space; do not bolden past the theme's weight. */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    font-family: var(--font-heading);
+    font-weight: var(--font-heading-weight);
+    line-height: var(--line-height-heading);
+    letter-spacing: var(--tracking-heading);
+    margin: 0 0 var(--space-2);
+}
+
+h1 { font-size: var(--font-size-h1); }
+h2 { font-size: var(--font-size-h2); }
+h3 { font-size: var(--font-size-h3); }
+h4 { font-size: var(--font-size-h4); }
+h5 { font-size: var(--font-size-h5); }
+
+h6 {
+    font-size: var(--font-size-h6);
+    letter-spacing: var(--tracking-caps);
+    text-transform: uppercase;
+}
+
+p {
+    margin: 0 0 var(--space-3);
+}
+
+a {
+    color: var(--color-accent);
+    text-underline-offset: var(--link-underline-offset);
+}
+
+img {
+    display: block;
+    max-width: 100%;
+}
+
+figure {
+    margin: 0;
+}
+
+figcaption {
+    font-size: var(--font-size-xs);
+    margin-top: var(--space-1);
+    color: var(--color-text-muted);
+}
+
+.text-muted {
+    color: var(--color-text-muted);
+}
+
+/* — interaction states —
+   Themed, never browser defaults. Do not restyle them per screen. */
+:focus {
+    outline: none;
+}
+
+:focus-visible {
+    outline: var(--focus-ring-width) solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
+}
+
+::selection {
+    background: var(--color-selection);
+}
+
+/* — imagery —
+   Blends a photograph into whatever the page paints behind it. */
+.lighten {
+    mix-blend-mode: var(--image-blend);
+    background-color: transparent;
+}
+
+/* — rules —
+   Freestanding rules fade to transparent at both ends instead of stopping
+   cleanly. This system prefers whitespace; reach for `.hr` sparingly. */
+.hr {
+    height: var(--hairline);
+    border: 0;
+    margin: var(--space-4) 0;
+    background: linear-gradient(to right,
+            transparent,
+            var(--color-divider) var(--rule-fade),
+            var(--color-divider) calc(100% - var(--rule-fade)),
+            transparent);
+}
+
+/* — buttons — */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--control-gap);
+    cursor: pointer;
+    text-decoration: none;
+    font-family: var(--font-heading);
+    font-weight: var(--font-heading-weight);
+    font-size: var(--font-size-control);
+    line-height: var(--line-height-tight);
+    color: var(--btn-fg);
+    background: var(--btn-bg);
+    border: var(--hairline) solid var(--btn-border);
+    padding: var(--btn-padding-y) var(--btn-padding-x);
+    border-radius: var(--radius-md);
+}
+
+.btn svg {
+    display: block;
+}
+
+.btn:disabled {
+    opacity: var(--disabled-opacity);
+    cursor: not-allowed;
+}
+
+.btn-primary {
+    color: var(--btn-primary-fg);
+    background: var(--btn-primary-bg);
+    border-color: var(--btn-primary-border);
+}
+
+.btn-primary:hover { background: var(--btn-primary-bg-hover); }
+.btn-primary:active { background: var(--btn-primary-bg-active); }
+
+.btn-secondary {
+    color: var(--btn-secondary-fg);
+    background: var(--btn-secondary-bg);
+    border-color: var(--btn-secondary-border);
+}
+
+.btn-secondary:hover { background: var(--btn-secondary-bg-hover); }
+.btn-secondary:active { background: var(--btn-secondary-bg-active); }
+
+.btn-ghost {
+    color: var(--btn-ghost-fg);
+    padding-inline: var(--space-1);
+}
+
+.btn-ghost:hover { background: var(--btn-ghost-bg-hover); }
+.btn-ghost:active { background: var(--btn-ghost-bg-active); }
+
+.btn-icon {
+    width: var(--control-size);
+    height: var(--control-size);
+    padding: 0;
+}
+
+.btn-block {
+    width: 100%;
+    margin-top: var(--space-2);
+}
+
+/* — forms —
+   Native elements, no script. */
+.field > label {
+    display: block;
+    font-size: var(--font-size-label);
+    margin-bottom: var(--input-label-gap);
+    color: var(--color-text-label);
+}
+
+.input {
+    width: 100%;
+    min-height: var(--control-size);
+    padding: var(--input-padding-y) var(--input-padding-x);
+    font: inherit;
+    font-size: var(--font-size-control);
+    color: var(--input-fg);
+    caret-color: var(--input-caret);
+    background: var(--input-bg);
+    border: var(--hairline) solid var(--input-border);
+    border-radius: var(--radius-md);
+}
+
+.input:hover {
+    border-color: var(--input-border-hover);
+}
+
+.input:focus-visible {
+    border-color: var(--input-border-focus);
+    outline-offset: 0;
+}
+
+textarea.input {
+    min-height: var(--textarea-min-height);
+    resize: vertical;
+}
+
+.radio {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--radio-gap);
+    cursor: pointer;
+    font-size: var(--font-size-control);
+}
+
+.radio input,
+.seg-opt input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+
+.radio .dot {
+    width: var(--radio-size);
+    height: var(--radio-size);
+    flex: none;
+    border-radius: var(--radius-round);
+    border: var(--radio-border-width) solid var(--input-border);
+}
+
+.radio:hover .dot {
+    border-color: var(--color-accent);
+}
+
+.radio input:checked + .dot {
+    border-color: var(--color-accent);
+    background: var(--color-accent);
+    box-shadow: inset 0 0 0 var(--radio-dot-inset) var(--color-bg);
+}
+
+.radio input:focus-visible + .dot {
+    outline: var(--focus-ring-width) solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
+}
+
+.seg {
+    display: inline-flex;
+    overflow: hidden;
+    border: var(--hairline) solid var(--seg-border);
+    border-radius: var(--radius-md);
+}
+
+.seg-opt {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--control-gap);
+    padding: var(--seg-padding-y) var(--seg-padding-x);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+}
+
+.seg-opt + .seg-opt {
+    border-left: var(--hairline) solid var(--seg-border);
+}
+
+.seg-opt:has(input:checked) {
+    color: var(--seg-selected-fg);
+    box-shadow: inset 0 0 0 var(--hairline) var(--seg-selected-border);
+}
+
+.seg-opt:not(:has(input:checked)):hover {
+    background: var(--seg-bg-hover);
+}
+
+.seg-opt:has(input:focus-visible) {
+    outline: var(--focus-ring-width) solid var(--focus-ring-color);
+    outline-offset: calc(-1 * var(--focus-ring-offset));
+}
+
+/* — cards — */
+.card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--card-bg);
+}
+
+.card-kicker {
+    font-size: var(--font-size-xxs);
+    letter-spacing: var(--tracking-caps-wide);
+    text-transform: uppercase;
+    color: var(--color-accent);
+}
+
+.card-title {
+    font-family: var(--font-heading);
+    font-weight: var(--font-heading-weight);
+    font-size: var(--font-size-card-title);
+    line-height: var(--line-height-tight);
+}
+
+.card-body {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    opacity: var(--card-body-opacity);
+    flex: 1;
+}
+
+.card-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--control-gap);
+    font-size: var(--font-size-xs);
+    color: var(--color-text-meta);
+}
+
+/* — elevation — */
+.elev-sm { box-shadow: var(--shadow-sm); }
+.elev-md { box-shadow: var(--shadow-md); }
+.elev-lg { box-shadow: var(--shadow-lg); }
+
+/* — tags — */
+.tag {
+    display: inline-flex;
+    align-items: center;
+    font-size: var(--font-size-xs);
+    letter-spacing: var(--tracking-tag);
+    padding: var(--tag-padding-y) var(--tag-padding-x);
+    border-radius: var(--radius-tag);
+}
+
+.tag-accent {
+    background: var(--tag-accent-bg);
+    color: var(--tag-accent-fg);
+}
+
+.tag-accent-2 {
+    background: var(--tag-accent-2-bg);
+    color: var(--tag-accent-2-fg);
+}
+
+.tag-neutral {
+    background: var(--tag-neutral-bg);
+    color: var(--tag-neutral-fg);
+}
+
+.tag-outline {
+    border: var(--hairline) solid var(--tag-outline-border);
+    color: var(--tag-outline-fg);
+}
+
+/* — navigation — */
+.nav {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--space-3) var(--space-4);
+    border-bottom: none;
+}
+
+.nav-brand {
+    font-family: var(--font-heading);
+    font-weight: var(--font-heading-weight);
+    font-size: var(--font-size-nav-brand);
+    margin-right: auto;
+}
+
+.nav a {
+    color: inherit;
+    text-decoration: none;
+    font-size: var(--font-size-control);
+}
+
+.nav a:hover,
+.nav a[aria-current="page"] {
+    color: var(--nav-link-active-fg);
+}
+
+/* — tables — */
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--font-size-control);
+}
+
+.table th {
+    text-align: left;
+    font-size: var(--font-size-xs);
+    letter-spacing: var(--tracking-caps);
+    text-transform: uppercase;
+    color: var(--color-text-table-head);
+    /* Keeps the layout; the row below paints the fading rule. */
+    padding: var(--space-2);
+    border-bottom: var(--hairline) solid transparent;
+}
+
+.table td {
+    padding: var(--space-2);
+    border-bottom: var(--hairline) solid transparent;
+}
+
+/* Row rules are painted on the row, not the cell, so the end-fade spans the
+   whole row rather than restarting at every column. */
+.table thead tr {
+    background: linear-gradient(to right,
+            transparent,
+            var(--color-divider) var(--rule-fade),
+            var(--color-divider) calc(100% - var(--rule-fade)),
+            transparent) no-repeat bottom / 100% var(--hairline);
+}
+
+.table tbody tr {
+    background: linear-gradient(to right,
+            transparent,
+            var(--table-rule) var(--rule-fade),
+            var(--table-rule) calc(100% - var(--rule-fade)),
+            transparent) no-repeat bottom / 100% var(--hairline);
+}
+
+.table tbody tr:hover {
+    /* The hover tint layers over the row rule, which keeps painting. */
+    background:
+        linear-gradient(var(--table-row-hover), var(--table-row-hover)) no-repeat 0 0 / 100% 100%,
+        linear-gradient(to right,
+            transparent,
+            var(--table-rule) var(--rule-fade),
+            var(--table-rule) calc(100% - var(--rule-fade)),
+            transparent) no-repeat bottom / 100% var(--hairline);
+}
+
+/* — dialog — */
+.dialog-backdrop {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: var(--space-4);
+    background: var(--dialog-backdrop);
+}
+
+.dialog {
+    width: min(var(--dialog-width), 100%);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border-radius: var(--radius-lg);
+    background: var(--dialog-bg);
+    box-shadow: var(--shadow-lg);
+}
+
+.dialog-title {
+    font-family: var(--font-heading);
+    font-weight: var(--font-heading-weight);
+    font-size: var(--font-size-dialog-title);
+}
+
+.dialog-body {
+    font-size: var(--font-size-control);
+    opacity: var(--dialog-body-opacity);
+}
+
+.dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+}

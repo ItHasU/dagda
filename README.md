@@ -6,6 +6,8 @@ DO NOT use this in production.
 - [FEATURES.md](FEATURES.md) — what the framework does.
 - [ROADMAP.md](ROADMAP.md) — in which order it gets built.
 - [GUIDE.md](GUIDE.md) — how to turn `bootstrap/` into an application.
+- [packages/client/src/styles/README.md](packages/client/src/styles/README.md) —
+  the design system: classes, themes, fonts and icons.
 
 ## Développer
 
@@ -25,6 +27,7 @@ navigateur, lui, n'est pas rechargé automatiquement : il faut rafraîchir la pa
 |---|---|
 | `npm run build` | Compile tous les paquets et l'application `bootstrap/` |
 | `npm run typecheck` | Vérifie le typage, tests et parcours compris |
+| `npm run lint` | Lint d'adhérence au design system (hex, `px` et polices en dur) |
 | `npm test` | Tests unitaires (Vitest) |
 | `npm run test:watch` | Idem, en surveillance |
 | `npm run test:e2e` | Parcours de bout en bout (Playwright) |

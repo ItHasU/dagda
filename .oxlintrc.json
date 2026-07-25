@@ -1,0 +1,44 @@
+{
+  // Design-system adherence lint (ROADMAP, slice 1).
+  //
+  // Derived from `_adherence.oxlintrc.json`, delivered inside the Claude
+  // Design "Nocturne" bundle. Two departures from the file as delivered:
+  //
+  // - the bundle expresses its three checks as `no-restricted-syntax`
+  //   selectors, a rule oxlint does not implement. They are reimplemented,
+  //   regexes and messages untouched, in the JS plugin below;
+  // - the bundle's two other rules (`react/forbid-elements` and
+  //   `no-restricted-imports`) were delivered with empty lists — no-ops that
+  //   only pulled in two plugins, so they are dropped.
+  //
+  // Everything oxlint enables by default is off: this configuration answers
+  // one question only — does the code stay inside the design tokens.
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": {
+    "correctness": "off"
+  },
+  "jsPlugins": [
+    "./packages/build/oxlint-adherence.mjs"
+  ],
+  "rules": {
+    "adherence/design-system": "warn"
+  },
+  "ignorePatterns": [
+    "**/.tsc-build/**",
+    "**/dist/**"
+  ],
+  "overrides": [
+    {
+      // Known debt, not a waiver: this component paints an avatar on a
+      // canvas with two hard-coded greys, so the avatar ignores the theme.
+      // It belongs to the component work happening in parallel and must be
+      // read from the tokens (`getComputedStyle`) when that lands.
+      "files": [
+        "packages/client/src/components/login/login.component.ts"
+      ],
+      "rules": {
+        "adherence/design-system": "off"
+      }
+    }
+  ]
+}
