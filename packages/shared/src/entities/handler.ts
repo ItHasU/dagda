@@ -47,11 +47,21 @@ export class EntitiesHandler<Tables extends EntitiesTypes, Contexts> implements 
     protected _submitQueue: Queue<void> = new Queue(void (0));
 
     constructor(protected _model: EntitiesModel<any, any>, protected _comparator: ContextAdapter<Contexts>, protected _persistenceHandler: PersistenceAdapter<Tables, Contexts>) {
-        // When a notification is received mark my cache as dirty
-        // FIXME
-        Dagda<NotificationService<ContextEvents<Contexts>>>("notification")?.on("contextChanged", (event: Event<ContextEvents<Contexts>["contextChanged"]>) => {
-            this.markCacheDirty(...event.data);
+        // The handler is usually built before Dagda.init() has registered the services,
+        // so we cannot look up the notification service right away.
+        // We wait for the services to be available, then subscribe to mark the cache
+        // dirty whenever another client reports a change on a context we hold.
+        // The service is optional: without it the handler simply never goes dirty on its own.
+        Dagda.loaded.then(() => {
+            this._notification()?.on("contextChanged", (event: Event<ContextEvents<Contexts>["contextChanged"]>) => {
+                this.markCacheDirty(...event.data);
+            });
         });
+    }
+
+    /** @returns the notification service, or undefined if the application did not register one */
+    protected _notification(): NotificationService<ContextEvents<Contexts>>["notification"] | undefined {
+        return Dagda.get<NotificationService<ContextEvents<Contexts>>>("notification");
     }
 
     //#region Events ----------------------------------------------------------
@@ -301,7 +311,7 @@ export class EntitiesHandler<Tables extends EntitiesTypes, Contexts> implements 
                     contexts: transaction.contexts
                 });
                 // Trigger context changed event to notify other clients
-                Dagda<NotificationService<ContextEvents<Contexts>>>("notification").broadcast("contextChanged", transaction.contexts);
+                this._notification()?.broadcast("contextChanged", transaction.contexts);
                 // -- Store updated ids --
                 // This needs to be done before updating the items
                 for (const originalId in result.updatedIds) {

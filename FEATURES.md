@@ -269,13 +269,20 @@ Une liste de champs typés en entrée, un formulaire rendu et validé en sortie.
 
 | Fonctionnalité | v1 | v2 | Notes |
 |---|:--:|:--:|---|
-| Point d'entrée unique `Dagda("serviceName")` | ❌ | ✅ | remplace les singletons statiques de la v1 |
+| Point d'entrée unique `Dagda.get("serviceName")` | ❌ | ✅ | classe du paquet partagé, identique côté client et côté serveur ; remplace les singletons statiques de la v1 |
 | `Dagda.init(services)` + promesse `Dagda.loaded` | ❌ | ✅ | les composants attendent l'init |
 | Services standard : `log`, `notification`, `entities`, `pages` | ❌ | ✅ | |
 | Types applicatifs centralisés (`BaseAppTypes`) | ❌ | ✅ | `entities` / `contexts` / `apis` / `events` en un seul endroit |
+| Registre instanciable (`DagdaRegistry`) derrière la façade statique | ❌ | ✅ | `Dagda.reset()` rend le registre courant et en installe un neuf : un test s'isole sans toucher à l'état de module |
 | **NEW** — Service `auth` (utilisateur courant, connexion, déconnexion) | | | conséquence de §7 |
 | **NEW** — Déclaration de services applicatifs custom documentée | | | |
-| **NEW** — Nettoyer les `Dagda<...>(...)` marqués `FIXME` dans le handler | | | |
+
+> **`Dagda` ≠ `DagdaClient`.** `Dagda` (paquet partagé) est le registre de
+> services, et lui seul. L'amorçage de l'application cliente — en-têtes de page,
+> informations système, appels d'API typés — est porté par `DagdaClient`
+> (paquet client), dont le point d'entrée est `DagdaClient.start(model, adapter)`.
+> Les deux portaient le même nom jusqu'à la tranche 0, avec deux `init()` de
+> signatures incompatibles à une ligne d'écart dans le boilerplate.
 
 ## 10. Utilitaires partagés
 

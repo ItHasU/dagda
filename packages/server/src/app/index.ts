@@ -132,11 +132,6 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes> {
         apiRegister<EntitiesAPI<AppTypes["contexts"], AppTypes["entities"]>, "submit">(this._app, "submit", (options: RequestOptions, transactionData: SQLTransactionData<AppTypes["entities"], AppTypes["contexts"]>): Promise<SQLTransactionResult> => {
             return this._submit(transactionData);
         });
-        this.registerAPI("submit", (options: RequestOptions, ...args: any[]) => {
-            // Call the submit function
-            return Promise.reject("Not implemented"); //this._submit(transactionData);
-        });
-
     }
 
     //#region HTTP Server -----------------------------------------------------
@@ -174,6 +169,15 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes> {
     /** Register an authentication strategy */
     public registerAuthStrategy(strategy: AuthStrategy): void {
         this._auth.registerStrategy(strategy);
+    }
+
+    /**
+     * True when the Google credentials are present in the environment.
+     * An application can then decide to register the strategy or to start
+     * without any, which is what the development and end-to-end setups do.
+     */
+    public get isGoogleStrategyConfigured(): boolean {
+        return this._config.clientID != null && this._config.clientSecret != null;
     }
 
     /** Register google strategy */

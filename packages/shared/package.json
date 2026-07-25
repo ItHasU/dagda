@@ -6,8 +6,7 @@
     "license": "CC BY 4.0",
     "scripts": {
         "build": "tsc",
-        "watch": "tsc -w",
-        "test": "mocha .tsc-build/**/*.spec.js"
+        "watch": "tsc -w"
     },
     "devDependencies": {
         "@dagda/build": "^1.0.0"

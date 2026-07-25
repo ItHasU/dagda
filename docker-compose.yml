@@ -1,0 +1,30 @@
+# Development and test stack.
+#
+# This is the single compose file for the project: the deployment slice will add
+# the application service next to it rather than start a second file.
+#
+# `npm run db:up` starts PostgreSQL alone, which is all the test suite needs.
+
+services:
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DAGDA_DB_USER:-dagda}
+      POSTGRES_PASSWORD: ${DAGDA_DB_PASSWORD:-dagda}
+      POSTGRES_DB: ${DAGDA_DB_NAME:-dagda}
+    ports:
+      # Exposed on the host so the test suite and a locally run server can reach it.
+      - "${DAGDA_DB_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      # Tests wait on this: an accepting socket is not the same as a ready server.
+      test: ["CMD-SHELL", "pg_isready -U ${DAGDA_DB_USER:-dagda} -d ${DAGDA_DB_NAME:-dagda}"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  postgres-data:

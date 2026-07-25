@@ -217,6 +217,20 @@ export function initServices(): void {
 }
 ```
 
+`Dagda` vient du paquet *shared* : c'est le registre de services, et il
+s'utilise à l'identique côté client et côté serveur — `Dagda.init(...)` pour
+enregistrer, `Dagda.get("nom")` pour lire, `Dagda.loaded` pour attendre.
+
+Une fois les services enregistrés, l'application cliente démarre avec
+`DagdaClient.start(...)`, qui vient du paquet *client* et ne fait que
+l'amorçage (en-têtes de page, informations système, appels d'API) :
+
+```ts
+// client/src/index.ts
+initServices();
+DagdaClient.start<AppTypes>(APP_MODEL, new AppContextAdapter());
+```
+
 ### 2.2 Pages
 
 Chaque page dérive d'`AbstractPageElement` et se déclare avec un titre et
@@ -224,12 +238,14 @@ un ordre de menu :
 
 ```ts
 // client/src/pages/projects/projects.page.ts
+import template from "./projects.page.html";
+
 export class ProjectsPage extends AbstractPageElement {
     constructor() {
-        super({ template: require("./projects.page.html").default });
+        super({ template });
     }
     protected override async _refresh(): Promise<void> {
-        const handler = Dagda<EntitiesService<AppEntityTypes, AppContexts>>("entities");
+        const handler = Dagda.get<EntitiesService<AppEntityTypes, AppContexts>>("entities");
         await handler.fetch({ type: "projects", options: {} });
         // ... rendu du DOM à partir de handler.getItems("projects")
     }
@@ -252,12 +268,14 @@ aux attributs sans `querySelector` manuel :
 
 ```ts
 // client/src/components/project-card/project-card.component.ts
+import template from "./project-card.component.html";
+
 export class ProjectCard extends AbstractWebComponent {
     @Ref() private _title!: HTMLElement;
     @Attribute<number>({ marshaller: NumberMarshaller }) public projectId!: number;
 
     constructor() {
-        super({ template: require("./project-card.component.html").default });
+        super({ template });
     }
     protected override async _refresh(): Promise<void> {
         this._title.textContent = `Projet #${this.projectId}`;
@@ -267,6 +285,19 @@ customElements.define("project-card", ProjectCard);
 ```
 
 Poser `element.projectId = 42` déclenche automatiquement `_refresh()`.
+
+Deux points sur le cycle de vie, qui évitent des surprises :
+
+- Un `refresh()` demandé pendant qu'un autre tourne **n'est pas perdu** : il est
+  regroupé, et une passe supplémentaire s'exécute derrière. Poser deux attributs
+  à la suite laisse donc bien le composant sur le dernier état. La promesse
+  rendue par `refresh()` se résout quand le composant reflète l'état au moment
+  de l'appel, et n'échoue jamais — un `_refresh()` en erreur affiche l'erreur à
+  la place du composant.
+- Le gabarit est importé, pas `require()`. Tout paquet contenant des composants
+  a donc besoin de la déclaration `declare module "*.html"` (voir
+  `packages/client/src/templates.d.ts`). C'est ce qui rend les composants
+  instanciables hors bundle, et donc testables sous DOM simulé.
 
 ### 2.4 Thèmes — **cible v2 (tranches 1 et 4, FEATURES §8)**
 

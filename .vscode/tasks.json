@@ -14,7 +14,7 @@
         },
         {
             "type": "npm",
-            "script": "w",
+            "script": "watch",
             "path": "bootstrap/server",
             "group": "build",
             "problemMatcher": [],
@@ -22,7 +22,7 @@
         },
         {
             "type": "npm",
-            "script": "w",
+            "script": "watch",
             "path": "bootstrap/client",
             "group": "build",
             "problemMatcher": [],

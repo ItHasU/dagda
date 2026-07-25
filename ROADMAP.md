@@ -36,47 +36,93 @@ pire moment.
 
 ---
 
-## Tranche 0 — Assainissement et socle de test
+## Tranche 0 — Assainissement et socle de test — **FAITE**
 
 > Ne produit rien de visible, mais tout le reste s'appuie dessus. À garder court.
 
 **Nettoyage du code existant**
 
-- `packages/server/src/app/index.ts` : supprimer l'enregistrement parasite
-  `registerAPI("submit", … Promise.reject("Not implemented"))` qui double
-  l'enregistrement fonctionnel de l'API entités juste au-dessus.
-- `packages/shared/src/entities/handler.ts` : résoudre le `FIXME` sur
-  `Dagda<NotificationService>("notification")?.on(...)` — le handler dépend d'un
-  service qui peut ne pas être initialisé.
-- `packages/client/src/app/index.ts` : `Dagda.init()` récupère les infos
-  utilisateur puis ne fait rien (bloc commenté). À terminer ou à retirer.
-- Supprimer les doublons `app/abstract.page.element` vs `pages/abstract.page.element`.
+- ✅ `packages/server/src/app/index.ts` : enregistrement parasite
+  `registerAPI("submit", … Promise.reject("Not implemented"))` supprimé.
+- ✅ `packages/shared/src/entities/handler.ts` : le `FIXME` est levé. Le handler
+  s'abonne au service de notification une fois `Dagda.loaded` résolu, et
+  l'absence de service n'est plus une erreur mais un cas nominal (pas de
+  notification, pas de cache marqué sale tout seul).
+- ✅ `packages/client/src/app/index.ts` : le bloc commenté est remplacé par un
+  vrai stockage des informations système (`Dagda.systemInfo`,
+  `refreshSystemInfo()`).
+- ✅ Doublon `app/abstract.page.element` : il n'existait déjà plus dans les
+  sources, seul un reliquat de `.tsc-build` y faisait référence.
+- ✅ `packages/client/src/tools/html.ts` supprimé : code mort qui référençait un
+  `Handlebars` global jamais importé.
 
 **Socle de test**
 
-- **Vitest** comme lanceur unique (framework et applications). Migration des
-  quatre fichiers mocha existants — faible.
-- **Tests d'interface à deux niveaux** : DOM simulé pour les composants pris
-  isolément (boucle de développement rapide), **Playwright** pour les parcours
-  complets et le temps réel. Les portes de sortie des tranches suivantes
-  supposent le niveau navigateur.
-- Fixture PostgreSQL réelle : la décision « Postgres uniquement » (FEATURES §0)
-  interdit de tester le runner contre autre chose.
-- **`docker-compose` de développement** (app + Postgres, FEATURES §1) : sert de
-  fixture aux tests de cette tranche et de socle au `docker-compose` de
-  production repris en tranche 7 — un seul fichier, pas deux à maintenir.
-- **Build en mode watch / hot reload** (FEATURES §1) : condition de confort pour
-  tenir le rythme tranche par tranche qui suit ; à faire ici, pas rattrapé plus tard.
-- **Rendre les composants testables** : ils importent leur gabarit par
-  `require("./x.html").default`, ce qui les rend dépendants de webpack et
-  intestables hors bundle. Blocage concret à lever avant d'écrire le moindre
-  test de composant — un greffon Vitest peut suffire, sinon changer de mécanisme
-  d'import des gabarits.
-- Intégration continue : tests + typage sur chaque commit.
+- ✅ **Vitest** comme lanceur unique, en trois projets (`shared` en Node,
+  `client` sous jsdom, `server` en Node). Les trois fichiers mocha sont migrés,
+  `_data.spec.ts` renommé `_data.ts` — c'était une fixture, pas un test.
+- ✅ **Tests d'interface à deux niveaux** : DOM simulé pour les composants,
+  **Playwright** pour les parcours.
+- ✅ Fixture PostgreSQL réelle (`packages/server/src/test/pg.fixture.ts`) : un
+  schéma dédié par suite, créé et détruit autour d'elle. Sans base joignable les
+  suites concernées sont ignorées ; `DAGDA_REQUIRE_DB=1` (posé en CI) transforme
+  cet évitement en échec.
+- ✅ **`docker-compose`** à la racine, un seul fichier, auquel la tranche 7
+  ajoutera le service applicatif.
+- ✅ **Mode watch** : `npm run dev` démarre la base, surveille client et serveur
+  et redémarre le serveur (`node --watch`). Le navigateur n'est pas rechargé
+  automatiquement — `webpack-dev-server` serait une dépendance de plus, à
+  arbitrer si la gêne se confirme.
+- ✅ **Composants testables** : les gabarits passent de
+  `require("./x.html").default` à `import template from "./x.html"`, servi par
+  `html-loader` dans le bundle et par un greffon Vitest dans les tests. Tout
+  paquet à composants embarque la déclaration `declare module "*.html"`.
+- ✅ Intégration continue (`.github/workflows/ci.yml`) : typage, tests unitaires
+  et parcours Playwright contre un service PostgreSQL.
 
-**Porte de sortie** — `npm test` lance les tests existants (`model`, `handler`)
-plus un parcours Playwright trivial sur `bootstrap/`, contre une vraie base,
-en CI.
+**Porte de sortie** — franchie. `npm test` : 39 tests, dont 10 contre une vraie
+base. `npm run test:e2e` : 3 parcours sur `bootstrap/`.
+
+**Ce que la tranche a fait remonter**
+
+- **Le cycle de vie des composants perdait des rafraîchissements.** Le premier
+  test de composant écrit l'a montré : `refresh()` appelé pendant un
+  rafraîchissement en cours retournait immédiatement sans rien faire, et sans
+  attendre celui en cours. Poser deux attributs à la suite pouvait donc laisser
+  le composant sur l'état intermédiaire. Les rafraîchissements sont désormais
+  regroupés — une passe supplémentaire est exécutée derrière — et la promesse
+  rendue se résout quand le composant reflète l'état au moment de l'appel.
+- **`getEnvStringOptional` traite maintenant la chaîne vide comme absente.** Un
+  environnement n'a pas d'autre façon d'exprimer « non défini », et
+  `GOOGLE_CLIENT_ID=""` faisait croire à une configuration Google valide.
+- **Le parcours Playwright est plus mince que prévu.** `bootstrap/` ne sait
+  s'authentifier que par Google : aucun navigateur ne franchit la page de
+  connexion sans compte réel. Les trois parcours vérifient donc la chaîne
+  (build, serveur, base, navigateur) et la fermeture aux anonymes — API
+  comprise, appelée directement. Les vrais parcours arrivent en tranche 1.
+- **Collision de noms sur `Dagda`, résolue.** Le paquet client exportait une
+  classe `Dagda` homonyme de la fonction `Dagda` du paquet partagé, avec deux
+  `init()` de signatures incompatibles appelés à deux lignes d'écart dans
+  `bootstrap/client/src/index.ts`. Décision prise et appliquée :
+  - le registre de services devient une **classe `Dagda` dans le paquet
+    partagé** : `Dagda.init(services)`, `Dagda.get("nom")`, `Dagda.loaded`.
+    Un seul nom, identique côté client, serveur et partagé ;
+  - la syntaxe appelable `Dagda("nom")` disparaît au profit de `Dagda.get("nom")`
+    (FEATURES §9 mis à jour) — une classe ne peut pas être appelée, et c'est ce
+    qui bloquait toute mise en commun ;
+  - l'amorçage client devient **`DagdaClient`**, avec
+    `DagdaClient.start(model, adapter)` au lieu de `init`.
+
+  Fait maintenant plutôt que plus tard : chaque tranche suivante ajoute des
+  écrans, donc des sites d'appel. Le coût de ce renommage ne fera qu'augmenter.
+
+  Le registre est par ailleurs devenu un objet (`DagdaRegistry`) derrière la
+  façade statique, et `Dagda.reset()` rend le registre courant en en installant
+  un neuf. Un test s'isole donc sans recharger le module. Attention à ce que ça
+  ne promet pas : les composants lisent `Dagda.get(...)`, donc un seul registre
+  est actif à la fois dans un processus. Faire tourner deux applications
+  réellement en parallèle demanderait de passer le registre le long de la chaîne
+  d'appel — pas fait, pas nécessaire aujourd'hui.
 
 ---
 

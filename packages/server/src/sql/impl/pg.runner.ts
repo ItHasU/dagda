@@ -101,4 +101,13 @@ export class PGRunner extends AbstractSQLRunner<PGConnection> {
         return Promise.resolve();
     }
 
+    /**
+     * Close the pool and every connection it holds.
+     * The server never calls this, but a test process does not exit while the
+     * pool keeps a socket open.
+     */
+    public close(): Promise<void> {
+        return this._pool.end();
+    }
+
 }

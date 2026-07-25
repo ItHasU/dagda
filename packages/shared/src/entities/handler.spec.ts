@@ -1,6 +1,5 @@
-import * as assert from "assert";
-import { describe } from "mocha";
-import { PublicationStatus, TEST_MODEL } from "./_data.spec";
+import { describe, expect, it } from "vitest";
+import { PublicationStatus, TEST_MODEL } from "./_data";
 import { EntitiesHandler } from "./handler";
 import { TestContext, TestContextAdapter, TestPersistanceAdapter } from "./impl/test.adapters";
 import { asNamed } from "./tools/named";
@@ -34,7 +33,7 @@ describe("EntitiesHandler", () => {
         });
         await handler.waitForSubmit();
         // Make sure the ids were updated
-        assert.equal(user1.id, 1, "The id should have been updated");
+        expect(user1.id, "The id should have been updated").toBe(1);
 
         // -- Second user --
         await handler.withTransaction((tr) => {
@@ -42,7 +41,7 @@ describe("EntitiesHandler", () => {
         });
         await handler.waitForSubmit();
         // Make sure the id is updated
-        assert.equal(user2.id, 2, "The id should have been updated");
+        expect(user2.id, "The id should have been updated").toBe(2);
 
         // -- Fetch --
         // Force a refresh
@@ -51,7 +50,7 @@ describe("EntitiesHandler", () => {
 
         // -- Check --
         const users = handler.getCache("users").getItems();
-        assert.equal(users.length, 2, "There should be two users");
+        expect(users.length, "There should be two users").toBe(2);
     });
 
     it("inserts a related item and refetch", async () => {
@@ -81,14 +80,16 @@ describe("EntitiesHandler", () => {
         });
         await handler.waitForSubmit();
 
-        const user1 = handler.getCache("users").getById(1);
-        const post1 = handler.getCache("posts").getById(2);
+        // Non-null assertions: the expectations right below are what actually
+        // guard these lookups, but they do not narrow the type for the compiler.
+        const user1 = handler.getCache("users").getById(1)!;
+        const post1 = handler.getCache("posts").getById(2)!;
 
-        assert.ok(user1, "The user should have been inserted");
-        assert.ok(post1, "The post should have been inserted");
+        expect(user1, "The user should have been inserted").toBeTruthy();
+        expect(post1, "The post should have been inserted").toBeTruthy();
 
         // Make sure the related ids were updated
-        assert.equal(post1.author, 1, "The related id should have been updated");
+        expect(post1.author, "The related id should have been updated").toBe(1);
 
         // -- Update the post with a newly inserted user ----------------------
         await handler.withTransaction((tr) => {
@@ -104,11 +105,11 @@ describe("EntitiesHandler", () => {
         });
         await handler.waitForSubmit();
 
-        const user2 = handler.getCache("users").getById(3);
-        assert.ok(user2, "The user should have been inserted");
+        const user2 = handler.getCache("users").getById(3)!;
+        expect(user2, "The user should have been inserted").toBeTruthy();
 
         // Make sure the related ids were updated
-        assert.equal(post1.author, 3, "The related id should have been updated");
+        expect(post1.author, "The related id should have been updated").toBe(3);
 
         // -- Fetch --
         // Force a refresh
@@ -117,9 +118,9 @@ describe("EntitiesHandler", () => {
 
         // -- Check --
         const users = handler.getCache("users").getItems();
-        assert.equal(users.length, 1, "There should be one users as we only fetched one");
+        expect(users.length, "There should be one users as we only fetched one").toBe(1);
         const posts = handler.getCache("posts").getItems();
-        assert.equal(posts.length, 0, "There should be no post since we reassigned the author");
+        expect(posts.length, "There should be no post since we reassigned the author").toBe(0);
     });
 
 });

@@ -6,6 +6,7 @@ import { NotificationService } from "@dagda/shared/src/notification/service";
 import { Event } from "@dagda/shared/src/tools/events";
 import { LogService } from "@dagda/shared/src/tools/log";
 import { AbstractWebComponent, Ref } from "../abstract.webcomponent";
+import template from "./status.component.html";
 
 /** 
  * A simple component to display communication status of the SQLHandler.
@@ -32,21 +33,21 @@ export class EntitiesStatusComponent extends AbstractWebComponent {
 
     constructor() {
         super({
-            template: require("./status.component.html").default
+            template: template
         });
     }
 
     protected override async _init(): Promise<void> {
         // -- Register the handler --
         try {
-            Dagda<EntitiesService<any, any>>("entities").getHandler().on("state", (event: Event<EntitiesEvents["state"]>) => {
+            Dagda.get<EntitiesService<any, any>>("entities").getHandler().on("state", (event: Event<EntitiesEvents["state"]>) => {
                 this._state = event.data;
-                this.refresh().catch(Dagda<LogService>("log").handleError);
+                this.refresh().catch(Dagda.get<LogService>("log").handleError);
             });
         } catch (e) {
-            Dagda<LogService>("log").handleError(e);
+            Dagda.get<LogService>("log").handleError(e);
         }
-        Dagda<NotificationService<DagdaEvents>>("notification").on("connected", (event) => {
+        Dagda.get<NotificationService<DagdaEvents>>("notification").on("connected", (event) => {
             this._disconnectedIcon.classList.toggle("d-none", !!event.data);
         });
     }

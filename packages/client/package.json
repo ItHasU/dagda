@@ -1,18 +1,21 @@
 {
-    "name": "@dagda/client",
-    "version": "1.0.0",
-    "description": "Browser tools",
-    "author": "Matthieu Aubry",
-    "license": "ISC",
-    "scripts": {},
-    "devDependencies": {
-        "@dagda/build": "*",
-        "@dagda/shared": "*",
-        "@types/bootstrap": "=5.2.10"
-    },
-    "dependencies": {
-        "bootstrap": "=5.3.5",
-        "bootstrap-icons": "=1.11.3",
-        "handlebars": "^4.7.8"
-    }
+  "name": "@dagda/client",
+  "version": "1.0.0",
+  "description": "Browser tools",
+  "author": "Matthieu Aubry",
+  "license": "ISC",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w"
+  },
+  "devDependencies": {
+    "@dagda/build": "*",
+    "@dagda/shared": "*",
+    "@types/bootstrap": "=5.2.10"
+  },
+  "dependencies": {
+    "bootstrap": "=5.3.5",
+    "bootstrap-icons": "=1.11.3",
+    "handlebars": "^4.7.8"
+  }
 }

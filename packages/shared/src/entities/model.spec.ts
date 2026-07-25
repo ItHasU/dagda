@@ -1,70 +1,69 @@
-import * as assert from "assert";
-import { describe, it } from "mocha";
-import { TEST_MODEL } from "./_data.spec";
+import { describe, expect, it } from "vitest";
+import { TEST_MODEL } from "./_data";
 import { asNamed } from "./tools/named";
 
 describe("EntitiesModel", () => {
 
     it("returns undefined for typing getters", () => {
-        assert.equal(undefined, TEST_MODEL.typeNames);
-        assert.equal(undefined, TEST_MODEL.fieldTypes);
-        assert.equal(undefined, TEST_MODEL.tableNames);
-        assert.equal(undefined, TEST_MODEL.tablesFields);
+        expect(TEST_MODEL.typeNames).toBeUndefined();
+        expect(TEST_MODEL.fieldTypes).toBeUndefined();
+        expect(TEST_MODEL.tableNames).toBeUndefined();
+        expect(TEST_MODEL.tablesFields).toBeUndefined();
     });
 
     it("returns the list of types", () => {
-        assert.deepEqual(["USER_ID", "POST_ID", "INTEGER", "TEXT", "NAME", "SURNAME", "MARKDOWN", "PUBLICATION_STATUS"], TEST_MODEL.getTypeNames());
+        expect(TEST_MODEL.getTypeNames()).toEqual(["USER_ID", "POST_ID", "INTEGER", "TEXT", "NAME", "SURNAME", "MARKDOWN", "PUBLICATION_STATUS"]);
     });
 
     it("returns the list of tables", () => {
-        assert.deepEqual(["users", "posts"], TEST_MODEL.getTableNames());
+        expect(TEST_MODEL.getTableNames()).toEqual(["users", "posts"]);
     });
 
     it("returns the list of fields for a table", () => {
-        assert.deepEqual(["id", "name", "surname", "size"], TEST_MODEL.getTableFieldNames("users", 0));
-        assert.deepEqual(["id", "name", "surname", "age"], TEST_MODEL.getTableFieldNames("users", 1));
-        assert.deepEqual(["id", "name", "surname", "age"], TEST_MODEL.getTableFieldNames("users", 2));
-        assert.deepEqual(["id", "name", "surname", "age"], TEST_MODEL.getTableFieldNames("users"));
+        expect(TEST_MODEL.getTableFieldNames("users", 0)).toEqual(["id", "name", "surname", "size"]);
+        expect(TEST_MODEL.getTableFieldNames("users", 1)).toEqual(["id", "name", "surname", "age"]);
+        expect(TEST_MODEL.getTableFieldNames("users", 2)).toEqual(["id", "name", "surname", "age"]);
+        expect(TEST_MODEL.getTableFieldNames("users")).toEqual(["id", "name", "surname", "age"]);
     });
 
     it("returns the type of a field", () => {
-        assert.equal("INTEGER", TEST_MODEL.getFieldTypeName("users", "age"));
+        expect(TEST_MODEL.getFieldTypeName("users", "age")).toBe("INTEGER");
     });
 
     it("returns if a field is optional or not", () => {
-        assert.equal(false, TEST_MODEL.isFieldOptional("users", "name"));
-        assert.equal(true, TEST_MODEL.isFieldOptional("users", "age"));
+        expect(TEST_MODEL.isFieldOptional("users", "name")).toBe(false);
+        expect(TEST_MODEL.isFieldOptional("users", "age")).toBe(true);
     });
 
     it("returns if a field is an identity or not", () => {
-        assert.equal(true, TEST_MODEL.isFieldIdentity("users", "id"));
-        assert.equal(false, TEST_MODEL.isFieldIdentity("users", "name"));
+        expect(TEST_MODEL.isFieldIdentity("users", "id")).toBe(true);
+        expect(TEST_MODEL.isFieldIdentity("users", "name")).toBe(false);
     });
 
     it("returns if a field is a foreign key or not", () => {
-        assert.equal(true, TEST_MODEL.isFieldForeign("posts", "author"));
-        assert.equal(false, TEST_MODEL.isFieldForeign("posts", "title"));
+        expect(TEST_MODEL.isFieldForeign("posts", "author")).toBe(true);
+        expect(TEST_MODEL.isFieldForeign("posts", "title")).toBe(false);
     });
 
     it("returns the foreign table name of a field", () => {
-        assert.equal("users", TEST_MODEL.getFieldForeignTableName("posts", "author"));
-        assert.equal(null, TEST_MODEL.getFieldForeignTableName("posts", "title"));
+        expect(TEST_MODEL.getFieldForeignTableName("posts", "author")).toBe("users");
+        expect(TEST_MODEL.getFieldForeignTableName("posts", "title")).toBe(null);
     });
 
     it("returns the foreign keys of a table", () => {
-        assert.deepEqual({
+        expect(TEST_MODEL.getTableForeignKeys("users")).toEqual({
             id: null,
             name: null,
             surname: null,
             age: null
-        }, TEST_MODEL.getTableForeignKeys("users"));
-        assert.deepEqual({
+        });
+        expect(TEST_MODEL.getTableForeignKeys("posts")).toEqual({
             id: null,
             author: "users",
             title: null,
             content: null,
             status: null
-        }, TEST_MODEL.getTableForeignKeys("posts"));
+        });
     });
 
     it("provides typings", () => {
@@ -75,6 +74,7 @@ describe("EntitiesModel", () => {
             age: null,
             size: null
         };
+        expect(user.name).toBe("John");
     });
 
 });

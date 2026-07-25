@@ -3,6 +3,7 @@ import { DagdaEvents } from "@dagda/shared/src/notification/events";
 import { NotificationService } from "@dagda/shared/src/notification/service";
 import { Event } from "@dagda/shared/src/tools/events";
 import { AbstractWebComponent, Attribute, NumberMarshaller, Ref } from "../abstract.webcomponent";
+import template from "./login.component.html";
 
 export const DEFAULT_SIZE = 32;
 
@@ -26,7 +27,7 @@ export class LoginComponent extends AbstractWebComponent {
 
     constructor() {
         super({
-            template: require("./login.component.html").default
+            template: template
         });
     }
 
@@ -35,7 +36,7 @@ export class LoginComponent extends AbstractWebComponent {
     };
 
     protected override _init(): Promise<void> {
-        Dagda<NotificationService<DagdaEvents>>("notification").on("userInfoChanged", (event: Event<DagdaEvents["userInfoChanged"]>) => {
+        Dagda.get<NotificationService<DagdaEvents>>("notification").on("userInfoChanged", (event: Event<DagdaEvents["userInfoChanged"]>) => {
             this._data = event.data;
             this.refresh();
         });

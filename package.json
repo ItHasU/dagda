@@ -6,19 +6,29 @@
   "license": "ISC",
   "scripts": {
     "clean": "rimraf -g apps/*/dist **/.tsc-build",
-    "clean-all": "rimraf -g apps/*/dist **/.tsc-build **/node_modules"
+    "clean-all": "rimraf -g apps/*/dist **/.tsc-build **/node_modules",
+    "typecheck": "tsc -b packages/shared packages/client packages/server bootstrap/shared && tsc -p e2e/tsconfig.json",
+    "build": "npm run build --workspaces --if-present",
+    "watch": "npm run watch -w @dagda-app/client & npm run watch -w @dagda-app/server & wait",
+    "dev": "npm run db:up && npm run build && (npm run watch -w @dagda-app/client & npm run watch -w @dagda-app/server & npm run dev -w @dagda-app/server & wait)",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "npm run build && playwright test",
+    "db:up": "docker compose up -d --wait postgres",
+    "db:down": "docker compose down"
   },
   "devDependencies": {
-    "@types/mocha": "=10.0.10",
+    "@playwright/test": "=1.62.0",
     "css-loader": "=6.11.0",
     "html-loader": "=4.2.0",
     "html-webpack-plugin": "=5.6.3",
-    "mocha": "=10.8.2",
+    "jsdom": "=29.1.1",
     "rimraf": "=5.0.10",
     "style-loader": "=3.3.4",
     "ts-loader": "=9.5.2",
     "tsconfig-paths-webpack-plugin": "=4.2.0",
     "typescript": "=5.8.3",
+    "vitest": "=4.1.10",
     "webpack": "=5.99.5",
     "webpack-cli": "=5.1.4"
   },

@@ -62,20 +62,44 @@ export abstract class AbstractWebComponent extends HTMLElement {
 
     /** Store state of init */
     protected _initialized = false;
-    /** Prevent calling refresh while already refreshing */
-    protected _refreshing = false;
+    /** Refresh currently running, null when the component is idle */
+    protected _running: Promise<void> | null = null;
+    /** A refresh has been asked for and has not been honoured yet */
+    protected _refreshRequested = false;
 
     /**
      * Call this method to refresh the component.
      * This can be done only once all attributes are set.
+     *
+     * Refreshes are coalesced rather than dropped: asking for a refresh while
+     * one is running schedules exactly one more pass after it. This matters
+     * because setting several attributes in a row triggers one refresh each,
+     * and the component must end up rendering the last state, not the first.
+     *
+     * The returned promise resolves once the component reflects the state as
+     * it was at the time of the call. It never rejects: a failing refresh
+     * renders the error in place of the component.
      */
-    public async refresh(): Promise<void> {
-        if (this._refreshing) {
-            console.debug("Component is already refreshing, ignoring refresh call");
-            return;
+    public refresh(): Promise<void> {
+        this._refreshRequested = true;
+        if (this._running == null) {
+            this._running = this._refreshLoop().finally(() => {
+                this._running = null;
+            });
         }
+        return this._running;
+    }
 
-        this._refreshing = true;
+    /** Run refresh passes until no more have been requested */
+    protected async _refreshLoop(): Promise<void> {
+        while (this._refreshRequested) {
+            this._refreshRequested = false;
+            await this._refreshOnce();
+        }
+    }
+
+    /** A single refresh pass. Never throws. */
+    protected async _refreshOnce(): Promise<void> {
         try {
             await Dagda.loaded; // Wait for Dagda to be loaded
 
@@ -90,8 +114,6 @@ export abstract class AbstractWebComponent extends HTMLElement {
             console.error('Error during component refresh', e);
             this.innerHTML = `<code>An error occurred while refreshing the component\n${"" + e}</code>`;
             this._initialized = false;
-        } finally {
-            this._refreshing = false;
         }
     }
 

@@ -1,11 +1,12 @@
 import { AbstractPageElement } from "../../pages/abstract.page.element";
+import template from "./goodbye.page.html";
 
 /** A static page sample, no init, no refresh, just a template */
 export class GoodbyePage extends AbstractPageElement {
 
     constructor() {
         super({
-            template: require("./goodbye.page.html").default
+            template: template
         });
     }
 

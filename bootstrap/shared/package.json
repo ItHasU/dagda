@@ -5,7 +5,8 @@
   "author": "Matthieu Aubry",
   "license": "ISC",
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "watch": "tsc -w"
   },
   "dependencies": {},
   "devDependencies": {

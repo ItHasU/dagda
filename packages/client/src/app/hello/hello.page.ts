@@ -1,4 +1,5 @@
 import { AbstractPageElement } from "../../pages/abstract.page.element";
+import template from "./hello.page.html";
 
 var count = 0;
 
@@ -7,7 +8,7 @@ export class HelloPage extends AbstractPageElement {
 
     constructor() {
         super({
-            template: require("./hello.page.html").default
+            template: template
         });
         count++;
         console.log("Active HelloPage pages:", count);

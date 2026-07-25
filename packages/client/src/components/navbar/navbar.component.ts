@@ -1,6 +1,7 @@
 import { PageService } from "@dagda/client/src/pages/service";
 import { Dagda } from "@dagda/shared/src/dagda";
 import { AbstractWebComponent, Ref } from "../abstract.webcomponent";
+import template from "./navbar.component.html";
 
 export class Navbar extends AbstractWebComponent {
 
@@ -9,12 +10,12 @@ export class Navbar extends AbstractWebComponent {
 
     constructor() {
         super({
-            template: require("./navbar.component.html").default
+            template: template
         });
     }
 
     protected async _refresh(): Promise<void> {
-        const pageService = Dagda<PageService>("pages");
+        const pageService = Dagda.get<PageService>("pages");
 
         // Populate the menu with all pages
         this._pageMenu.innerHTML = ""; // Clear the menu

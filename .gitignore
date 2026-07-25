@@ -3,3 +3,8 @@
 **/dist/
 **/.DS_Store
 .env
+
+# Test artefacts
+/playwright-report/
+/test-results/
+/blob-report/

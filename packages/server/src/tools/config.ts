@@ -9,9 +9,15 @@ export function getEnvString<ENV_VARIABLES_STR extends string = string>(key: ENV
     }
 }
 
+/**
+ * An empty value counts as unset.
+ * Environments and .env files have no way of expressing "absent" other than an
+ * empty string, and a caller reading an optional setting means to get undefined
+ * in both cases.
+ */
 export function getEnvStringOptional<ENV_VARIABLES_STR extends string = string>(key: ENV_VARIABLES_STR): string | undefined {
     const value = env[key];
-    if (value == null) {
+    if (value == null || value === "") {
         return undefined;
     } else {
         return value;
