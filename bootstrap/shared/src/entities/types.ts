@@ -16,7 +16,6 @@ export type ProjectId = typeof APP_MODEL.fieldTypes["PROJECT_ID"];
 export type AppEntityTypes = typeof APP_MODEL.tablesFields;
 
 /** Simple info for the user */
-export type UserEntity = AppEntityTypes["users"];
 export type ProjectEntity = AppEntityTypes["projects"];
 
 //#endregion

@@ -1,177 +1,178 @@
-import { Express, Router } from 'express';
+import { UserId, UserInfo } from "@dagda/shared/src/auth/types";
+import { Express, NextFunction, Request, Response, Router } from "express";
 import * as session from "express-session";
-import passport from 'passport';
-import * as google from 'passport-google-oauth20';
-import { PassportProfile } from '../app';
+import { createHash, randomBytes } from "node:crypto";
+import { renderLoginPage } from "./login.page";
+import { UserStore } from "./users";
 
-export interface AuthStrategy {
-    name: string;
-    displayName: string;
-    strategy: passport.Strategy;
+/**
+ * Authentication (FEATURES §7).
+ *
+ * Local accounts only: one form, one password, no external provider. This
+ * replaces the passport setup of v1 entirely — `initialize()`, `session()`,
+ * `serializeUser` and `authenticate()` amount to a password check and a user id
+ * in the session, which is what this does. Four packages left the dependency
+ * list with it; `express-session` stays.
+ */
+
+declare module "express-session" {
+    interface SessionData {
+        /** Set once the credentials were accepted. The whole of the login state */
+        userId?: UserId;
+    }
 }
 
-enum AuthStrategyType {
-    GOOGLE = "google"
+declare global {
+    // eslint-disable-next-line @typescript-eslint/no-namespace
+    namespace Express {
+        interface Request {
+            /** The authenticated user, set by the gate on every request that got through */
+            user?: UserInfo;
+        }
+    }
 }
 
-export type Verifier = (profile: passport.Profile) => Promise<boolean> | boolean;
+/** How long a session survives without activity */
+const SESSION_MAX_AGE_MS = 1000 * 60 * 60 * 24;
+
+export interface AuthHandlerParams {
+    app: Express;
+    users: UserStore;
+    /**
+     * Bootstrap secret signing the session cookies.
+     *
+     * Given, the sessions survive a restart, which is what makes development
+     * with a watching server bearable. Absent, a random one is drawn and every
+     * restart logs everyone out.
+     */
+    secretKey?: string;
+    log?: (message: string) => void;
+}
 
 export class AuthHandler {
 
-    private readonly _router: Router = Router();
-    private readonly _strategies: AuthStrategy[] = [];
+    protected readonly _router: Router = Router();
+    protected readonly _users: UserStore;
+    protected readonly _log: (message: string) => void;
 
-    public constructor(protected readonly _app: Express, protected _baseURL: string, protected _verifier: Verifier) {
-        this._initialize();
+    public constructor(params: AuthHandlerParams) {
+        this._users = params.users;
+        this._log = params.log ?? ((message: string) => console.log(message));
+        this._initialize(params.app, params.secretKey);
     }
 
-    protected _initialize(): void {
-        // -- Configure the app required middlewares --------------------------
-        this._app.use(session.default({
+    protected _initialize(app: Express, secretKey: string | undefined): void {
+        app.use(session.default({
             store: new session.MemoryStore(),
-            secret: _randomSecret(24), // Use random since sessions are not persisted
-            resave: true,
+            secret: deriveSessionSecret(secretKey),
+            resave: false,
+            // No session is written before someone logs in, so an anonymous
+            // visitor never receives a cookie.
+            saveUninitialized: false,
             cookie: {
-                maxAge: 1000 * 60 * 60 * 24 // 1 day
+                maxAge: SESSION_MAX_AGE_MS,
+                httpOnly: true,
+                sameSite: "lax"
             }
         }));
-        this._app.use(passport.initialize());
-        this._app.use(passport.session());
 
-        // -- Configure the app to reject any unauthenticated request ---------
-        this._app.use((req, res, next) => {
-            // Send unauthorized if not logged in
-            if (req.path.startsWith("/login")) {
-                // Allow login routes
+        // The form posts to /login, so it has to be parsed before the routes.
+        app.use(this._router);
+
+        // -- Resolve the user of the session ---------------------------------
+        this._router.use((req: Request, _res: Response, next: NextFunction) => {
+            const userId = req.session.userId;
+            if (userId == null) {
                 next();
-            } else if (!req.user) {
-                res.redirect("/login");
-            } else {
-                next();
-            }
-        });
-
-        // -- Initialize passport ---------------------------------------------
-        passport.serializeUser(function (user, done) {
-            done(null, user);
-        });
-
-        passport.deserializeUser(function (user, done) {
-            const { id, displayName, emails, provider, photos } = user as PassportProfile;
-            done(null, {
-                id,
-                displayName,
-                emails,
-                provider,
-                photos
-            } satisfies PassportProfile);
-        });
-
-        this._app.use(this._router);
-
-        // -- Create router ---------------------------------------------------
-
-        // Register login landing page
-        this._router.get("/login", (req, res) => {
-            if (this._strategies.length === 0) {
-                res.send("No login strategy registered");
                 return;
-            } else if (this._strategies.length === 1) {
-                res.redirect(`/login/${this._strategies[0].name}`);
-                return;
-            } else {
-                let content: string = `<h1>Login</h1><ul>`;
-                for (const strategy of this._strategies) {
-                    content += `<li><a href="/login/${strategy.name}">${strategy.displayName}</a></li>`;
-                };
-                content += "</ul>";
-                res.send(content);
             }
-        });
-
-        // Register logout route
-        this._router.get("/logout", (req, res, next) => {
-            req.logout((err) => {
-                if (err) {
-                    return next(err);
+            // Read on every request rather than cached in the session: an
+            // account disabled by an administrator must stop working now, not
+            // when its session expires.
+            this._users.getById(userId).then((user) => {
+                if (user != null && user.enabled) {
+                    req.user = user;
                 } else {
-                    res.redirect('/');
+                    // The account went away or was disabled under the session.
+                    delete req.session.userId;
                 }
+                next();
+            }).catch(next);
+        });
+
+        this._registerRoutes();
+
+        // -- Refuse anything else --------------------------------------------
+        app.use((req: Request, res: Response, next: NextFunction) => {
+            if (req.user != null) {
+                next();
+            } else if (req.path.startsWith("/login") || req.path === "/logout") {
+                next();
+            } else {
+                res.redirect("/login");
+            }
+        });
+    }
+
+    protected _registerRoutes(): void {
+        this._router.get("/login", (req: Request, res: Response) => {
+            if (req.user != null) {
+                res.redirect("/");
+                return;
+            }
+            res.type("html").send(renderLoginPage({}));
+        });
+
+        this._router.post("/login", (req: Request, res: Response, next: NextFunction) => {
+            // The form is urlencoded; express.json() would not read it.
+            const body = req.body as { login?: string, password?: string } | undefined;
+            const login = String(body?.login ?? "");
+            const password = String(body?.password ?? "");
+
+            this._users.authenticate(login, password).then((user) => {
+                if (user == null) {
+                    // One message for every failure. Saying "unknown account"
+                    // would tell whoever is probing which logins exist.
+                    this._log(`Failed login attempt for "${login}".`);
+                    res.status(401).type("html").send(renderLoginPage({
+                        login,
+                        error: "Identifiant ou mot de passe incorrect."
+                    }));
+                    return;
+                }
+                // A new session id on login, so a session fixed before it cannot
+                // be reused after.
+                req.session.regenerate((error) => {
+                    if (error != null) {
+                        next(error);
+                        return;
+                    }
+                    req.session.userId = user.id;
+                    res.redirect("/");
+                });
+            }).catch(next);
+        });
+
+        this._router.get("/logout", (req: Request, res: Response) => {
+            req.session.destroy(() => {
+                res.redirect("/login");
             });
         });
-
-    }
-
-    /** Register a strategy specific to Google accounts SSO */
-    public registerGoogleStrategy(clientId: string, clientSecret: string): void {
-        // Check if the strategy is already registered
-        if (this._strategies.find(s => s.name === AuthStrategyType.GOOGLE)) {
-            throw new Error("Google strategy already registered");
-        }
-
-        // -- Create the strategy ---------------------------------------------
-        const strategy = new google.Strategy({
-            clientID: clientId,
-            clientSecret: clientSecret,
-            callbackURL: this.getCallbackURL(AuthStrategyType.GOOGLE),
-            scope: ['profile']
-        }, (accessToken: string, refreshToken: string, profile: google.Profile, done: google.VerifyCallback) => {
-            Promise.resolve().then(() => {
-                return this._verifier(profile);
-            }).then(isUserValid => {
-                if (isUserValid) {
-                    done(null, profile);
-                } else {
-                    done(null, false);
-                }
-            }).catch(err => done(err));
-        });
-
-        // Register the strategy
-        this.registerStrategy({
-            name: AuthStrategyType.GOOGLE,
-            displayName: "Google",
-            strategy
-        });
-    }
-
-    /**
-     * Register a new strategy.
-     * This function will register the strategy in passport and create the required routes
-     */
-    public registerStrategy(strategy: AuthStrategy): void {
-        this._strategies.push(strategy);
-
-        // Register the strategy in passport
-        passport.use(strategy.name, strategy.strategy);
-
-        // Redirect to the strategy login page
-        this._router.get(`/login/${strategy.name}`, passport.authenticate(strategy.strategy));
-        // Handle strategy login callback
-        this._router.get(AuthHandler.getCallbackPath(strategy.name), passport.authenticate(strategy.strategy, {
-            successReturnToOrRedirect: '/',
-            failureRedirect: '/login'
-        }));
-    }
-
-    /** Get the callback URL that will be registered by @see registerStrategy() */
-    public getCallbackURL(strategyName: string): string {
-        // Remove trailing slash if any
-        const baseURL = this._baseURL.endsWith("/") ? this._baseURL.slice(0, -1) : this._baseURL;
-        return `${baseURL}${AuthHandler.getCallbackPath(strategyName)}`;
-    }
-
-    /** Get the callback URL that will be registered by @see registerStrategy() */
-    public static getCallbackPath(strategyName: string): string {
-        return `/login/redirect/${strategyName}`;
     }
 }
 
-function _randomSecret(length: number): string {
-    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let result = '';
-    for (let i = 0; i < length; i++) {
-        result += characters.charAt(Math.floor(Math.random() * characters.length));
+/**
+ * @returns the secret signing the session cookies.
+ *
+ * Derived from the bootstrap key rather than being it: one compromise should
+ * not hand over both the session signature and the settings encryption. The
+ * label is what separates the two uses.
+ */
+function deriveSessionSecret(secretKey: string | undefined): string {
+    if (secretKey == null || secretKey === "") {
+        // v1 drew this with Math.random(), which is not a source anything
+        // security-related should be built on.
+        return randomBytes(32).toString("base64");
     }
-    return result;
+    return createHash("sha256").update(secretKey).update("dagda:session").digest("base64");
 }

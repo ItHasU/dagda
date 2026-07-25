@@ -5,15 +5,13 @@ import { ProjectId, UserId } from "./types";
 
 //#region Fetch contexts ------------------------------------------------------
 
-/** Get the list of users */
-export type UsersContext = BaseContext<"users", undefined>;
 /** Get the list of projects for a given user */
 export type ProjectsContext = BaseContext<"projects", { userId?: UserId }>;
 /** Get the content of a project */
 export type ProjectContext = BaseContext<"project", { projectId: ProjectId }>;
 
 /** List of all contexts */
-export type AppContexts = UsersContext | ProjectsContext | ProjectContext;
+export type AppContexts = ProjectsContext | ProjectContext;
 
 /**
  * Implementation of the context adapter for the app.
@@ -22,8 +20,6 @@ export type AppContexts = UsersContext | ProjectsContext | ProjectContext;
  * assembles the ContextAdapter the EntitiesHandler expects.
  */
 export const APP_CONTEXT_ADAPTER: ContextAdapter<AppContexts> = buildContextAdapter<AppContexts>({
-    // No option : every "users" context describes the same data
-    users: alwaysIntersects(),
     // userId is optional and undefined means "every user", so a change on one
     // user's projects also concerns the unfiltered list
     projects: intersectsWhen((newContext, oldContext) =>

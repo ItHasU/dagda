@@ -5,8 +5,7 @@ export const getSystemInfo: RequestCallback<SystemAPI, "getSystemInfo"> = async 
     return {
         startTimeMilliseconds: Date.now(),
         errors: [],
-        userDisplayName: options.userProfile.displayName,
-        userPhotoUrl: options.userProfile.photos?.[0]?.value || null,
+        user: options.user
     };
 }
 
@@ -15,6 +14,6 @@ export const triggerError: RequestCallback<SystemAPI, "triggerError"> = async fu
         // Simulate an error
         // This is a test error
         resolve();
-        throw new Error(`This is an uncaught test error by user ${options.userProfile.displayName}`);
+        throw new Error(`This is an uncaught test error by user ${options.user.displayName}`);
     });
 }

@@ -1,5 +1,6 @@
+import { AuthEvents } from "@dagda/shared/src/auth/events";
+import { UserInfo } from "@dagda/shared/src/auth/types";
 import { Dagda } from "@dagda/shared/src/dagda";
-import { DagdaEvents } from "@dagda/shared/src/notification/events";
 import { NotificationService } from "@dagda/shared/src/notification/service";
 import { Event } from "@dagda/shared/src/tools/events";
 import { AbstractWebComponent, Attribute, NumberMarshaller, Ref } from "../abstract.webcomponent";
@@ -7,11 +8,13 @@ import template from "./login.component.html";
 
 export const DEFAULT_SIZE = 32;
 
-export interface LoginComponentData {
-    displayName: string;
-    photoURL: string | null;
-}
-
+/**
+ * The badge of the current account, and the way out (FEATURES §8).
+ *
+ * Local accounts carry no photo — there is no provider to get one from — so the
+ * avatar is drawn from the initials. That is a feature, not a stopgap: it never
+ * fails to load and never leaks a request to a third party.
+ */
 export class LoginComponent extends AbstractWebComponent {
 
     @Attribute({ defaultValue: "true" })
@@ -31,29 +34,35 @@ export class LoginComponent extends AbstractWebComponent {
         });
     }
 
-    protected _data: DagdaEvents["userInfoChanged"] = {
-        displayName: "Unknown"
-    };
+    protected _user: UserInfo | null = null;
 
     protected override _init(): Promise<void> {
-        Dagda.get<NotificationService<DagdaEvents>>("notification").on("userInfoChanged", (event: Event<DagdaEvents["userInfoChanged"]>) => {
-            this._data = event.data;
+        Dagda.get<NotificationService<AuthEvents>>("notification").on("userInfoChanged", (event: Event<UserInfo>) => {
+            this._user = event.data;
             this.refresh();
         });
         return Promise.resolve();
     }
 
     protected override async _refresh(): Promise<void> {
+        const displayName = this._user?.displayName ?? "";
         this._photo.style.maxWidth = `${this.size}px`;
         this._photo.style.maxHeight = `${this.size}px`;
         this._photo.classList.toggle("rounded-circle", this.rounded === "true");
-        this._photo.src = this._data.photoURL ?? LoginComponent._getInitialsAsIconBase64(this._data.displayName, this.size);
-        this._link.title = this._data.displayName;
+        this._photo.src = LoginComponent._getInitialsAsIconBase64(displayName, this.size);
+        this._photo.alt = "";
+        // The only text there is: without it the link is a bare image, which a
+        // screen reader announces as nothing at all.
+        this._link.title = displayName === "" ? "Se déconnecter" : `${displayName} — se déconnecter`;
+        this._link.setAttribute("aria-label", this._link.title);
     }
 
+    /** @returns a data URL with the initials drawn on a square, or a blank one when the name is empty */
     protected static _getInitialsAsIconBase64(name: string, size: number): string {
         const initials = name
-            .split(" ")
+            .split(/\s+/)
+            .filter(part => part.length > 0)
+            .slice(0, 2)
             .map(part => part.charAt(0).toUpperCase())
             .join("");
 

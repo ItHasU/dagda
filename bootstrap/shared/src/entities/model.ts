@@ -45,17 +45,13 @@ export const APP_MODEL = new EntitiesModel({
         rawType: JSTypes.string
     },
     PROJECT_STATUS,
-    // -- Custom types --------------------------------------------------------
-    USER_UID: {
-        rawType: JSTypes.string
-    },
 }, {
-    users: {
-        id: { type: "USER_ID", identity: true },
-        uid: { type: "USER_UID" },
-        displayName: { type: "TEXT" },
-        enabled: { type: "BOOLEAN" }
-    },
+    /**
+     * Accounts are framework data, not entities (FEATURES §11.4): they never
+     * travel through the cache, the contexts or the transactions. So this model
+     * declares no users table — `userId` holds the id of a Dagda account, which
+     * is the one bridge between the two worlds.
+     */
     projects: {
         id: { type: "PROJECT_ID", identity: true },
         name: { type: "TEXT" },

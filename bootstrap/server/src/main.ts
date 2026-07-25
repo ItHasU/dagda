@@ -6,14 +6,9 @@ import { ServerApp } from "./app";
 
 async function main(): Promise<void> {
     const app = new ServerApp({ ...DEFAULT_SERVER_PARAMS }, APP_MODEL, APP_CONTEXT_ADAPTER);
-    // Starting without credentials is legitimate: the development loop and the
-    // end-to-end tests run that way. The application then stays behind the login
-    // page, which is precisely what those tests check.
-    if (app.isGoogleStrategyConfigured) {
-        app.registerGoogleStrategy();
-    } else {
-        console.warn("No Google credentials configured, starting without any authentication strategy.");
-    }
+    // Nothing to register: local accounts are the only authentication mode
+    // (FEATURES §7). On an empty database the framework creates admin/admin and
+    // says so, which is how the first login happens.
     await app.listen();
 }
 

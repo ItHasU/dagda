@@ -10,12 +10,12 @@ import { SettingsDeclaration, SettingsModel } from "@dagda/shared/src/settings/m
 import { SettingsStore } from "../settings/store";
 import { SQLTransactionData, SQLTransactionResult } from "@dagda/shared/src/sql/transaction";
 import express from "express";
-import passport from "passport";
 import { resolve } from "path";
 import { apiRegister, RequestCallback, RequestOptions } from "../api";
 import { submit } from "../api/impl/entities.api";
 import { getSystemInfo, triggerError } from "../api/impl/system.api";
-import { AuthHandler, AuthStrategy } from "../auth";
+import { AuthHandler } from "../auth";
+import { UserStore } from "../auth/users";
 import { ServerNotificationImpl } from "../notification/notification.impl";
 import { PGRunner } from "../sql/impl/pg.runner";
 import { checkSchemaCoherence } from "../sql/coherence";
@@ -48,12 +48,6 @@ export interface EnvConfig {
     /** Base URL */
     baseURL: string;
 
-    // -- Google auth --
-    /** Google client ID */
-    clientID?: string;
-    /** Google client secret */
-    clientSecret?: string;
-
     // -- Database --
     /**
      * Database connexion string.
@@ -74,11 +68,8 @@ export interface EnvConfig {
     secretKey?: string;
 }
 
-/** Alias to avoid importing passport in project */
-export type PassportProfile = passport.Profile;
-
-/** 
- * Base server app. 
+/**
+ * Base server app.
  * This gather all the logic of the server app.
  */
 export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings extends SettingsDeclaration<Settings> = {}> {
@@ -89,6 +80,7 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
     protected _db: PGRunner;
     protected _notification: ServerNotificationImpl<AppTypes["events"]>;
     protected _settings: SettingsStore<Settings>;
+    protected _users: UserStore;
 
     constructor(
         protected _params: ServerParams,
@@ -109,19 +101,29 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
         console.log("Starting server...");
         this._app = express();
         this._app.use(express.json()); // JSON parsing middleware
+        // The login form posts urlencoded, which express.json() does not read.
+        this._app.use(express.urlencoded({ extended: false }));
+
+        // -- Init DB connection --
+        // Before the authentication handler, which reads the accounts from it.
+        console.log("Initializing database connection...");
+        this._db = new PGRunner(this._config.dbURL);
+        this._users = new UserStore(this._db);
 
         // -- Create the authentication handler --
         console.log("Initializing authentication handler...");
-        this._auth = new AuthHandler(this._app, this._config.baseURL, this._isUserValid.bind(this));
+        this._auth = new AuthHandler({
+            app: this._app,
+            users: this._users,
+            secretKey: this._config.secretKey
+        });
 
         // -- Register client files routes --
+        // After the gate: the client bundle is not public, only the login page is.
         const path: string = resolve(this._params.staticFolder);
         console.log(`Serving static folder: ${path}`);
         this._app.use(express.static(path));
 
-        // -- Init DB connection --
-        console.log("Initializing database connection...");
-        this._db = new PGRunner(this._config.dbURL);
         this._db.withReservedConnection(async (connection) => {
             const result = await connection.all<{ name: string, size: number }>("SELECT pg_database.datname AS name, pg_database_size(pg_database.datname) AS size FROM pg_database")
             if (result == null) {
@@ -237,6 +239,10 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
         // half-read.
         console.log("Loading settings...");
         await this._settings.load();
+
+        // Before an account exists nobody can be invited, so the first one
+        // escapes the normal path (FEATURES §7.1).
+        await this._users.ensureBootstrapAdmin();
     }
 
     /**
@@ -277,30 +283,16 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
 
     //#region Authentication --------------------------------------------------
 
-    /** Register an authentication strategy */
-    public registerAuthStrategy(strategy: AuthStrategy): void {
-        this._auth.registerStrategy(strategy);
-    }
-
     /**
-     * True when the Google credentials are present in the environment.
-     * An application can then decide to register the strategy or to start
-     * without any, which is what the development and end-to-end setups do.
+     * The accounts (FEATURES §7).
+     *
+     * Local accounts are the only mode: no external provider, and no public
+     * sign-up. An application uses this to create accounts, disable them, or
+     * read who is who.
      */
-    public get isGoogleStrategyConfigured(): boolean {
-        return this._config.clientID != null && this._config.clientSecret != null;
+    public get users(): UserStore {
+        return this._users;
     }
-
-    /** Register google strategy */
-    public registerGoogleStrategy(): void {
-        if (this._config.clientID == null || this._config.clientSecret == null) {
-            throw "For security reason, GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET variables are required to register the google strategy";
-        }
-        this._auth.registerGoogleStrategy(this._config.clientID, this._config.clientSecret);
-    }
-
-    /** @returns true if user is existing and allowed to connect */
-    protected abstract _isUserValid(profile: PassportProfile): Promise<boolean>;
 
     //#endregion
 
@@ -313,9 +305,6 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
             // -- HTTP server --
             port: getEnvNumber(`${prefix}PORT`),
             baseURL: getEnvString(`${prefix}BASE_URL`),
-            // -- google auth --
-            clientID: getEnvStringOptional(`${prefix}GOOGLE_CLIENT_ID`),
-            clientSecret: getEnvStringOptional(`${prefix}GOOGLE_CLIENT_SECRET`),
             // -- Database --
             dbURL: getEnvString(`${prefix}DB_URL`),
             // -- Settings --

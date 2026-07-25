@@ -39,6 +39,20 @@
       "rules": {
         "adherence/design-system": "off"
       }
+    },
+    {
+      // Known debt, not a waiver: the login page carries its own styles
+      // because it is the one page served before anything else is reachable,
+      // and the framework stylesheet does not exist yet. Its colours are
+      // written as `var(--token, #fallback)` already, so when `dagda-ui.css`
+      // lands — and is served to anonymous visitors, a stylesheet being no
+      // secret — this becomes a link tag and the fallbacks go away.
+      "files": [
+        "packages/server/src/auth/login.page.ts"
+      ],
+      "rules": {
+        "adherence/design-system": "off"
+      }
     }
   ]
 }

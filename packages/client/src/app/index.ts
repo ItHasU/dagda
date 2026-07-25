@@ -1,7 +1,10 @@
 import { EntitiesAPI } from "@dagda/shared/src/api/impl/entities.api";
 import { SystemAPI, SystemInfo } from "@dagda/shared/src/api/impl/system.api";
 import { BaseAppTypes } from "@dagda/shared/src/app/types";
+import { AuthEvents } from "@dagda/shared/src/auth/events";
+import { UserInfo } from "@dagda/shared/src/auth/types";
 import { Dagda } from "@dagda/shared/src/dagda";
+import { NotificationService } from "@dagda/shared/src/notification/service";
 import { EntitiesModel } from "@dagda/shared/src/entities/model";
 import { ContextAdapter } from "@dagda/shared/src/entities/tools/adapters";
 import { buildBaseServices } from "@dagda/shared/src/services";
@@ -98,11 +101,21 @@ export class DagdaClient {
     public static async refreshSystemInfo(): Promise<SystemInfo | null> {
         try {
             this._systemInfo = await apiCall<SystemAPI, "getSystemInfo">("getSystemInfo", {});
+            // Announced rather than left to be polled: a component built before
+            // this answered would otherwise keep whatever it had at startup —
+            // which is how the avatar spent its life displaying "Unknown".
+            Dagda.get<NotificationService<AuthEvents>>("notification")
+                ?.broadcast("userInfoChanged", this._systemInfo.user);
         } catch (err) {
             console.error("Error while reading system information", err);
             this._systemInfo = null;
         }
         return this._systemInfo;
+    }
+
+    /** @returns the account this browser is logged in as, once known */
+    public static get currentUser(): UserInfo | null {
+        return this._systemInfo?.user ?? null;
     }
 
     /** Inject app headers in the page so you don't have to bother */

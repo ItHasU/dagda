@@ -17,5 +17,18 @@ export const APP_MIGRATIONS: Migration[] = [
             // Creates every table the model declares, in foreign-key order.
             await tools.createAllTables();
         }
+    },
+    {
+        id: "0002-drop-users-table",
+        up: async (tools) => {
+            // Accounts became framework data (FEATURES §11.4), so the
+            // application no longer keeps its own copy. `projects.userId` now
+            // holds a Dagda account id.
+            //
+            // IF EXISTS because a database created after this table left the
+            // model never had it: the first migration builds from the model as
+            // it stands today.
+            await tools.run(`DROP TABLE IF EXISTS "data_users"`);
+        }
     }
 ];

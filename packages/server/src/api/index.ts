@@ -1,13 +1,18 @@
+import { UserInfo } from "@dagda/shared/src/auth/types";
 import { APICollection } from "@dagda/shared/src/api/types";
-import { IRouter } from "express";
-import { PassportProfile } from "../app";
+import { IRouter, Request } from "express";
 
 export type RequestOptionsFromClient = {
     type: "client";
     request: Express.Request;
     response: Express.Response;
-    /** Gives the user profile that made the request */
-    userProfile: PassportProfile;
+    /**
+     * The authenticated account that made the request.
+     *
+     * Always set: the route below refuses an anonymous call, so a server
+     * function never has to check whether someone is behind it.
+     */
+    user: UserInfo;
 }
 
 export type RequestOptionsFromServer = {
@@ -25,10 +30,11 @@ export type RequestCallback<Collection extends APICollection, Name extends keyof
 export function apiRegister<Collection extends APICollection, Name extends keyof Collection>(
     router: IRouter, name: Name, callback: RequestCallback<Collection, Name>): void {
     // Register the route with the server
-    router.post(`/${name.toString()}`, async (req, res) => {
-        // Vérification de l'authentification
-        const user = (req as any)["user"] as PassportProfile;
-        if (!user) {
+    router.post(`/${name.toString()}`, async (req: Request, res) => {
+        // Hiding a screen is not access control: the check holds on the route
+        // itself, whatever the interface chose to display.
+        const user = req.user;
+        if (user == null) {
             res.status(401).json({ error: "Unauthorized" });
             return;
         }
@@ -38,7 +44,7 @@ export function apiRegister<Collection extends APICollection, Name extends keyof
             type: "client",
             request: req,
             response: res,
-            userProfile: user
+            user
         };
 
         try {
