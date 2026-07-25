@@ -27,6 +27,20 @@ Décisions structurantes qui expliquent plusieurs choix ci-dessous :
 - **En cas d'échec d'écriture, on invalide et on recharge.** Pas de résolution
   de conflit : la stratégie assumée est de repartir de l'état serveur.
 - **L'authentification est obligatoire.** Pas de mode « application ouverte ».
+- **Minimum de dépendances vers des librairies externes.** Toute proposition
+  d'ajout d'une nouvelle dépendance (client, serveur ou build) doit être
+  soumise et validée avant intégration — jamais ajoutée de sa propre initiative.
+- **Les services de base sont autonomes.** Toute application Dagda les reçoit en
+  état de marche. Ils sont paramétrables par l'application, mais ne réclament
+  d'elle aucun code pour fonctionner.
+- **Authentification locale uniquement.** Comptes gérés par le framework, sans
+  fournisseur externe.
+
+### Hors périmètre du framework
+
+- **Internationalisation.**
+- **Authentification autre que locale** (OAuth, LDAP, SSO…).
+- **Autre base de données que PostgreSQL.**
 
 ## 1. Structure & outillage
 
@@ -37,8 +51,10 @@ Décisions structurantes qui expliquent plusieurs choix ci-dessous :
 | Configs webpack partagées (client & serveur) | ✅ | ✅ | bundle unique `main.js` par app |
 | Résolution des alias de paths (`tsconfig-paths-webpack-plugin`) | ✅ | ✅ | |
 | Application « bootstrap » servant d'exemple et de banc de test | ❌ | ✅ | `bootstrap/{client,server,shared}` |
-| Tests unitaires (mocha) | ✅ | ✅ | couverture partielle : `model`, `handler` |
+| Tests unitaires (mocha) | ✅ | ✅ | couverture partielle : `model`, `handler` — **à migrer vers Vitest** |
 | Génération de la config VSCode (launch / tasks) | ✅ | ✅ | |
+| **NEW** — Mécanisme de tests fourni aux applications, pas seulement au framework | | | trois cibles : `shared`, `server`, et `client` avec DOM virtuel |
+| **NEW** — ↳ Interface web de lancement et de suivi des tests | | | |
 | **NEW** — Générateur de projet (`npm create dagda`) | | | scaffolding d'une app à partir du bootstrap |
 | **NEW** — Documentation (README par package, guide de démarrage) | | | actuellement quasi inexistante |
 | **NEW** — Build en mode watch / hot reload confortable | | | |
@@ -54,8 +70,15 @@ Décisions structurantes qui expliquent plusieurs choix ci-dessous :
 | Clés étrangères déclarées (`foreignTable`) | ✅ | ✅ | |
 | Champs optionnels, champ identité | ✅ | ✅ | |
 | Génération du DDL / des noms de tables & colonnes quotés | ✅ | ✅ | `qt()` / `qf()` |
-| **NEW** — Migrations de schéma versionnées | | | aujourd'hui : scripts SQL manuels (cf. `eurekai/apps/sql`) |
+| **NEW** — **Migrations de schéma versionnées, seul mode d'évolution** | | | pas de synchronisation automatique depuis le modèle : un renommage de champ deviendrait une suppression suivie d'une création, donc une perte silencieuse. **Deux jeux distincts** : celles du framework et celles de l'application (§11.4) |
 | **NEW** — Validation runtime des entités | | | |
+| **NEW** — Type `USER_ID` fourni par le framework + clé étrangère vers sa table utilisateurs | | | seul pont entre les données internes de Dagda et le modèle métier (§11.4) |
+| **NEW** — **Énumérations déclaratives**, en remplacement des `enum` TypeScript | | | triplet `<uid, valeur (entier ou chaîne), libellé>`. Le libellé rend l'affichage et les formulaires (§8.1) automatiques, ce qu'un `enum` TS ne permet pas — il faut aujourd'hui une table de correspondance à la main dans chaque écran |
+| **NEW** — **Champs JSON** | | | contenu libre, à charge pour le développeur qu'il soit sérialisable par PostgreSQL |
+| **NEW** — Séparation des tables par préfixe : `system_` (framework) et `data_` (métier) | | | rend la frontière du §11.4 visible jusque dans le schéma |
+| **NEW** — ↳ Tables `system_` : migrations **livrées avec le framework**, appliquées automatiquement | | | l'application n'a rien à faire pour disposer des comptes, rôles, paramètres et préférences |
+| **NEW** — ↳ Tables `data_` : migrations **écrites par le développeur** de l'application | | | |
+| **NEW** — ↳ Contrôle de cohérence entre le modèle déclaré et le schéma réel au démarrage | | | garde-fou de la décision « migrations seules » : sans lui, une migration oubliée ne se manifeste que par une erreur SQL à l'exécution, souvent loin de la cause |
 
 ## 3. Cache & synchronisation client/serveur
 
@@ -74,8 +97,12 @@ Décisions structurantes qui expliquent plusieurs choix ci-dessous :
 | Adapter de test en mémoire | ✅ | ✅ | `test.adapters.ts` |
 | Invalidation totale du cache en cas d'échec de submit | ✅ | ✅ | **comportement assumé**, pas un manque |
 | **NEW** — Rendre l'échec de submit visible pour l'utilisateur | | | aujourd'hui : `console.error` + cache *dirty*, l'utilisateur ne voit rien |
+| **NEW** — **Hooks sur les modifications de données** | | | point d'accroche serveur déclenché par une transaction. C'est ce sur quoi reposeront les déclencheurs « sur changement » des automatismes MQTTToolbox |
+| **NEW** — Fonctions d'intersection de contextes prêtes à l'emploi | | | *toujours*, *jamais*, *égalité de tous les paramètres* — évite que chaque application réécrive le cas courant |
+| **NEW** — ↳ Une fonction d'intersection par type de contexte | | | plus fin que l'actuel `ContextAdapter` global |
 | **ÉCARTÉ** — Résolution de conflits | | | on invalide et on recharge |
 | **ÉCARTÉ** — Persistance du cache client (IndexedDB / offline) | | | le cache n'est qu'une vue partielle des données, le mode hors ligne n'a pas de sens |
+| **ÉCARTÉ** — Cache et logique client déportés dans un (Shared)Worker | | | une frontière worker est asynchrone : elle briserait l'accès **synchrone** au cache, qui est la principale valeur du framework. La synchro multi-fenêtres, seul gain fonctionnel, est déjà largement couverte par le broadcast `contextChanged` (§6) — et n'est pas un besoin identifié. Coûts écartés : partition du bundle applicatif, refonte de `withTransaction` (un callback ne traverse pas `postMessage`), ids temporaires, contextes actifs par fenêtre |
 
 ## 4. Accès base de données (serveur)
 
@@ -93,17 +120,27 @@ Décisions structurantes qui expliquent plusieurs choix ci-dessous :
 > concevoir pour accueillir d'autres moteurs : le code applicatif peut assumer
 > PostgreSQL (SQL spécifique, types natifs, `RETURNING`…) sans chercher la portabilité.
 
-## 5. API typée client ↔ serveur
+## 5. Routes internes & API externe
+
+> Deux surfaces distinctes, déclarées séparément dans la partie *shared* :
+> les **routes** appelées par le client de l'application, et les **API externes**
+> appelées par un tiers muni d'un jeton. Même mécanique de déclaration typée, deux
+> modes d'authentification.
 
 | Fonctionnalité | v1 | v2 | Notes |
 |---|:--:|:--:|---|
 | Déclaration d'API par un simple type TS (`APICollection`) | ✅ | ✅ | signature partagée entre client et serveur |
+| **NEW** — **Routes** client → serveur déclenchant une action serveur | | | |
+| **NEW** — ↳ Protection de chaque route par les permissions de l'appelant | | | fonction de contrôle déclarée avec la route, évaluée sur les permissions résolues (§7.1) |
+| **NEW** — **API externes** déclarées à part des routes internes | | | ce qu'on expose à `curl` n'est pas ce qu'on expose à son propre client |
 | `apiCall()` côté client / `apiRegister()` côté serveur | ✅ | ✅ | typage des arguments et du retour |
 | API système intégrée (`getSystemInfo`, `triggerError`) | ✅ | ✅ | uptime, liste des erreurs non capturées |
 | API entités intégrée (`fetch` / `submit`) | ✅ | ✅ | |
 | Passage du contexte de requête (utilisateur, session) au handler | ⚠️ | ✅ | `RequestOptions` |
 | **NEW** — Gestion homogène des erreurs API (codes, messages typés) | | | |
 | **NEW** — Authentification par jeton pour les appels hors navigateur | | | besoin remonté par MQTTToolbox 2 (API `curl`-friendly) |
+| **NEW** — ↳ Le jeton porte l'identité et les permissions de son propriétaire | | | un appel par jeton est traité **comme si l'utilisateur l'avait fait lui-même** — pas de portée réduite (cf. §7.1) |
+| **NEW** — ↳ Écran de gestion des jetons | | | chacun voit et révoque les siens ; le super-admin voit ceux de tout le monde |
 
 ## 6. Notifications temps réel
 
@@ -114,7 +151,7 @@ Décisions structurantes qui expliquent plusieurs choix ci-dessous :
 | Broadcast serveur → tous les clients | ✅ | ✅ | |
 | Reconnexion automatique côté client | ✅ | ✅ | |
 | Notifications navigateur (Web Notification API) | ✅ | ⚠️ | dans EurekAI en v1, à remonter dans le framework |
-| **NEW** — Notifications ciblées (par utilisateur / par salon) | | | aujourd'hui uniquement du broadcast global |
+| **NEW** — **Filtrage des notifications par utilisateur et par permissions** | | | aujourd'hui uniquement du broadcast global : tout client reçoit tout. Le filtre doit être appliqué **côté serveur** — filtrer à l'arrivée laisserait la donnée passer sur le fil |
 
 ## 7. Serveur applicatif & authentification
 
@@ -122,25 +159,51 @@ Décisions structurantes qui expliquent plusieurs choix ci-dessous :
 |---|:--:|:--:|---|
 | Serveur Express préconfiguré | ✅ | ✅ | v2 : classe `AbstractServerApp` qui assemble tout |
 | Service de fichiers statiques (le client buildé) | ✅ | ✅ | |
-| Lecture de la config depuis les variables d'environnement | ✅ | ✅ | `getEnvString` / `getEnvNumber` / `...Optional`, préfixe configurable |
-| Authentification Passport + session | ✅ | ✅ | |
-| Stratégie Google OAuth2 | ✅ | ✅ | |
-| Point d'extension pour d'autres stratégies | ❌ | ✅ | `registerAuthStrategy` |
+| Lecture de la config depuis les variables d'environnement | ✅ | ✅ | `getEnvString` / `getEnvNumber` / `...Optional`, préfixe configurable. **Réservé à l'amorçage** (port, URL de base, connexion à la base) : le reste passe par les paramètres système (§11.5) |
+| Session serveur | ✅ | ✅ | |
 | Validation applicative de l'utilisateur (`_isUserValid`) | ✅ | ✅ | permet la liste blanche d'utilisateurs |
-| **NEW** — **Gestion locale des utilisateurs** (compte + mot de passe) | | | permet de déployer sans dépendre d'un fournisseur externe |
+| **NEW** — **Comptes locaux, seul mode d'authentification** (compte + mot de passe) | | | plus de dépendance à un fournisseur externe |
+| **ÉCARTÉ** — Stratégie Google OAuth2 | ✅ | ✅ | **présente dans les deux versions, à retirer**. Impact réel : EurekAI authentifie aujourd'hui ses utilisateurs par Google (cf. tranche 8) |
+| **ÉCARTÉ** — Point d'extension pour d'autres stratégies (`registerAuthStrategy`) | ❌ | ✅ | |
+| **ÉCARTÉ** — Plusieurs stratégies actives simultanément | | | sans objet : il n'en reste qu'une |
+| **ÉCARTÉ** — Un utilisateur rattaché à plusieurs méthodes de connexion | | | sans objet |
+| **NEW** — ↳ Bénéfice : `passport` et `passport-google-oauth20` sortent des dépendances | | | cohérent avec §0 |
 | **NEW** — ↳ stockage sécurisé des mots de passe (hachage + sel) | | | |
 | **NEW** — ↳ création de compte **sur invitation d'un administrateur uniquement** | | | pas d'inscription publique : aucun formulaire d'inscription exposé |
 | **NEW** — ↳ mécanisme d'invitation (lien à usage unique, avec expiration) | | | l'administrateur crée le compte, l'utilisateur choisit son mot de passe |
 | **NEW** — ↳ changement de mot de passe par l'utilisateur | | | |
 | **NEW** — ↳ réinitialisation : par le même lien d'invitation, régénéré par l'administrateur | | | évite d'imposer un service d'envoi de mail ; à confirmer |
-| **NEW** — **Plusieurs stratégies actives simultanément** dans une même app | | | ex. Google *et* comptes locaux ; le serveur doit exposer la liste des stratégies disponibles au client |
-| **NEW** — ↳ un même utilisateur rattaché à plusieurs méthodes de connexion ? | | | à trancher : identité unique ou un compte par stratégie |
-| **NEW** — Gestion des rôles / permissions | | | au minimum : administrateur vs utilisateur |
-| **NEW** — Notion de propriétaire d'une entité + partage entre utilisateurs | | | besoin remonté par MQTTToolbox 2 (tableaux de bord) |
-| **NEW** — Filtrage des données par utilisateur au niveau du fetch | | | |
+| **NEW** — Rôles & permissions | | | modèle détaillé en §7.1 |
+| **NEW** — Notion de propriétaire d'une entité + partage entre utilisateurs | | | besoin remonté par MQTTToolbox 2 (tableaux de bord) — se compose avec les permissions (§7.1), ne les remplace pas |
 | **NEW** — Identité de l'utilisateur courant accessible côté serveur dans les écritures | | | pour tracer l'auteur d'une modification |
-| **NEW** — Écran d'administration des utilisateurs | | | aujourd'hui dans EurekAI : activation manuelle en base |
+| **NEW** — Écran d'administration des utilisateurs et des rôles | | | aujourd'hui dans EurekAI : activation manuelle en base |
+| **NEW** — Comptes et préférences **internes au framework**, hors modèle d'entités | | | cf. §11.4 — exposés par API typée, pas par le cache |
 | **ÉCARTÉ** — Mode « sans authentification » (`NO_AUTH`) | ✅ | ⚠️ | présent en v1, à retirer |
+
+### 7.1 Rôles & permissions — décidé
+
+**La liste des permissions est une constante applicative, pas une donnée.**
+Comme `APICollection` (§5) ou la collection d'actions (§11.1) : un type
+TypeScript déclaré dans le code, partagé entre client et serveur, d'où
+découlent l'autocomplétion et la vérification. Le framework fournit un socle
+de permissions de base pour ses propres fonctionnalités (paramètres système
+§11.5, gestion des utilisateurs et des rôles) ; l'application y ajoute les
+siennes.
+
+**Les rôles, eux, sont une donnée.** Créés librement par l'administrateur (nom
++ sous-ensemble de permissions), stockés côté framework au même titre que les
+comptes (§11.4) — pas fixés dans le code, à l'inverse des permissions.
+
+| Fonctionnalité | v1 | v2 | Notes |
+|---|:--:|:--:|---|
+| **NEW** — Matrice rôle × permission, éditable par l'administrateur | | | pour chaque rôle créé, cocher les fonctionnalités qui lui sont accessibles |
+| **NEW** — Un utilisateur porte **au plus un rôle** | | | pas de cumul : `permissions(utilisateur)` = permissions de son rôle, ou aucune |
+| **NEW** — Rôle **super-admin** intégré au framework, tous droits implicites | | | dispensé de la matrice — un test dédié court-circuite toute vérification, sans énumérer ses permissions |
+| **NEW** — ↳ Attribué automatiquement au premier utilisateur créé (`admin` / `admin`) | | | bootstrap : avant qu'un compte existe, personne ne peut émettre d'invitation (§7) — ce premier compte échappe donc au parcours normal |
+| **NEW** — Permissions de l'utilisateur résolues côté serveur, exposées en liste d'identifiants texte | | | ex. `["projects.manage", "users.invite"]` — c'est cette liste que lisent les fonctions serveur pour trancher un accès |
+| **NEW** — Contexte de chargement / appel d'API contraignable par permission | | | généralise l'idée de « filtrage par utilisateur » : la même mécanique porte aussi bien une restriction de table entière qu'un filtre plus fin |
+| **NEW** — Permissions transmises au client | | | pour masquer les parties d'interface inaccessibles — ne dispense jamais la vérification serveur (§11.2) |
+| **NEW** — Jeton d'API : mêmes permissions que son propriétaire | | | cf. §5 — pas de portée réduite pour un appel par jeton |
 
 ## 8. Client / UI
 
@@ -154,17 +217,53 @@ Décisions structurantes qui expliquent plusieurs choix ci-dessous :
 | Cycle de vie `_init()` / `_refresh()` avec garde anti-réentrance | ❌ | ✅ | |
 | Gestion des slots pour les enfants existants | ❌ | ✅ | |
 | Système de pages / navigation (`PageHandler`, `AbstractPageElement`) | ⚠️ | ✅ | v1 : géré dans l'app EurekAI |
+| **NEW** — SPA fournie clé en main : menu de navigation + zone de contenu | | | l'application n'écrit pas sa coquille. Disposition détaillée dans [`specs/navigation.md`](specs/navigation.md) (paysage/portrait × déployé/rétracté) |
+| **NEW** — ↳ Les pages dérivent d'`ApplicationPage` | | | |
+| **NEW** — ↳ Inscription au menu **optionnelle**, avec hiérarchie par catégorie | | | une page non inscrite reste atteignable par le service de navigation |
+| **NEW** — ↳ Menu filtré par les permissions de l'utilisateur | | | conséquence de §7.1 : ne pas proposer ce qui sera refusé |
 | Composant de statut (téléchargement / envoi / cache sale) | ✅ | ✅ | |
 | Composant de navbar | ❌ | ✅ | |
-| Composant de login | ❌ | ✅ | à faire évoluer : afficher les stratégies disponibles + formulaire local (§7) |
+| Composant de login | ❌ | ✅ | simplifié : un seul formulaire, comptes locaux (§7) |
 | Composant conteneur | ❌ | ✅ | |
-| Bootstrap 5 + bootstrap-icons intégrés | ✅ | ✅ | **à remplacer** — cf. ligne suivante |
-| **NEW** — **Choix d'un design system** (en remplacement de Bootstrap) | | | décision à prendre au niveau de Dagda ; couvre le thème clair / sombre |
-| **NEW** — Jeu d'icônes associé au design system | | | remplace bootstrap-icons |
+| Bootstrap 5 + bootstrap-icons intégrés | ✅ | ✅ | **à remplacer** — cf. lignes suivantes |
+| **NEW** — **Feuille de style unique du framework** (`dagda-ui.css`) | | | **reprise de Nocturne**, pas réinventée : on hérite du vocabulaire de classes de Claude Design (`.btn`/`.btn-primary`/`.btn-ghost`, `.card`, `.input`, `.field`, `.nav`, `.table`, `.dialog`, `.tag`, `.seg`, `.elev-*`, `.text-muted`) et de ses règles, qui ne référencent que des `var()`. Remplace Bootstrap |
+| **NEW** — **Thèmes interchangeables** | | | un thème = **un jeu de jetons seul** (~60 lignes), le vocabulaire et les règles ne changent pas. Plusieurs thèmes par application, **l'utilisateur choisit le sien** |
+| **NEW** — ↳ Chaque thème définit le jeu de jetons **complet** | | | pas de surcharge partielle : les ombres de Nocturne sont accordées au fond (`--shadow-*` = liseré + noir ambiant sur fond sombre). Un thème clair qui n'override que les couleurs hériterait d'ombres calculées pour du sombre |
+| **NEW** — ↳ Remaniement initial de Nocturne : hisser en variables ce qui est cuit dans les règles | | | plus petit que prévu : `--radius-*` sont **déjà** des variables ; restent la densité (les `--space-*` sont pré-multipliés par 0,7 → `calc(4px * var(--density))`) et le style de bouton (contour vs aplat) |
+| **NEW** — ↳ Bascule à chaud par attribut (`data-theme`), tous les thèmes dans un même fichier | | | évite le clignotement et l'échec de chargement d'une feuille externe ; l'ordre des blocs départage, leur spécificité étant égale |
+| **NEW** — ↳ Alimenter la bibliothèque en récoltant le `:root` de futures générations Claude Design | | | ce bloc ne dépend d'aucun nom de classe : il se transporte tel quel |
+| **NEW** — ↳ **Liste des thèmes fixée dans le code** | | | le framework fournit **plusieurs thèmes standard** ; l'application compose la sienne en piochant parmi eux et en ajoutant les siens. Ni table en base, ni écran d'administration : seul le *choix* de l'utilisateur est une donnée |
+| **NEW** — ↳ **Le choix appartient à l'utilisateur**, pas à l'administrateur | | | aucun thème imposé à l'échelle de l'instance |
+| **NEW** — ↳ Mémorisation du choix par utilisateur | | | dépend des comptes (§7) |
+| **NEW** — ↳ Miroir local du choix pour l'appliquer avant le premier rendu | | | la préférence venant du serveur n'est connue qu'après ouverture de session : sans miroir (`localStorage`), chaque chargement affiche brièvement le thème par défaut |
+| **NEW** — ↳ Repli sur le thème par défaut si le thème mémorisé n'existe plus | | | la liste étant dans le code, elle change entre deux versions de l'application |
+| **NEW** — ↳ Clair / sombre = deux thèmes, pas un interrupteur | | | `theme.json` porte `band: "dark"` : la polarité est une propriété du thème |
+| **NEW** — ↳ **Polices embarquées localement** | | | les `styles.css` générés font `@import` vers Google Fonts : inopérant sur un réseau sans Internet (MQTTToolbox auto-hébergé). À rapatrier au build. Conséquence des thèmes : la police faisant partie des jetons, **chaque famille utilisée par un thème doit être embarquée** — garder leur nombre bas |
+| **NEW** — **Icônes : Phosphor** (MIT), livré en **police d'icônes** | | | dépendance validée. ~1 500 concepts × 6 graisses ; mode de livraison standard du projet (`@phosphor-icons/web`), donc pas d'outil de sous-ensemblage au build — cohérent avec §0 |
+| **ÉCARTÉ** — ↳ Composant `<dagda-icon name="…">` | | | le thème d'icônes est tranché (Phosphor) : un `<i class="ph ph-…">` direct suffit, sans l'indirection JS (risque de FOUC, cycle de vie pour rien). Remplaçable plus tard si besoin, sans passer par un composant dès maintenant |
+| **NEW** — ↳ **Graisse = jeton de thème**, le jeu reste fixe | | | répond à « un jeu par thème ? » sans le risque de trous de couverture : les noms d'icônes ne changent jamais. Déclarer les six `@font-face` ne coûte rien — le navigateur ne télécharge que la graisse réellement employée |
+| **NEW** — ↳ Accessibilité : `aria-hidden` sur l'icône décorative, libellé obligatoire sur un bouton sans texte | | | les glyphes d'une police d'icônes sont dans une zone privée et se lisent en charabia au lecteur d'écran. À traiter dans le composant, pas dans chaque écran |
+| **NEW** — ↳ Fichiers de police embarqués localement | | | même contrainte que les polices de texte : pas de CDN, l'outil doit fonctionner sans Internet |
+| **NEW** — ↳ Brancher le lint d'adhérence fourni dans le bundle | | | `_adherence.oxlintrc.json` signale les hex bruts, les `px` bruts et les polices hors système : c'est le garde-fou qui empêche les gabarits de dériver hors des jetons |
+| **NEW** — Séparation *store* / vue dans les composants | | | **à évaluer, indépendant du worker écarté (§3)** : un store produit un état de vue prêt à rendre, la vue ne fait que le rendu. Aujourd'hui les deux sont mêlés (cf. `_refreshImpl` dans EurekAI, ~200 lignes) |
 | **NEW** — Routage par URL (deep-link, bouton retour navigateur) | | | |
 | **NEW** — Navigation mobile (gestes, *swipe* entre pages) | | | besoin remonté par MQTTToolbox 2 |
 | **NEW** — Support PWA : installation, manifest, icônes | | | fait à la main dans les apps aujourd'hui |
 | **NEW** — Écran « hors ligne » / perte de connexion | | | le mode hors ligne étant écarté (§0), il faut au moins le signaler proprement |
+
+### 8.1 Générateur de formulaires
+
+Une liste de champs typés en entrée, un formulaire rendu et validé en sortie.
+
+| Fonctionnalité | v1 | v2 | Notes |
+|---|:--:|:--:|---|
+| **NEW** — Génération d'un formulaire depuis une déclaration de champs | | | libellé, type, valeur par défaut, obligatoire ou non |
+| **NEW** — ↳ S'appuie sur les types du modèle, énumérations comprises | | | c'est le libellé porté par les énumérations déclaratives (§2) qui rend le rendu d'une liste de choix automatique |
+
+> **Brique à mutualiser** : trois besoins déjà identifiés convergent ici — l'écran
+> d'édition des paramètres système (§11.5), le formulaire de paramètres d'un script
+> avant exécution (§11.3), et les formulaires métier des applications. À concevoir
+> pour les trois, pas pour un seul.
 
 ## 9. Injection de services (nouveauté v2)
 
@@ -190,3 +289,164 @@ Décisions structurantes qui expliquent plusieurs choix ci-dessous :
 | Service de log typé | ❌ | ✅ | |
 | Helper `fetch` côté serveur | ✅ | ⚠️ | |
 | **NEW** — Journalisation structurée / niveaux de log configurables | | | |
+
+## 11. Couche d'actions, console et scripts utilisateur
+
+> Trois demandes qui n'en font qu'une : **extraire une couche d'actions**. La
+> variable globale et l'éditeur de scripts n'en sont que deux consommateurs.
+
+### 11.1 Couche d'actions
+
+| Fonctionnalité | v1 | v2 | Notes |
+|---|:--:|:--:|---|
+| **NEW** — **Collection d'actions typée**, déclarée comme l'est `APICollection` (§5) | | | même idiome que les APIs : un type TypeScript partagé, d'où découlent l'autocomplétion et la vérification dans l'éditeur. À ajouter aux `BaseAppTypes` |
+| **NEW** — ↳ Signature imposée : **le premier paramètre est toujours la transaction** | | | rend les actions composables — plusieurs actions dans une même transaction. Depuis la console, l'appelant ouvre donc une transaction avant d'agir |
+| **NEW** — ↳ Les tests portent sur les actions, pas sur les clics | | | bénéfice collatéral important vu l'objectif de couverture |
+| **NEW** — ↳ `.d.ts` des actions embarqué comme ressource pour l'éditeur | | | **pas de génération à écrire** : `tsc` les émet déjà dans `.tsc-build/`. Il suffit que le build les embarque sous forme de chaîne, pour que Monaco les charge en bibliothèque supplémentaire |
+
+**Où placer la frontière** — l'API n'a pas vocation à tout absorber. Le critère
+retenu, du plus contraignant au plus souple :
+
+- **Doit être une action** : toute opération qui porte un *invariant* métier, et
+  toute opération qu'un utilisateur voudrait plausiblement scripter. En clair :
+  ce qu'on nommerait dans le vocabulaire du domaine (« archiver le projet »,
+  « publier un message différé »), même si cela recouvre plusieurs appels.
+- **Peut rester dans un gestionnaire de clic** : l'enchaînement d'actions sans
+  règle propre, la lecture des champs d'un formulaire et leur transformation en
+  paramètres, et tout ce qui est propre à l'écran — confirmation, sélection,
+  défilement, ouverture d'un panneau.
+- **Test d'arbitrage** : *si l'utilisateur refait le même enchaînement depuis la
+  console, obtient-il un état valide ?* Si oui, l'enchaînement peut rester dans le
+  gestionnaire. Si non, c'est qu'un invariant y est caché et qu'il doit descendre
+  dans une action.
+
+Autrement dit : **le séquencement peut vivre dans l'écran, jamais l'invariant.**
+
+### 11.2 API console
+
+| Fonctionnalité | v1 | v2 | Notes |
+|---|:--:|:--:|---|
+| **NEW** — Variable globale `dagda` exposant services, entités et actions | | | précédent : `window.MQTT` dans MQTTToolbox v1 |
+| **NEW** — ↳ Chargement de données depuis la console (`fetch` par contexte) | | | |
+| **NEW** — ⚠️ **Masquer un bouton n'est plus un contrôle d'accès** | | | toute autorisation doit être vérifiée **côté serveur** sur les permissions résolues (§7.1). Ce n'est pas une régression (c'était déjà vrai), mais la console rend le contournement trivial |
+| **NEW** — ⚠️ L'API console devient un **contrat public** | | | renommer une action casse les scripts des utilisateurs : versionnement à assumer |
+
+### 11.3 Éditeur de scripts intégré
+
+| Fonctionnalité | v1 | v2 | Notes |
+|---|:--:|:--:|---|
+| **NEW** — Éditeur TypeScript fourni par le framework, dans toute application Dagda | | | Monaco — **dépendance validée** |
+| **NEW** — ↳ **Les scripts sont du TypeScript, jamais du JavaScript** | | | y compris ceux saisis par l'utilisateur final |
+| **NEW** — ↳ Chargé à la demande, jamais dans le bundle principal | | | Monaco pèse plusieurs Mo : le coût ne doit être payé que par qui ouvre l'éditeur |
+| **NEW** — ↳ Autocomplétion et vérification de types sur l'API réelle de l'application | | | via les `.d.ts` embarqués (§11.1) — c'est ce qui fait la valeur de Monaco ici |
+| **NEW** — ↳ Transpilation par Monaco lui-même | | | il embarque le service de langage TypeScript : **aucune dépendance supplémentaire** pour compiler dans le navigateur |
+| **NEW** — ↳ Une erreur de type bloque l'exécution | | | ici la vérification de types est un vrai garde-fou, contrairement aux automatismes serveur de MQTTToolbox où seul le bac à sable protège |
+| **NEW** — ↳ **Déclaration de paramètres** par le script (nom, type, libellé, défaut) | | | le framework en dérive un formulaire affiché avant exécution : un script devient un petit outil |
+| **NEW** — ↳ Exécution dans la page, avec la session de l'utilisateur | | | **aucun bac à sable nécessaire** : un script personnel ne confère rien de plus que la console déjà ouverte à l'utilisateur. À ne pas confondre avec les automatismes serveur de MQTTToolbox, qui, eux, en exigent un |
+| **NEW** — ↳ Scripts **privés à leur auteur par défaut** | | | |
+| **NEW** — ⚠️ Le partage de scripts entre utilisateurs est un **XSS stocké** | | | un script écrit par A et exécuté par B s'exécute avec les droits de B. Si le partage est ouvert un jour, il devra être explicite et averti |
+| **NEW** — ↳ Historique / versions d'un script | | | |
+
+### 11.4 Données natives du framework — **décidé**
+
+**Les données du framework ne sont pas des entités.** Comptes utilisateurs (§7),
+préférences dont le thème (§8), scripts (§11.3), configuration interne : tout cela
+est **purement interne à Dagda**. Les entités restent réservées aux objets métier
+des applications.
+
+Conséquences, toutes favorables :
+
+- Pas de composition de modèles à concevoir : `EntitiesModel` ne contient que les
+  tables de l'application.
+- Ces données ne transitent ni par le cache client, ni par les contextes de
+  chargement, ni par les transactions. Elles s'exposent par des APIs typées (§5).
+- Dagda gère **ses propres migrations**, indépendamment de celles de l'application.
+  Chacun sa version de schéma.
+
+**Le seul pont : l'identifiant utilisateur.**
+
+| Fonctionnalité | v1 | v2 | Notes |
+|---|:--:|:--:|---|
+| **NEW** — Type `USER_ID` fourni par le framework, utilisable dans un modèle applicatif | | | permet à une application de déclarer `ownerId: { type: "USER_ID" }` avec le typage nommé (§2) |
+| **NEW** — ↳ Clé étrangère SQL émise vers la table utilisateurs de Dagda | | | `foreignTable` désigne aujourd'hui une table du même modèle : il faut une variante pointant vers une table du framework |
+| **NEW** — ↳ **Annuaire des utilisateurs côté client**, chargé une fois, consultable **de façon synchrone** | | | sans lui, aucun écran ne peut afficher « créé par X » pendant le rendu — les utilisateurs n'étant plus dans le cache d'entités. Besoin réel : MQTTToolbox affiche l'auteur d'une publication manuelle et le propriétaire d'un tableau de bord |
+| **NEW** — ↳ Politique de suppression d'un compte | | | des entités métier le référencent : désactiver plutôt que supprimer (EurekAI porte déjà un `enabled`) |
+
+### 11.5 Paramètres système — mécanisme générique du framework
+
+**Tout réglage qui n'est lu que côté serveur passe par ce mécanisme, jamais par
+une entité.** Le broker MQTT et son mot de passe en sont l'exemple type.
+
+La raison est directe : **une entité est lisible depuis la console** par quiconque
+peut charger son contexte (§11.2). Un mot de passe de broker, un jeton d'API, une
+chaîne de connexion stockés en entité transiteraient par le cache client et
+seraient exposés. Le mécanisme de paramètres est la réponse à ça.
+
+| Fonctionnalité | v1 | v2 | Notes |
+|---|:--:|:--:|---|
+| **NEW** — Déclaration typée des paramètres d'une application | | | même esprit que le modèle d'entités : une déclaration d'où découlent le typage, la validation et le formulaire d'édition |
+| **NEW** — ↳ Stockage en base, côté framework | | | |
+| **NEW** — ↳ **Trois niveaux de visibilité** déclarés par paramètre | | | cf. tableau ci-dessous. Défaut : le plus fermé |
+| **NEW** — ↳ Paramètres marqués **secrets** : écriture seule depuis l'interface | | | saisis puis jamais relus en clair ; exclus des exports ; chiffrement au repos à prévoir |
+| **NEW** — ↳ Règle de cohérence : un secret ne peut pas être de visibilité `client` | | | à refuser à la déclaration, pas à l'exécution |
+| **NEW** — ↳ Secrets **chiffrés en base**, clé fournie par variable d'environnement | | | la clé est donc un paramètre d'amorçage, comme la connexion à la base |
+| **NEW** — Écran de gestion de la configuration | | | dérivé de la déclaration typée via le générateur de formulaires (§8.1) |
+| **NEW** — ↳ Édition réservée aux administrateurs | | | dépend des rôles (§7) |
+| **NEW** — ↳ **Notification de changement côté serveur** | | | reprise d'un mécanisme éprouvé : MQTTToolbox v1 fait `Config.on("mqtt", …)` pour se reconnecter au broker à chaud. Sans ça, tout changement impose un redémarrage |
+| **NEW** — ↳ Frontière avec les variables d'environnement | | | l'amorçage reste en variables d'environnement (port, URL de base, **chaîne de connexion à la base**) — on ne peut pas lire en base de quoi se connecter à la base. Tout le reste va dans les paramètres |
+
+**Les trois niveaux de visibilité**
+
+| Niveau | Qui peut lire | Exemples | Peut être secret |
+|---|---|---|---|
+| `server` | le code serveur du framework et de l'application, **rien d'autre** | clé de chiffrement, secret de session, réglages de pool | oui |
+| `script` | en plus, le code utilisateur **exécuté sur le serveur** (automatismes MQTTToolbox, §5) | jeton d'un service tiers appelé par un automatisme | oui |
+| `client` | descend au navigateur — donc lisible par **tout utilisateur authentifié**, console comprise | titre de l'instance, plafonds d'affichage, durée de rétention | **non** |
+
+Le défaut est `server` : un paramètre ne s'ouvre que par une déclaration explicite.
+Et il faut lire `client` pour ce qu'il est — non pas « visible par l'interface »
+mais « public pour quiconque a un compte », puisque la console y donne accès (§11.2).
+
+**Décidé** : les trois niveaux sont conservés. Le niveau intermédiaire est ce qui
+permet à un automatisme serveur d'utiliser un jeton d'API sans que celui-ci
+descende jamais au navigateur.
+
+> Ce mécanisme **absorbe le magasin de secrets** prévu pour les automatismes de
+> MQTTToolbox : ce n'est plus une fonctionnalité de l'application mais un usage
+> d'une brique du framework, au niveau `script`.
+
+> **Question ouverte** — un secret de niveau `script` est remis *en clair* au code
+> utilisateur, qui peut donc le journaliser ou l'exfiltrer par un appel HTTP
+> sortant. L'alternative est que le framework n'expose jamais la valeur mais
+> réalise lui-même l'appel en y injectant le secret (`http.call("service", …)`).
+> Plus sûr, moins souple. À trancher avant la tranche 6.
+
+**À distinguer des préférences utilisateur** (§11.6) : le thème est une préférence,
+propre à chaque utilisateur et lue par le client. Les paramètres système, eux,
+sont globaux à l'instance et ne descendent pas au navigateur.
+
+### 11.6 Préférences utilisateur
+
+| Fonctionnalité | v1 | v2 | Notes |
+|---|:--:|:--:|---|
+| **NEW** — Service générique de préférences, propres à chaque utilisateur | | | premier usage : le thème (§8) |
+| **NEW** — ↳ **Toujours une valeur par défaut** | | | une préférence jamais renseignée doit se lire sans cas particulier dans le code appelant |
+| **NEW** — ↳ Stockage côté framework, table `system_` | | | comme les comptes et les paramètres (§11.4) |
+
+## 12. Ce qu'une application déclare
+
+Récapitulatif du contrat côté développeur — l'ensemble est typé, d'où découlent
+la vérification TypeScript et l'autocomplétion, y compris dans l'éditeur de
+scripts (§11.3).
+
+**Partie *shared*** — types de champs · modèle des entités métier · liste des
+permissions (§7.1) · types de contextes et leurs paramètres · fonctions
+d'intersection par type de contexte (§3) · notifications serveur → client ·
+routes client → serveur (§5) · API externes (§5) · actions de modification (§11.1).
+
+**Partie *client*** — pages, dérivant d'`ApplicationPage`, avec leur position
+optionnelle dans le menu (§8) · composants propres à l'application · liste des
+thèmes retenus (§8).
+
+**Partie *serveur*** — implémentation des routes et des API externes ·
+implémentation du `fetch` par contexte · hooks sur modifications (§3).

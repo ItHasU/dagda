@@ -1,0 +1,512 @@
+# Plan — Dagda v2, MQTTToolbox 2, EurekAI
+
+## Principe retenu
+
+**Le framework est construit tranche par tranche, tiré par les besoins de
+MQTTToolbox 2.** On n'ajoute une brique à Dagda que lorsqu'une fonctionnalité
+applicative la réclame. Chaque tranche est verticale : elle traverse serveur,
+base, transport et interface, et se termine sur quelque chose de démontrable.
+
+Conséquences assumées :
+
+- **Le boilerplate est extrait, pas conçu d'avance.** L'app `bootstrap/` devient
+  le lieu où l'on remonte les motifs stabilisés par MQTTToolbox, au fil des
+  tranches — pas un exercice préalable.
+- **La conversion d'EurekAI vient en dernier**, une fois le framework éprouvé.
+- **Les tests s'écrivent dans la tranche**, pas après. Une tranche n'est close
+  que si sa porte de sortie est franchie, tests compris.
+
+### Le risque principal de cette approche
+
+Un framework tiré par une seule application se surajuste à cette application.
+EurekAI arrivant en dernier, ses exigences propres ne seront exercées par rien
+avant la toute fin. Quatre points qu'MQTTToolbox ne couvrira probablement pas
+spontanément, à surveiller à chaque tranche :
+
+| Exigence EurekAI | Où la couvrir |
+|---|---|
+| Contextes **avec options** (`{type:"project", options:{projectId}}`) et leur intersection | à forcer dans `bootstrap/` + tests dès la tranche 1 |
+| Insertion optimiste dont l'id temporaire est réutilisé **dans la même transaction** (une pièce jointe insérée puis référencée par une image) | tranche 2, à couvrir par un test même si MQTTToolbox ne l'exige pas |
+| Contenus binaires volumineux hors cache (route dédiée, cache HTTP) | à ne pas oublier : MQTTToolbox n'a que des payloads courts |
+| Listes longues et rendu dense (milliers d'éléments) | mesurer sur `bootstrap/` avant la conversion |
+
+Règle : quand une tranche ne les exerce pas naturellement, on les couvre par un
+test ou un écran du boilerplate. Sinon on les découvrira à la conversion, au
+pire moment.
+
+---
+
+## Tranche 0 — Assainissement et socle de test
+
+> Ne produit rien de visible, mais tout le reste s'appuie dessus. À garder court.
+
+**Nettoyage du code existant**
+
+- `packages/server/src/app/index.ts` : supprimer l'enregistrement parasite
+  `registerAPI("submit", … Promise.reject("Not implemented"))` qui double
+  l'enregistrement fonctionnel de l'API entités juste au-dessus.
+- `packages/shared/src/entities/handler.ts` : résoudre le `FIXME` sur
+  `Dagda<NotificationService>("notification")?.on(...)` — le handler dépend d'un
+  service qui peut ne pas être initialisé.
+- `packages/client/src/app/index.ts` : `Dagda.init()` récupère les infos
+  utilisateur puis ne fait rien (bloc commenté). À terminer ou à retirer.
+- Supprimer les doublons `app/abstract.page.element` vs `pages/abstract.page.element`.
+
+**Socle de test**
+
+- **Vitest** comme lanceur unique (framework et applications). Migration des
+  quatre fichiers mocha existants — faible.
+- **Tests d'interface à deux niveaux** : DOM simulé pour les composants pris
+  isolément (boucle de développement rapide), **Playwright** pour les parcours
+  complets et le temps réel. Les portes de sortie des tranches suivantes
+  supposent le niveau navigateur.
+- Fixture PostgreSQL réelle : la décision « Postgres uniquement » (FEATURES §0)
+  interdit de tester le runner contre autre chose.
+- **`docker-compose` de développement** (app + Postgres, FEATURES §1) : sert de
+  fixture aux tests de cette tranche et de socle au `docker-compose` de
+  production repris en tranche 7 — un seul fichier, pas deux à maintenir.
+- **Build en mode watch / hot reload** (FEATURES §1) : condition de confort pour
+  tenir le rythme tranche par tranche qui suit ; à faire ici, pas rattrapé plus tard.
+- **Rendre les composants testables** : ils importent leur gabarit par
+  `require("./x.html").default`, ce qui les rend dépendants de webpack et
+  intestables hors bundle. Blocage concret à lever avant d'écrire le moindre
+  test de composant — un greffon Vitest peut suffire, sinon changer de mécanisme
+  d'import des gabarits.
+- Intégration continue : tests + typage sur chaque commit.
+
+**Porte de sortie** — `npm test` lance les tests existants (`model`, `handler`)
+plus un parcours Playwright trivial sur `bootstrap/`, contre une vraie base,
+en CI.
+
+---
+
+## Tranche 1 — « Je vois les messages MQTT arriver en direct »
+
+*MQTTToolbox : §1 connexion, §2 historique, §7 page Statut, §9 temps réel, §11 persistance*
+
+Le squelette complet de l'application, avec le minimum de fonctionnalités.
+
+**Ce que ça tire de Dagda**
+
+- Modèle d'entités + génération de schéma (premier vrai modèle après EurekAI).
+- **Énumérations déclaratives** (FEATURES §2), dès ce modèle : le statut d'un
+  message ou d'un topic est le premier candidat naturel. Introduites ici plutôt
+  qu'à la conversion d'EurekAI (tranche 8), pour que le générateur de formulaires
+  (tranche 3) et le reste du framework les exercent tout du long.
+- **Validation runtime des entités** (FEATURES §2), sur ce premier modèle.
+- Chargement par contexte, cache, invalidation — **y compris un contexte avec
+  options** (par topic), pour ne pas s'enfermer dans des contextes triviaux.
+- **Fonctions d'intersection de contextes prêtes à l'emploi** (FEATURES §3 :
+  toujours / jamais / égalité de tous les paramètres), une par type de contexte.
+  À construire avec ce premier `ContextAdapter`, pour ne pas laisser chaque
+  application réécrire à la main l'équivalent de `AppContextAdapter` du
+  bootstrap actuel.
+- Notifications WebSocket serveur → clients, reconnexion.
+- Composants et pages, composant de statut.
+- **Coquille SPA — disposition paysage** (FEATURES §8, spec détaillée dans
+  [`specs/navigation.md`](specs/navigation.md)) : composants `PageContainer` et
+  `Navbar`, menu piloté par la seule liste des pages enregistrées, page
+  courante marquée. **Seule la disposition paysage** (déployée et rétractée)
+  est construite ici ; la disposition portrait (barre + tiroir) attend la
+  tranche 4, avec le reste du mobile. Trois questions de la spec sont à
+  trancher avant d'écrire `Navbar`, pas en cours de route : le déclencheur du
+  rétracté (bascule manuelle, seuil de largeur automatique, ou les deux), le
+  comportement d'un clic sur une section repliée qui a des pages enfants, et
+  si les sections s'auto-développent sur la page active ou fonctionnent en
+  accordéon.
+- Variables d'environnement pour l'amorçage seul (port, URL de base, connexion PG).
+- **Mécanisme de paramètres système** (FEATURES §11.5) : déclaration typée,
+  stockage côté framework, notification de changement. Nécessaire dès cette
+  tranche — la configuration du broker en relève, et sa reconnexion à chaud
+  repose sur la notification. L'écran d'édition, lui, attend les rôles
+  (tranche 3) ; en attendant, amorçage par variables d'environnement.
+- **Intégration du design system, en séparant structure et jetons.** On part de
+  Nocturne et on le scinde en deux :
+  - `dagda-ui.css` — le vocabulaire de classes et les règles, repris tels quels
+    (`.btn`, `.card`, `.input`, `.field`, `.nav`, `.table`, `.dialog`, `.tag`,
+    `.seg`, `.elev-*`). Aucune valeur en dur : uniquement des `var()`.
+  - `themes/*.css` — un jeu de jetons **complet** par thème (~60 lignes), dans des
+    blocs `[data-theme="…"]` d'un même fichier.
+
+  Remaniement à faire au passage, plus petit qu'annoncé : les `--radius-*` sont
+  déjà des variables ; il ne reste qu'à hisser la densité (les `--space-*` sont
+  pré-multipliés par 0,7 → `calc(4px * var(--density))`) et le style de bouton
+  (contour vs aplat). Rapatrier les polices localement.
+
+  Un seul thème suffit à cette tranche — mais la séparation doit être faite
+  maintenant, sinon les écrans des tranches 1 à 3 la rendront coûteuse.
+- **Icônes** : police Phosphor embarquée localement (six graisses déclarées, une
+  seule téléchargée à l'usage) et composant `<dagda-icon name="…">` qui porte
+  l'accessibilité et applique la graisse du thème.
+- Brancher le lint d'adhérence livré dans le bundle (`_adherence.oxlintrc.json`)
+  dès maintenant : il refuse les hex bruts, les `px` bruts et les polices hors
+  système. C'est lui qui garantit que les écrans des tranches 1 à 3 resteront
+  thémables sans réécriture.
+
+**Tests**
+
+- Entités : chargement, fusion dans le cache, contexte déjà chargé, contexte
+  *dirty*, intersection de contextes. L'adaptateur mémoire existe déjà.
+- Notifications : diffusion, reconnexion, absence de perte au reconnect.
+- Bout en bout : un message publié sur le broker apparaît dans l'interface.
+- **Lint d'adhérence en CI** : premier garde-fou contre les valeurs en dur.
+- **Rendu des composants contre deux thèmes** (un clair, un sombre) dès qu'un
+  second thème existe. Le lint attrape les valeurs en dur dans le code, pas les
+  hypothèses implicites sur la polarité — un texte lisible seulement sur fond
+  sombre passe le lint sans problème.
+- **`Navbar` déployée et rétractée** (`specs/navigation.md`) : menu filtré par
+  permission dans les deux états, page courante correctement marquée, aucune
+  fuite de libellé de section interdite dans le rail rétracté.
+
+**Porte de sortie** — l'application affiche en temps réel les messages d'un vrai
+broker, l'historique est persisté, et couper/rétablir le réseau ne casse rien.
+
+---
+
+## Tranche 2 — « Je publie, y compris en différé »
+
+*MQTTToolbox : §3 publication*
+
+**Ce que ça tire de Dagda**
+
+- Transactions optimistes complètes : `withTransaction`, ids temporaires,
+  remappage après réponse serveur, file de soumission.
+- Remontée des échecs d'écriture à l'utilisateur (aujourd'hui un simple
+  `console.error`, cf. FEATURES §3).
+- **Collection d'actions typée** (FEATURES §11.1) et variable globale `dagda`
+  (§11.2). À faire **ici**, avec la première écriture : c'est une convention
+  d'écriture, pas une fonctionnalité, et fixer la frontière après coup coûterait
+  une réécriture. La globale, elle, est presque gratuite une fois les actions
+  déclarées.
+- C'est aussi ici que se calibre la frontière API / gestionnaire de clic. Le
+  critère est écrit dans FEATURES §11.1 ; MQTTToolbox est le premier terrain où
+  l'éprouver, et il faudra sans doute l'ajuster après les premiers écrans.
+
+**Tests** — c'est le code le plus subtil du framework, la suite doit être dense :
+
+- insertion + mise à jour dans une même transaction ;
+- **id temporaire réutilisé dans la même transaction** (exigence EurekAI, à
+  couvrir ici même si MQTTToolbox ne la réclame pas) ;
+- deux transactions enchaînées avant la réponse du serveur ;
+- échec de soumission → invalidation du cache et état visible ;
+- ordre de la file de soumission.
+
+**Porte de sortie** — publication immédiate et différée, les messages différés
+survivent à un redémarrage du serveur (sans hook d'arrêt), et un échec réseau
+pendant une publication est visible et rattrapable.
+
+---
+
+## Tranche 3 — « Je me connecte »
+
+*MQTTToolbox : §12 utilisateurs · Dagda : FEATURES §7*
+
+**Ce que ça tire de Dagda**
+
+- Comptes locaux : mot de passe haché, création **sur invitation** d'un
+  administrateur (lien à usage unique, expiration). **Seul mode d'authentification** —
+  retirer au passage Google OAuth2, `passport` et `passport-google-oauth20`.
+- Rôles et matrice de permissions, super-admin intégré, premier compte `admin`.
+- **Générateur de formulaires** (FEATURES §8.1), construit ici plutôt qu'à
+  l'apparition du premier écran métier : c'est lui qui rend possible, dans la
+  même tranche, l'écran de matrice rôle × permission *et* l'écran de paramètres
+  système ci-dessous — les deux premiers de ses trois usages identifiés
+  (le troisième, les paramètres de script, attend la tranche 5 bis).
+- Écran d'édition des paramètres système, réservé aux administrateurs, avec les
+  paramètres secrets en écriture seule (FEATURES §11.5).
+- **Routes client → serveur protégées par permission** (FEATURES §5) : le
+  mécanisme est posé ici, en même temps que les permissions qu'il vérifie —
+  aucun écran de cette tranche ne l'exige encore, mais le construire plus tard
+  reviendrait à le greffer sur des permissions déjà figées. Premier usage réel
+  en tranche 6 (déclenchement manuel d'un automatisme).
+- Identité de l'utilisateur courant accessible côté serveur pendant les écritures
+  (nécessaire pour tracer la source `manuel` des messages, MQTT §2).
+- Service `auth` côté client.
+- Préférences par utilisateur — premier usage : mémoriser le thème choisi
+  (tranche 4).
+- **Comptes, préférences et scripts sont internes à Dagda**, hors modèle
+  d'entités (FEATURES §11.4). Trois conséquences à traiter ici :
+  - le jeu de migrations propre au framework, distinct de celui de l'application ;
+  - le type `USER_ID` exposé au modèle métier, avec la clé étrangère SQL qui va
+    vers la table utilisateurs du framework ;
+  - l'**annuaire des utilisateurs côté client**, chargé une fois et consultable de
+    façon synchrone. Sans lui, aucun écran ne pourra afficher un nom d'auteur
+    pendant le rendu — et MQTTToolbox en a besoin dès la tranche 4.
+
+**Tests** — le point le plus sensible à la régression :
+
+- cycle invitation → activation → connexion ; lien expiré, lien rejoué ;
+- accès refusé sans session, sur les API *et* sur les entités ;
+- élévation de privilège : un utilisateur simple ne doit atteindre aucune
+  route ni aucune donnée d'administration — **à tester en appelant les actions
+  directement**, pas en vérifiant qu'un bouton est masqué (FEATURES §11.2) ;
+- deux stratégies actives en parallèle.
+
+**Porte de sortie** — plus aucun accès anonyme, et la traçabilité des
+publications manuelles fonctionne.
+
+---
+
+## Tranche 4 — « Je compose mon tableau de bord »
+
+*MQTTToolbox : §6 tableaux de bord, §6.1 composants, §6.2 API JavaScript*
+
+**Ce que ça tire de Dagda**
+
+- Propriétaire d'une entité et partage entre utilisateurs ; **filtrage par
+  utilisateur au niveau du chargement** (une donnée non partagée ne doit pas
+  traverser le réseau).
+- **Filtrage des notifications par utilisateur et par permissions** (FEATURES
+  §6), **côté serveur**, dès qu'un tableau de bord privé existe : sans lui, le
+  filtrage du fetch ci-dessus ne sert à rien — la modification d'un tableau non
+  partagé continuerait à être diffusée en broadcast à tous les clients connectés.
+  À couvrir par le même test d'étanchéité que le fetch (porte de sortie
+  ci-dessous).
+- Routage par URL (un tableau de bord doit être adressable).
+- **Coquille SPA — disposition portrait** (FEATURES §8, `specs/navigation.md`) :
+  barre horizontale (☰ + marque + groupe secondaire) et panneau déroulant en
+  overlay, réutilisant le même `Navbar` que la tranche 1 — seul le rendu
+  change, pas la source du menu. Reste à trancher ici : le seuil de bascule
+  paysage/portrait, et la fermeture du panneau (tap extérieur, second tap sur
+  ☰, sélection d'une page — probablement les trois).
+- Navigation mobile par gestes (swipe entre pages) — indépendante du panneau
+  ci-dessus : porte sur le contenu, pas sur le menu.
+- **Thèmes, partie visible** : liste déclarée dans le code (celle du framework,
+  sur-définie par l'application si besoin), sélection par l'utilisateur, bascule à
+  chaud (attribut `data-theme` sur la racine), mémorisation du choix (préférences
+  de la tranche 3) avec miroir local pour l'appliquer avant le premier rendu, et
+  repli sur le thème par défaut si le thème mémorisé a disparu de la liste.
+  La feuille de style, elle, a été intégrée en tranche 1 et ne bouge plus.
+- Ajout d'un second thème de polarité opposée — c'est lui qui révèle les jetons
+  oubliés lors du découpage de la tranche 1.
+- Rien de particulier à faire pour le HTML utilisateur des tableaux de bord : il
+  emploie les mêmes classes et les mêmes jetons que le reste de l'interface, donc
+  il suit le thème actif sans traitement spécifique.
+
+- **Intégration de Monaco comme brique du framework**, chargée à la demande.
+  Embarquer comme ressource les `.d.ts` déjà émis par `tsc` dans `.tsc-build/`
+  (actions et entités) et les charger en bibliothèques supplémentaires : c'est ce
+  qui donne l'autocomplétion sur l'API réelle de l'application. MQTTToolbox en a
+  besoin ici pour les tableaux de bord ; l'éditeur de scripts (tranche 5 bis) et
+  l'éditeur d'automatismes (tranche 6) le réutiliseront.
+
+**Spécifique à l'application**
+
+- Multi-tableaux de bord, langage d'expression partagé entre `mqtt-if` /
+  `mqtt-json` et les filtres de déclencheurs (préfigure la tranche 6).
+
+**Tests** — filtrage par propriétaire côté serveur (test d'accès, pas seulement
+d'affichage), **un client sans accès à un tableau ne reçoit aucune notification
+le concernant** (pas seulement un fetch vide), rendu des composants, évaluation
+des expressions, **panneau portrait** (`specs/navigation.md`) : ouverture en
+overlay sans redimensionner le contenu, fermeture par les trois voies retenues,
+même filtrage par permission qu'en paysage.
+
+**Porte de sortie** — deux utilisateurs, des tableaux de bord distincts, un
+tableau partagé, et rien qui fuite entre les deux.
+
+---
+
+## Tranche 5 — Extraction du boilerplate
+
+> Objectif n°2 de la liste. Il arrive ici parce qu'avant, les motifs ne sont pas
+> stabilisés — un boilerplate écrit trop tôt serait à refaire.
+
+- `bootstrap/` remonte les motifs éprouvés : entités et contextes (dont un
+  contexte à options), authentification, notifications, pages, composants,
+  gestion d'erreur.
+- Documentation : README par package, guide de démarrage.
+- Éventuellement le générateur de projet — mais seulement si le boilerplate
+  s'est révélé stable.
+
+**Porte de sortie** — un tiers (ou toi dans six mois) démarre une application
+Dagda en suivant le guide, sans lire le code du framework.
+
+---
+
+## Tranche 5 bis — Éditeur de scripts utilisateur
+
+*Dagda : FEATURES §11.3*
+
+Fonctionnalité du framework, livrée à toutes les applications. Placée ici parce
+qu'elle réunit trois briques qui n'existent qu'à ce stade : la couche d'actions
+(tranche 2), les comptes et préférences pour ranger les scripts (tranche 3), et
+l'intégration de Monaco (tranche 4).
+
+- Édition, enregistrement et exécution de scripts TypeScript, **privés à leur
+  auteur**.
+- Déclaration de paramètres par le script ; le framework en dérive le formulaire
+  affiché avant exécution.
+- Exécution dans la page, avec la session de l'utilisateur — pas de bac à sable,
+  puisque le script ne peut rien de plus que la console.
+- Trancher au passage la question des **entités du framework** (FEATURES §11.4) :
+  les scripts sont la troisième table que Dagda veut posséder, après les comptes
+  et les préférences.
+
+**Porte de sortie** — un script paramétré, écrit dans l'application, charge des
+données et exécute une suite d'actions ; l'autocomplétion propose les actions
+réelles de l'application.
+
+> Bénéfice pour la suite : l'éditeur d'automatismes de la tranche 6 réutilise
+> l'éditeur, la déclaration de paramètres et le `.d.ts`. Seuls le lieu
+> d'exécution et le modèle de sécurité diffèrent.
+
+## Tranche 6 — Planificateur et automatismes
+
+*MQTTToolbox : §4 cron, §5 automatismes*
+
+De loin le plus gros morceau, et **presque entièrement applicatif** : il tire
+peu de Dagda, ce qui en fait un bon dernier chantier avant EurekAI.
+
+Découpage interne suggéré :
+
+1. **Cron** (§4) — petit, autonome, met en place l'ordonnanceur partagé.
+2. **Exécution TypeScript en bac à sable** (§5.4) — le cœur du risque. À traiter
+   comme un composant isolé, testé pour lui-même, avant toute intégration.
+3. **Déclencheurs et API d'automatisme** (§5.2, §5.3), dont le langage
+   d'expression déjà introduit en tranche 4.
+   - **Hooks sur les modifications de données** (Dagda FEATURES §3), le point
+     d'accroche serveur déclenché par une transaction : c'est sur lui que
+     reposent les déclencheurs « sur changement ». Fonctionnalité de Dagda,
+     pas de MQTTToolbox — à construire ici parce que c'est le premier (et
+     jusqu'ici seul) consommateur identifié.
+   - **Déclenchement manuel d'un automatisme** via une **route protégée**
+     (Dagda FEATURES §5, mécanisme posé en tranche 3) : premier usage réel des
+     routes.
+4. **Magasin de secrets** (§5.3) et appels HTTP sortants — question ouverte à
+   trancher au passage (Dagda FEATURES §11.5) : le framework expose-t-il le
+   secret en clair au script, ou réalise-t-il lui-même l'appel HTTP sortant ?
+5. **API externes et jetons d'API** (Dagda FEATURES §5) : c'est le besoin qui a
+   fait remonter ce mécanisme — piloter un automatisme (le déclencher, en lire
+   l'historique) depuis un `curl`, hors navigateur. Inclut l'écran de gestion
+   des jetons (chacun voit et révoque les siens ; le super-admin voit tout).
+6. **Historique d'exécution et garde-fous** (§5.5, §5.6).
+
+**Tests — à écrire avant la mise en service, pas après**
+
+- Évasion du bac à sable : `globalThis`, `constructor.constructor`, `require`,
+  `process`, accès à la base. Chaque tentative doit échouer.
+- Boucle infinie interrompue par le délai maximal ; dépassement mémoire.
+- Chaîne d'automatismes au-delà de la profondeur maximale : arrêtée **et** tracée.
+- Deux automatismes qui se répondent lentement : rattrapés par la limite de
+  fréquence, pas par la profondeur.
+- Désactivation automatique après N échecs, remise à zéro du compteur au succès.
+- Un secret n'est lisible que par l'API prévue, jamais dans un export.
+- Une formule de filtrage lente ne bloque pas la réception MQTT.
+
+**Porte de sortie** — la suite d'évasion passe intégralement, et un automatisme
+fautif ne peut ni figer, ni compromettre, ni noyer le serveur.
+
+---
+
+## Tranche 7 — Déploiement de MQTTToolbox 2
+
+- Migrations de schéma versionnées (**prérequis absolu** avant EurekAI, qui a des
+  données réelles à conserver).
+- Image Docker multi-architecture, `docker-compose` app + PostgreSQL.
+- Import / export de configuration, secrets exclus.
+
+**Porte de sortie** — MQTTToolbox 2 tourne en production et remplace la v1.
+
+---
+
+## Tranche 8 — Conversion d'EurekAI
+
+Volontairement en dernier. C'est une **migration de données réelles**, pas un
+portage de code : le risque principal n'est pas le framework, ce sont les projets
+et les images existants.
+
+- Reprendre la checklist du haut de ce document : tout ce qui n'a pas été
+  exercé par MQTTToolbox est un trou de framework à combler ici.
+- Remplacer la copie locale de Dagda v1 (`eurekai/dagda/*`) par les paquets v2.
+- Convertir le modèle d'entités (l'API `EntitiesModel` est déjà très proche).
+- **Retirer la table `users` du modèle EurekAI** : elle devient interne à Dagda
+  (FEATURES §11.4). Disparaissent avec elle le contexte de chargement `users` et
+  les `getById("users", …)`, à remplacer par l'annuaire du framework.
+- **Basculer les comptes Google vers des comptes locaux.** Dagda n'authentifie
+  plus que localement (FEATURES §0) : chaque utilisateur existant reçoit une
+  invitation et choisit un mot de passe. Les `uid` Google sont abandonnés, mais
+  l'identifiant interne est conservé — c'est lui que référencent projets et
+  images, donc aucune donnée métier n'est à réaffecter.
+  À préparer avant la bascule : la liste des utilisateurs actifs et leur
+  ré-invitation, sans quoi plus personne ne peut se connecter au redémarrage.
+- **Convertir les énumérations** `ComputationStatus` et `PictureType` : les `enum`
+  TypeScript laissent place aux énumérations déclaratives (FEATURES §2). Les
+  valeurs numériques stockées en base doivent être préservées à l'identique.
+- **Écrire les migrations** du schéma existant vers le modèle converti — le mode
+  automatique ayant été écarté, rien ne se fera tout seul.
+- Convertir les pages, en commençant par la plus simple (Maintenance) pour
+  valider la chaîne complète avant de toucher aux pages Images / Quick / Stars.
+- Migrer le schéma et les données : sauvegarde, migration, vérification, retour
+  arrière possible. À répéter à blanc sur une copie avant la vraie bascule.
+- Trancher au passage le stockage des images en base64 en base (FEATURES EurekAI).
+
+**Porte de sortie** — EurekAI tourne sur Dagda v2, sans perte de données ni
+régression fonctionnelle.
+
+---
+
+## Backlog — confort d'outillage, sans tranche dédiée
+
+Fonctionnalités **NEW** de FEATURES.md qui ne bloquent la porte de sortie
+d'aucune tranche et n'ont donc pas de créneau fixe. À prendre quand une tranche
+laisse du temps, ou à répartir sur `bootstrap/` en tranche 5 :
+
+- Interface web de lancement et de suivi des tests (FEATURES §1) — le `npm test`
+  en CLI (tranche 0) suffit à toutes les portes de sortie.
+- Journalisation structurée / niveaux de log configurables (FEATURES §10).
+- Déclaration de services applicatifs custom **documentée** (FEATURES §9) — le
+  mécanisme (`Dagda.init`) existe depuis la v2 initiale ; ce qui manque est la
+  doc, donc naturellement en tranche 5.
+
+## Couverture — FEATURES.md → tranche
+
+Table de traçabilité : chaque section de FEATURES.md doit apparaître au moins
+une fois ci-dessous. Une section absente de cette table en cours de route est
+un signal à traiter, pas à ignorer.
+
+| § FEATURES.md | Tranche(s) |
+|---|---|
+| 0. Partis pris | cadre, toutes tranches |
+| 1. Structure & outillage | 0 (socle, docker-compose, watch), 5 (générateur de projet, doc) |
+| 2. Modèle d'entités | 1 (déclaratif, énumérations, validation runtime), 7 (migrations versionnées) |
+| 3. Cache & synchronisation | 1 (contextes, intersection), 2 (transactions, échecs visibles), 6 (hooks) |
+| 4. Accès base de données | 0 (fixture Postgres réelle), transverse ensuite |
+| 5. Routes & API externes | 3 (routes protégées), 6 (API externes, jetons) |
+| 6. Notifications temps réel | 1 (WebSocket, reconnexion), 4 (filtrage par permission) |
+| 7. Serveur applicatif & authentification | 3 |
+| 7.1 Rôles & permissions | 3 |
+| 8. Client / UI | 1 (design system, icônes, coquille SPA paysage — `specs/navigation.md`), 4 (thèmes partie choix, routage URL, coquille SPA portrait, gestes mobiles) |
+| 8.1 Générateur de formulaires | 3 (premier usage), 5 bis (deuxième usage) |
+| 9. Injection de services | acquis en v2 initiale ; `auth` en 3 ; doc en 5 |
+| 10. Utilitaires partagés | transverse ; niveaux de log → backlog |
+| 11.1 Couche d'actions | 2 |
+| 11.2 API console | 2 (variable globale), 5 bis (script en tire parti) |
+| 11.3 Éditeur de scripts | 5 bis |
+| 11.4 Données natives du framework | 3 (comptes, USER_ID, annuaire), 5 bis (scripts) |
+| 11.5 Paramètres système | 1 (mécanisme + config broker), 3 (écran d'édition) |
+| 11.6 Préférences utilisateur | 3 |
+| 12. Ce qu'une application déclare | contrat vérifié à chaque tranche, formalisé en 5 |
+
+## Décisions prises
+
+- **Lanceur de tests** : Vitest, pour le framework et les applications.
+- **Tests d'interface** : DOM simulé pour les composants, Playwright pour les
+  parcours et le temps réel.
+- **Design system** : un seul, repris de Nocturne (généré par Claude Design). Son
+  vocabulaire de classes et ses règles vont dans `dagda-ui.css`, intégré en
+  tranche 1, et ne changent plus.
+- **Thèmes** : un thème est un **jeu de jetons complet**, pas une surcharge
+  partielle ni une feuille entière. Liste fixée dans le code — celle du framework,
+  sur-définie par l'application. **Le choix appartient à l'utilisateur**, jamais à
+  l'administrateur. Bascule par `data-theme`. Livré en tranche 4.
+- **Icônes** : Phosphor (MIT), livré en police d'icônes, embarquée localement.
+  Le jeu est fixe pour toute l'application ; c'est la **graisse** qui est un jeton
+  de thème. Exposé par un composant `<dagda-icon>`.
+- Le lint d'adhérence du bundle est branché en CI dès la tranche 1.
+
+## Questions encore ouvertes
+
+- **Rangement du design system** : `Nocturne.zip` est aujourd'hui une archive
+  binaire à la racine de MQTTToolbox2. À dézipper dans l'arborescence — et plutôt
+  côté framework que côté application, puisque `dagda-ui.css` en est tiré.

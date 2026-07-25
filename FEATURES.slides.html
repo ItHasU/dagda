@@ -1,0 +1,626 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dagda — Revue d'architecture</title>
+<style>
+  :root {
+    --bg: #0b2338;
+    --bg-grid: rgba(255,255,255,.045);
+    --surface: #0e2c46;
+    --surface-2: #123354;
+    --border: #1e496b;
+    --border-strong: #3a6a8f;
+    --ink: #eef5fb;
+    --ink-muted: #9db9cf;
+    --accent: #ff8a4c;
+    --accent-ink: #2a1206;
+    --done: #6fd7c4;
+    --partial: #d9b969;
+    --dropped: #5b7288;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo, Consolas, monospace;
+    --font-serif: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f7f3ea;
+      --bg-grid: rgba(22,50,79,.07);
+      --surface: #fffdf8;
+      --surface-2: #f1ead9;
+      --border: #d8cdb2;
+      --border-strong: #b7a97f;
+      --ink: #16324f;
+      --ink-muted: #4d6a86;
+      --accent: #c1521f;
+      --accent-ink: #fff6ef;
+      --done: #1f7d78;
+      --partial: #8a6a1a;
+      --dropped: #8b8570;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0b2338; --bg-grid: rgba(255,255,255,.045); --surface: #0e2c46; --surface-2: #123354;
+    --border: #1e496b; --border-strong: #3a6a8f; --ink: #eef5fb; --ink-muted: #9db9cf;
+    --accent: #ff8a4c; --accent-ink: #2a1206; --done: #6fd7c4; --partial: #d9b969; --dropped: #5b7288;
+  }
+  :root[data-theme="light"] {
+    --bg: #f7f3ea; --bg-grid: rgba(22,50,79,.07); --surface: #fffdf8; --surface-2: #f1ead9;
+    --border: #d8cdb2; --border-strong: #b7a97f; --ink: #16324f; --ink-muted: #4d6a86;
+    --accent: #c1521f; --accent-ink: #fff6ef; --done: #1f7d78; --partial: #8a6a1a; --dropped: #8b8570;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-serif);
+    overflow: hidden;
+  }
+  code {
+    font-family: var(--font-mono);
+    font-size: .85em;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    padding: .04em .38em;
+    border-radius: 3px;
+    color: var(--ink);
+  }
+  strong { color: var(--ink); }
+
+  .app { display: flex; height: 100vh; width: 100vw; }
+
+  /* ---------- Rail ---------- */
+  .rail {
+    width: 232px;
+    flex: none;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    z-index: 20;
+  }
+  .rail-title {
+    padding: 1.1rem 1.1rem .8rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .rail-title .mark { font-family: var(--font-mono); font-size: .68rem; letter-spacing: .16em; color: var(--accent); }
+  .rail-title h1 {
+    font-family: var(--font-mono); text-transform: uppercase; font-size: 1.05rem;
+    letter-spacing: .04em; margin: .3rem 0 0; font-weight: 600;
+  }
+  .rail-list { flex: 1; overflow-y: auto; padding: .5rem 0; }
+  .rail-item {
+    display: flex; gap: .6rem; align-items: baseline; width: 100%;
+    background: none; border: none; text-align: left; cursor: pointer;
+    padding: .42rem 1.1rem; color: var(--ink-muted); font-family: var(--font-mono);
+    font-size: .78rem; border-left: 2px solid transparent;
+  }
+  .rail-item .n { opacity: .7; min-width: 1.4em; }
+  .rail-item:hover { color: var(--ink); background: var(--surface-2); }
+  .rail-item[aria-current="true"] {
+    color: var(--ink); border-left-color: var(--accent); background: var(--surface-2);
+  }
+  .rail-item[aria-current="true"] .n { color: var(--accent); opacity: 1; }
+  .rail-legend {
+    border-top: 1px solid var(--border);
+    padding: .8rem 1.1rem 1rem;
+    font-family: var(--font-mono);
+    font-size: .66rem;
+    color: var(--ink-muted);
+    display: grid;
+    gap: .34rem;
+  }
+  .rail-legend .item { display: flex; align-items: center; gap: .5rem; }
+
+  /* ---------- Stage ---------- */
+  .stage { position: relative; flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; padding: 2.4vh 2.4vw; }
+  .sheet {
+    position: relative;
+    width: 100%; height: 100%;
+    max-width: 1180px;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    background-image:
+      repeating-linear-gradient(0deg, var(--bg-grid) 0 1px, transparent 1px 28px),
+      repeating-linear-gradient(90deg, var(--bg-grid) 0 1px, transparent 1px 28px);
+    display: flex;
+    flex-direction: column;
+  }
+  .reg { position: absolute; width: 16px; height: 16px; pointer-events: none; }
+  .reg::before, .reg::after { content: ""; position: absolute; background: var(--border-strong); }
+  .reg::before { width: 100%; height: 1px; top: 50%; }
+  .reg::after { height: 100%; width: 1px; left: 50%; }
+  .reg-tl { top: -8px; left: -8px; }
+  .reg-tr { top: -8px; right: -8px; }
+  .reg-bl { bottom: -8px; left: -8px; }
+  .reg-br { bottom: -8px; right: -8px; }
+
+  .slides { position: relative; flex: 1; min-height: 0; }
+  .slide {
+    position: absolute; inset: 0;
+    display: none;
+    flex-direction: column;
+    padding: 2.6rem 3.4rem 1.1rem;
+    opacity: 0;
+  }
+  .slide[data-active] { display: flex; opacity: 1; animation: rise .32s ease both; }
+  @media (prefers-reduced-motion: reduce) { .slide[data-active] { animation: none; } }
+  @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+  .eyebrow {
+    font-family: var(--font-mono); font-size: .72rem; letter-spacing: .18em;
+    color: var(--accent); text-transform: uppercase; margin: 0 0 .55rem;
+  }
+  .slide h2 {
+    font-family: var(--font-mono); text-transform: uppercase; font-size: clamp(1.35rem, 2.1vw, 1.85rem);
+    letter-spacing: .01em; margin: 0 0 .5rem; font-weight: 600;
+  }
+  .role {
+    font-style: italic; color: var(--ink-muted); max-width: 62ch; font-size: 1rem;
+    margin: 0 0 1.35rem; line-height: 1.5;
+  }
+  .slide-body { flex: 1; min-height: 0; overflow-y: auto; padding-right: .4rem; }
+  .slide-body::-webkit-scrollbar { width: 8px; }
+  .slide-body::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
+
+  .footer {
+    border-top: 1px solid var(--border);
+    font-family: var(--font-mono); font-size: .68rem; letter-spacing: .06em;
+    color: var(--ink-muted); text-transform: uppercase;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: .7rem 3.4rem;
+  }
+  .footer .count { font-variant-numeric: tabular-nums; }
+  .footer .nav { display: flex; gap: .4rem; }
+  .footer button {
+    font-family: var(--font-mono); font-size: .72rem; letter-spacing: .05em;
+    background: var(--surface-2); color: var(--ink); border: 1px solid var(--border-strong);
+    padding: .3rem .7rem; cursor: pointer; text-transform: uppercase;
+  }
+  .footer button:hover { border-color: var(--accent); color: var(--accent); }
+  .footer button:focus-visible, .rail-item:focus-visible, .toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  /* ---------- Ledger rows ---------- */
+  .ledger { columns: 2; column-gap: 2.6rem; }
+  .ledger.single { columns: 1; max-width: 78ch; }
+  .row { break-inside: avoid; display: flex; gap: .65rem; margin-bottom: .95rem; }
+  .dot { flex: none; width: 10px; height: 10px; border-radius: 50%; margin-top: .4em; border: 1.5px solid var(--border-strong); }
+  .dot--done { background: var(--done); border-color: var(--done); }
+  .dot--partial { background: linear-gradient(90deg, var(--partial) 50%, transparent 50%); border-color: var(--partial); }
+  .dot--new { background: transparent; border: 1.5px dashed var(--accent); }
+  .dot--dropped { background: transparent; border-color: var(--dropped); }
+  .row-text p { margin: 0; font-size: .96rem; line-height: 1.42; }
+  .row-text .note { color: var(--ink-muted); font-size: .84rem; font-style: italic; margin-top: .18rem; }
+  .row-text--dropped p:first-child { text-decoration: line-through; color: var(--dropped); }
+  .flag {
+    display: inline-block; font-family: var(--font-mono); font-size: .62rem; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--accent); border: 1px solid var(--accent); border-radius: 2px;
+    padding: .04em .38em; margin-left: .4em; vertical-align: middle;
+  }
+
+  /* ---------- Principles grid ---------- */
+  .principles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem 1.6rem; max-width: 900px; }
+  .principle {
+    border: 1px solid var(--border); background: var(--surface-2); padding: 1rem 1.15rem;
+  }
+  .principle .lead { font-family: var(--font-mono); font-size: .82rem; text-transform: uppercase; letter-spacing: .02em; color: var(--ink); display: block; margin-bottom: .35rem; }
+  .principle p { margin: 0; font-size: .92rem; color: var(--ink-muted); line-height: 1.45; }
+  .principle.wide { grid-column: 1 / -1; border-color: var(--accent); }
+  .principle.wide .lead { color: var(--accent); }
+
+  /* ---------- Diagram ---------- */
+  .arch { display: flex; flex-direction: column; align-items: center; gap: 0; max-width: 980px; margin: 0 auto; }
+  .tier { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; width: 100%; }
+  .box {
+    border: 1px solid var(--border-strong); background: var(--surface-2);
+    padding: .75rem 1.05rem; font-family: var(--font-mono); font-size: .78rem; text-align: center;
+    min-width: 150px; text-transform: uppercase; letter-spacing: .02em;
+  }
+  .box .sub { display: block; font-family: var(--font-serif); font-style: italic; text-transform: none;
+    font-size: .78rem; color: var(--ink-muted); margin-top: .25rem; letter-spacing: 0; }
+  .box.main { border-width: 2px; }
+  .connector { display: flex; flex-direction: column; align-items: center; padding: .5rem 0; }
+  .connector .stem { width: 1px; height: 1.3rem; background: var(--border-strong); }
+  .connector .label {
+    font-family: var(--font-mono); font-size: .68rem; letter-spacing: .1em; color: var(--ink-muted);
+    text-transform: uppercase; background: var(--surface); padding: .1rem .5rem; border: 1px solid var(--border);
+  }
+  .arrow { width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 7px solid var(--border-strong); }
+  .aside { display: flex; gap: 1rem; justify-content: center; margin-top: .9rem; flex-wrap: wrap; }
+  .aside .box { border-style: dashed; background: transparent; font-size: .72rem; }
+
+  .callout {
+    border-left: 3px solid var(--accent); background: var(--surface-2); padding: .8rem 1.1rem;
+    max-width: 78ch; margin-bottom: 1.2rem; font-size: .92rem; line-height: 1.5;
+  }
+  .callout strong { color: var(--accent); }
+
+  /* ---------- Trancher list (closing) ---------- */
+  .trancher { display: grid; gap: .85rem; max-width: 78ch; }
+  .trancher .t-row { display: flex; gap: .8rem; align-items: flex-start; }
+  .trancher .tag {
+    flex: none; font-family: var(--font-mono); font-size: .62rem; letter-spacing: .08em;
+    color: var(--accent-ink); background: var(--accent); padding: .14rem .5rem; margin-top: .1rem;
+    text-transform: uppercase;
+  }
+  .trancher p { margin: 0; font-size: .95rem; line-height: 1.45; }
+  .trancher .note { display: block; color: var(--ink-muted); font-style: italic; font-size: .84rem; margin-top: .15rem; }
+
+  /* ---------- Cover ---------- */
+  .cover { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; height: 100%; gap: 1.1rem; }
+  .cover .mark { font-family: var(--font-mono); color: var(--accent); letter-spacing: .18em; font-size: .78rem; text-transform: uppercase; }
+  .cover h1 { font-family: var(--font-mono); text-transform: uppercase; font-size: clamp(2.4rem, 6vw, 4.4rem); margin: 0; letter-spacing: .01em; text-wrap: balance; }
+  .cover .sub { font-style: italic; color: var(--ink-muted); font-size: 1.15rem; max-width: 56ch; line-height: 1.55; margin: 0; }
+  .cover .toc { margin-top: 1.4rem; font-family: var(--font-mono); font-size: .78rem; color: var(--ink-muted); display: grid; grid-template-columns: repeat(2, auto); gap: .3rem 2.4rem; }
+  .cover .toc span.n { color: var(--accent); margin-right: .5rem; }
+
+  /* ---------- Mobile rail toggle ---------- */
+  .toggle { display: none; }
+  @media (max-width: 860px) {
+    .rail { position: fixed; inset: 0 auto 0 0; transform: translateX(-100%); transition: transform .2s ease; box-shadow: 4px 0 18px rgba(0,0,0,.35); }
+    .rail.open { transform: translateX(0); }
+    .toggle {
+      display: inline-flex; position: fixed; top: 1rem; left: 1rem; z-index: 30;
+      font-family: var(--font-mono); font-size: .7rem; letter-spacing: .06em; text-transform: uppercase;
+      background: var(--surface); color: var(--ink); border: 1px solid var(--border-strong);
+      padding: .4rem .65rem; cursor: pointer;
+    }
+    .slide { padding: 4.2rem 1.4rem 1rem; }
+    .footer { padding: .7rem 1.4rem; }
+    .ledger { columns: 1; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <button class="toggle" id="railToggle" aria-label="Afficher l'index">☰ Index</button>
+
+  <nav class="rail" id="rail" aria-label="Sections">
+    <div class="rail-title">
+      <span class="mark">Dagda / fw</span>
+      <h1>Revue d'architecture</h1>
+    </div>
+    <div class="rail-list" id="railList"></div>
+    <div class="rail-legend">
+      <div class="item"><span class="dot dot--done" style="margin:0"></span> stable en v2</div>
+      <div class="item"><span class="dot dot--partial" style="margin:0"></span> partiel / à revoir</div>
+      <div class="item"><span class="dot dot--new" style="margin:0"></span> envisagé (redline)</div>
+      <div class="item"><span class="dot dot--dropped" style="margin:0"></span> écarté sciemment</div>
+    </div>
+  </nav>
+
+  <main class="stage">
+    <div class="sheet">
+      <div class="reg reg-tl"></div><div class="reg reg-tr"></div><div class="reg reg-bl"></div><div class="reg reg-br"></div>
+      <div class="slides" id="slides"></div>
+      <div class="footer">
+        <span>Dagda — Framework full-stack TypeScript</span>
+        <span class="nav">
+          <button id="prevBtn">◂ Préc.</button>
+          <button id="nextBtn">Suiv. ▸</button>
+        </span>
+        <span class="count"><span id="curNum">01</span> / <span id="totalNum">18</span></span>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+(function () {
+  const slidesData = [
+    { id: "cover", label: "Couverture", html: `
+      <div class="cover">
+        <span class="mark">Framework interne — premier jet</span>
+        <h1>Dagda</h1>
+        <p class="sub">Framework full-stack TypeScript de prototypage (client + serveur + code partagé) : minimaliste, typé de bout en bout, sans dépendance à un gros framework front. Cette revue couvre <strong>v1</strong> (EurekAI) et <strong>v2</strong> (réécriture en cours).</p>
+        <div class="toc">
+          <div><span class="n">00</span>Vue d'ensemble</div>
+          <div><span class="n">01</span>Partis pris</div>
+          <div><span class="n">02</span>Structure &amp; outillage</div>
+          <div><span class="n">03</span>Modèle d'entités</div>
+          <div><span class="n">04</span>Cache &amp; synchronisation</div>
+          <div><span class="n">05</span>Accès base de données</div>
+          <div><span class="n">06</span>API typée client ↔ serveur</div>
+          <div><span class="n">07</span>Notifications temps réel</div>
+          <div><span class="n">08</span>Serveur &amp; authentification</div>
+          <div><span class="n">09</span>Rôles &amp; permissions</div>
+          <div><span class="n">10</span>Client / UI</div>
+          <div><span class="n">11</span>Injection de services</div>
+          <div><span class="n">12</span>Utilitaires partagés</div>
+          <div><span class="n">13</span>Actions &amp; console</div>
+          <div><span class="n">14</span>Éditeur de scripts</div>
+          <div><span class="n">15</span>Données natives &amp; paramètres</div>
+          <div><span class="n">16</span>Points à trancher</div>
+        </div>
+      </div>` },
+
+    { id: "overview", label: "Vue d'ensemble", eyebrow: "Vue d'ensemble", title: "Comment les pièces s'assemblent", role: "Trois tiers, un canal typé, deux échappatoires volontaires qui ne traversent jamais le même mur.", html: `
+      <div class="arch">
+        <div class="tier">
+          <div class="box main">Composants UI<span class="sub">AbstractWebComponent</span></div>
+          <div class="box main">Services (DI)<span class="sub">Dagda("service")</span></div>
+          <div class="box main">Cache d'entités<span class="sub">accès synchrone</span></div>
+        </div>
+        <div class="connector"><div class="stem"></div><div class="label">API typée + WebSocket</div><div class="stem"></div><div class="arrow"></div></div>
+        <div class="tier">
+          <div class="box main">Express / Auth<span class="sub">Passport, stratégies</span></div>
+          <div class="box main">Couche d'actions<span class="sub">invariants métier</span></div>
+          <div class="box main">Notifications<span class="sub">broadcast WS</span></div>
+        </div>
+        <div class="connector"><div class="stem"></div><div class="label">SQL</div><div class="stem"></div><div class="arrow"></div></div>
+        <div class="tier"><div class="box main">PostgreSQL<span class="sub">seul back-end (§0)</span></div></div>
+        <div class="aside">
+          <div class="box">+ Console &amp; scripts (Monaco)<span class="sub">même canal, mêmes droits que l'utilisateur — §11</span></div>
+          <div class="box">+ Paramètres système<span class="sub">déclarés côté serveur, ne descendent jamais au client — §11.5</span></div>
+        </div>
+      </div>` },
+
+    { id: "principles", label: "Partis pris", eyebrow: "§0 — Fondations", title: "Les postulats qui contraignent tout le reste", role: "Cinq décisions structurantes ; chaque choix plus bas s'y ramène.", html: `
+      <div class="principles">
+        <div class="principle"><span class="lead">Postgres seul</span><p>Pas de SQLite, pas de stockage fichier. Toute application Dagda suppose une base Postgres, même pour un petit déploiement.</p></div>
+        <div class="principle"><span class="lead">Client toujours connecté</span><p>Le cache local n'est qu'une vue <em>partielle</em> des données : ni persisté, ni utilisable hors ligne.</p></div>
+        <div class="principle"><span class="lead">Échec d'écriture → recharge</span><p>Pas de résolution de conflit. La stratégie assumée est de repartir de l'état serveur.</p></div>
+        <div class="principle"><span class="lead">Authentification obligatoire</span><p>Pas de mode « application ouverte ».</p></div>
+        <div class="principle wide"><span class="lead">Minimum de dépendances externes</span><p>Toute proposition d'ajout d'une dépendance (client, serveur ou build) est soumise et validée avant intégration — jamais ajoutée sans accord préalable.</p></div>
+      </div>` },
+
+    { id: "tooling", label: "Structure & outillage", eyebrow: "§1 — Structure & outillage", title: "Monorepo & chaîne de build", role: "Ce qui fait qu'un dépôt Dagda se construit, se teste et se debug de façon homogène.", html: `
+      <div class="ledger">
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p>Monorepo npm workspaces (<code>shared</code> / <code>client</code> / <code>server</code> / <code>build</code>)</p><p class="note">v2 sépare <code>packages/*</code> (framework) et <code>bootstrap/*</code> (app d'exemple)</p></div></div>
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p>Configs TypeScript &amp; webpack partagées</p><p class="note"><code>@dagda/build</code> — bundle unique <code>main.js</code> par app</p></div></div>
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p>Résolution des alias de paths</p><p class="note"><code>tsconfig-paths-webpack-plugin</code></p></div></div>
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p>Application « bootstrap » — exemple &amp; banc de test</p><p class="note">nouveau en v2</p></div></div>
+        <div class="row"><span class="dot dot--partial"></span><div class="row-text"><p>Tests unitaires (mocha)</p><p class="note">couverture partielle : <code>model</code>, <code>handler</code></p></div></div>
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p>Génération de la config VSCode (launch / tasks)</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Générateur de projet <code>npm create dagda</code></p><p class="note">scaffolding à partir du bootstrap</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Documentation (README par package, guide de démarrage)</p><p class="note">quasi inexistante aujourd'hui</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Build en mode watch / hot reload confortable</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p><code>docker-compose</code> de développement (app + Postgres)</p><p class="note">conséquence directe du parti pris « Postgres uniquement »</p></div></div>
+      </div>` },
+
+    { id: "entities", label: "Modèle d'entités", eyebrow: "§2 — Modèle d'entités", title: "Le cœur du framework", role: "Une déclaration TypeScript unique, d'où découle tout le typage.", html: `
+      <div class="ledger">
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p>Déclaration déclarative du modèle (<code>EntitiesModel</code>) : types + tables</p><p class="note">typage complet dérivé de la déclaration</p></div></div>
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p>Types nommés / « branded types » (<code>Named</code>, <code>asNamed</code>)</p><p class="note">évite de confondre <code>ProjectId</code> et <code>PromptId</code></p></div></div>
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p>Types JS de base + types custom (<code>JSTypes</code>)</p></div></div>
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p>Clés étrangères déclarées (<code>foreignTable</code>), champs optionnels</p></div></div>
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p>Génération du DDL / noms quotés — <code>qt()</code> / <code>qf()</code></p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Migrations de schéma versionnées</p><p class="note">aujourd'hui : scripts SQL manuels. <strong>Deux jeux distincts</strong> : framework et application (§11.4)</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Validation runtime des entités</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Type <code>USER_ID</code> fourni par le framework + FK vers sa table utilisateurs</p><p class="note">seul pont entre données internes de Dagda et modèle métier — voir §11.4</p></div></div>
+      </div>` },
+
+    { id: "cache", label: "Cache & synchronisation", eyebrow: "§3 — Cache & synchronisation", title: "Client ↔ serveur, en gardant l'accès synchrone", role: "« L'essentiel de la valeur du framework » — tout ce qui rend le cache local fiable sans jamais bloquer l'UI.", html: `
+      <div class="ledger">
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p><code>EntitiesHandler</code> : cache local par table, accès <strong>synchrone</strong></p></div></div>
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p>Contextes de chargement typés</p><p class="note">v2 : <code>ContextAdapter</code> — <code>contextEquals</code> / <code>contextIntersects</code></p></div></div>
+        <div class="row"><span class="dot dot--partial"></span><div class="row-text"><p>Invalidation ciblée du cache (contexte <em>dirty</em>)</p><p class="note">v2 gère l'intersection de contextes et le contexte <em>actif</em></p></div></div>
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p>Transactions optimistes (<code>withTransaction</code>)</p><p class="note">insert / update / delete, appliqués localement puis envoyés</p></div></div>
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p>Ids temporaires côté client + remapping serveur</p></div></div>
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p>File d'attente de soumission, sérialisée (<code>Queue</code>)</p></div></div>
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p>Broadcast automatique du changement de contexte aux autres clients</p></div></div>
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p>Handler utilisable côté serveur — même API que côté client</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Rendre l'échec de submit visible pour l'utilisateur</p><p class="note">aujourd'hui : <code>console.error</code> + cache <em>dirty</em>, invisible pour l'utilisateur</p></div></div>
+        <div class="row row-text--dropped"><span class="dot dot--dropped"></span><div class="row-text row-text--dropped"><p>Résolution de conflits</p><p class="note">on invalide et on recharge (§0)</p></div></div>
+        <div class="row row-text--dropped"><span class="dot dot--dropped"></span><div class="row-text row-text--dropped"><p>Persistance du cache client (IndexedDB / hors ligne)</p><p class="note">le cache n'est qu'une vue partielle — le hors-ligne n'a pas de sens</p></div></div>
+        <div class="row row-text--dropped"><span class="dot dot--dropped"></span><div class="row-text row-text--dropped"><p>Cache &amp; logique déportés dans un (Shared)Worker</p><p class="note">casserait l'accès <strong>synchrone</strong>, seule vraie valeur du framework</p></div></div>
+      </div>` },
+
+    { id: "db", label: "Accès base de données", eyebrow: "§4 — Accès base de données", title: "Le serveur ne cherche plus la portabilité", role: "Décidé : l'abstraction multi-moteur ne sert plus qu'aux tests — le code applicatif assume PostgreSQL.", html: `
+      <div class="ledger single">
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p>Abstraction <code>AbstractSQLRunner</code> (<code>run</code> / <code>get</code> / <code>all</code> / <code>insert</code>)</p><p class="note">ne sert plus qu'à l'adapter de test en mémoire (§4)</p></div></div>
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p>Implémentation PostgreSQL — pool + <code>withReservedConnection</code></p></div></div>
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p>Transactions SQL réelles côté serveur</p></div></div>
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p>Statistiques de base au démarrage (taille des bases)</p><p class="note">nouveau en v2</p></div></div>
+        <div class="row row-text--dropped"><span class="dot dot--dropped"></span><div class="row-text row-text--dropped"><p>Implémentation SQLite</p><p class="note">présente en v1, supprimée volontairement en v2</p></div></div>
+        <div class="row row-text--dropped"><span class="dot dot--dropped"></span><div class="row-text row-text--dropped"><p>Back-end non-SQL (fichier JSON) pour le prototypage</p></div></div>
+      </div>
+      <div class="callout" style="margin-top:1rem"><strong>Décidé —</strong> le code applicatif peut assumer PostgreSQL (SQL spécifique, types natifs, <code>RETURNING</code>…) sans chercher la portabilité vers un autre moteur.</div>` },
+
+    { id: "api", label: "API typée", eyebrow: "§5 — API typée client ↔ serveur", title: "Un type TypeScript comme seul contrat", role: "La signature de l'API est partagée entre client et serveur — pas de schéma séparé à maintenir.", html: `
+      <div class="ledger single">
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p>Déclaration d'API par un simple type TS (<code>APICollection</code>)</p></div></div>
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p><code>apiCall()</code> côté client / <code>apiRegister()</code> côté serveur</p><p class="note">typage des arguments et du retour</p></div></div>
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p>API système intégrée (<code>getSystemInfo</code>, <code>triggerError</code>)</p></div></div>
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p>API entités intégrée (<code>fetch</code> / <code>submit</code>)</p></div></div>
+        <div class="row"><span class="dot dot--partial"></span><div class="row-text"><p>Passage du contexte de requête (utilisateur, session) au handler</p><p class="note">v2 : <code>RequestOptions</code></p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Gestion homogène des erreurs API (codes, messages typés)</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Authentification par jeton pour les appels hors navigateur</p><p class="note">besoin remonté par MQTTToolbox 2 — API <code>curl</code>-friendly</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Le jeton porte l'identité <strong>et les permissions</strong> de son propriétaire</p><p class="note">un appel par jeton est traité comme si l'utilisateur l'avait fait lui-même — pas de portée réduite (§7.1)</p></div></div>
+      </div>` },
+
+    { id: "realtime", label: "Notifications temps réel", eyebrow: "§6 — Notifications temps réel", title: "WebSocket, aujourd'hui en pur broadcast", role: "Tout part au client à la fois — il n'y a pas encore de ciblage.", html: `
+      <div class="ledger single">
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p>WebSocket serveur greffé sur le serveur HTTP</p></div></div>
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p>Événements typés dans les <code>AppTypes</code></p><p class="note">v2 : typage centralisé</p></div></div>
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p>Broadcast serveur → tous les clients</p></div></div>
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p>Reconnexion automatique côté client</p></div></div>
+        <div class="row"><span class="dot dot--partial"></span><div class="row-text"><p>Notifications navigateur (Web Notification API)</p><p class="note">présentes dans EurekAI v1, à remonter dans le framework</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Notifications ciblées (par utilisateur / par salon)</p><p class="note">aujourd'hui : uniquement du broadcast global</p></div></div>
+      </div>` },
+
+    { id: "auth", label: "Serveur & auth", eyebrow: "§7 — Serveur applicatif & authentification", title: "Le chantier le plus ouvert du framework", role: "Le socle Passport/OAuth tient déjà ; les comptes locaux et le multi-stratégies restent à trancher — le modèle de rôles, lui, est fixé (§7.1).", html: `
+      <div class="ledger">
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p>Serveur Express préconfiguré</p><p class="note">v2 : classe <code>AbstractServerApp</code> qui assemble tout</p></div></div>
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p>Authentification Passport + session, stratégie Google OAuth2</p></div></div>
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p>Point d'extension pour d'autres stratégies</p><p class="note"><code>registerAuthStrategy</code></p></div></div>
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p>Validation applicative de l'utilisateur (liste blanche)</p></div></div>
+        <div class="row"><span class="dot dot--partial"></span><div class="row-text"><p>Config par variables d'environnement</p><p class="note"><strong>réservée à l'amorçage</strong> (port, URL, connexion base) — le reste passe par les paramètres système (§11.5)</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Gestion locale des utilisateurs (compte + mot de passe)</p><p class="note">hachage + sel ; création <strong>sur invitation admin uniquement</strong>, pas d'inscription publique</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Plusieurs stratégies actives simultanément</p><p class="note">ex. Google <em>et</em> comptes locaux<span class="flag">à trancher</span></p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Rôles &amp; permissions — <strong>modèle décidé</strong></p><p class="note">planche suivante — §7.1</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Propriétaire d'une entité + partage entre utilisateurs</p><p class="note">besoin remonté par MQTTToolbox 2 (tableaux de bord) — se compose avec les permissions (§7.1), ne les remplace pas</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Identité de l'utilisateur courant dans les écritures serveur</p><p class="note">pour tracer l'auteur d'une modification</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Écran d'administration des utilisateurs et des rôles</p><p class="note">aujourd'hui dans EurekAI : activation manuelle en base</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Comptes &amp; préférences internes au framework</p><p class="note">hors modèle d'entités — exposés par API typée (§11.4)</p></div></div>
+        <div class="row row-text--dropped"><span class="dot dot--dropped"></span><div class="row-text row-text--dropped"><p>Mode « sans authentification » (<code>NO_AUTH</code>)</p><p class="note">présent en v1, à retirer</p></div></div>
+      </div>` },
+
+    { id: "permissions", label: "Rôles & permissions", eyebrow: "§7.1 — Rôles & permissions", title: "Une matrice rôle × permission, décidée", role: "Les permissions sont une constante de code ; les rôles, une donnée que l'administrateur façonne librement.", html: `
+      <div class="callout"><strong>Décidé —</strong> la liste des permissions est un type TypeScript déclaré dans le code, partagé client/serveur — même idiome que <code>APICollection</code> (§5) ou la collection d'actions (§11.1). Le framework fournit un socle (paramètres système, gestion des utilisateurs et des rôles) ; l'application y ajoute les siennes.</div>
+      <div class="ledger">
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Matrice rôle × permission, éditable par l'administrateur</p><p class="note">rôles créés librement, en nombre illimité ; pour chacun, cocher les fonctionnalités accessibles</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Un utilisateur porte <strong>au plus un rôle</strong></p><p class="note">pas de cumul : <code>permissions(utilisateur)</code> = celles de son rôle, ou aucune</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Rôle <strong>super-admin</strong> intégré, tous droits implicites</p><p class="note">dispensé de la matrice — pas besoin d'énumérer ses permissions</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>↳ Attribué automatiquement au premier utilisateur créé</p><p class="note">compte <code>admin</code> / <code>admin</code> — bootstrap avant qu'une invitation soit possible (§7)</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Permissions résolues côté serveur, en liste d'identifiants texte</p><p class="note">ex. <code>["projects.manage", "users.invite"]</code> — c'est cette liste que lisent les fonctions serveur</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Table / contexte / appel d'API contraignables par permission</p><p class="note">généralise le « filtrage par utilisateur » : même mécanique pour une restriction large ou un filtre fin</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Permissions transmises au client</p><p class="note">pour masquer l'UI inaccessible — ne dispense jamais la vérification serveur (§11.2)</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Jeton d'API : mêmes permissions que son propriétaire</p><p class="note">cf. §5 — pas de portée réduite pour un appel par jeton</p></div></div>
+      </div>` },
+
+    { id: "ui", label: "Client / UI", eyebrow: "§8 — Client / UI", title: "Web components, thèmes et une police d'icônes", role: "Bootstrap sort ; entrent une feuille de style unique par jetons et des thèmes que l'utilisateur choisit lui-même.", html: `
+      <div class="ledger">
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p>Classe de base <code>AbstractWebComponent</code></p><p class="note">décorateurs <code>@Ref()</code> / <code>@Attribute()</code>, cycle <code>_init()</code>/<code>_refresh()</code>, slots</p></div></div>
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p>Système de pages / navigation (<code>PageHandler</code>)</p></div></div>
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p>Composants statut, navbar, login, conteneur</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Feuille de style unique <code>dagda-ui.css</code></p><p class="note">reprise de Nocturne / vocabulaire Claude Design (<code>.btn</code>, <code>.card</code>, <code>.dialog</code>…) — remplace Bootstrap</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Thèmes interchangeables, choisis par l'utilisateur</p><p class="note">un thème = un jeu de jetons <strong>complet</strong> ; clair / sombre = deux thèmes, pas un interrupteur</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Liste des thèmes fixée dans le code</p><p class="note">ni table en base, ni écran d'admin — seul le choix de l'utilisateur est une donnée</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Polices embarquées localement</p><p class="note">plus d'<code>@import</code> Google Fonts — inopérant sans Internet (MQTTToolbox)</p></div></div>
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p>Icônes : Phosphor, en police d'icônes</p><p class="note"><strong>dépendance validée</strong> — <code>@phosphor-icons/web</code>, graisse pilotée par jeton de thème</p></div></div>
+        <div class="row row-text--dropped"><span class="dot dot--dropped"></span><div class="row-text row-text--dropped"><p>Composant <code>&lt;dagda-icon name="…"&gt;</code></p><p class="note">jeu d'icônes tranché : <code>&lt;i class="ph ph-…"&gt;</code> direct suffit, sans le risque de FOUC</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Séparation store / vue dans les composants</p><p class="note">à évaluer<span class="flag">à trancher</span> — aujourd'hui mêlés (<code>_refreshImpl</code>, ~200 lignes)</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Routage par URL, navigation mobile (gestes)</p><p class="note">navigation mobile remontée par MQTTToolbox 2</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Support PWA, écran « hors ligne »</p></div></div>
+      </div>` },
+
+    { id: "di", label: "Injection de services", eyebrow: "§9 — Injection de services", title: "Nouveauté v2 : un point d'entrée unique", role: "Remplace les singletons statiques de la v1 par un registre de services attendu au chargement.", html: `
+      <div class="ledger single">
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p>Point d'entrée unique <code>Dagda("serviceName")</code></p></div></div>
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p><code>Dagda.init(services)</code> + promesse <code>Dagda.loaded</code></p><p class="note">les composants attendent l'initialisation</p></div></div>
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p>Services standard : <code>log</code>, <code>notification</code>, <code>entities</code>, <code>pages</code></p></div></div>
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p>Types applicatifs centralisés (<code>BaseAppTypes</code>)</p><p class="note"><code>entities</code> / <code>contexts</code> / <code>apis</code> / <code>events</code> en un seul endroit</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Service <code>auth</code> (utilisateur courant, connexion, déconnexion)</p><p class="note">conséquence directe du chantier auth (§7)</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Déclaration de services applicatifs custom, documentée</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Nettoyer les <code>Dagda&lt;...&gt;(...)</code> marqués <code>FIXME</code> dans le handler</p></div></div>
+      </div>` },
+
+    { id: "utils", label: "Utilitaires partagés", eyebrow: "§10 — Utilitaires partagés", title: "Les petites briques communes", role: "Peu de mouvement ici — surtout des ajouts v2 déjà en place.", html: `
+      <div class="ledger single">
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p>Émetteur d'événements typé (<code>EventHandler</code>)</p></div></div>
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p><code>Queue</code> — sérialisation de promesses</p></div></div>
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p><code>Pool</code> — parallélisation limitée</p></div></div>
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p>Helpers asynchrones (<code>async.ts</code>)</p></div></div>
+        <div class="row"><span class="dot dot--done"></span><div class="row-text"><p>Assertions (<code>asserts.ts</code>) &amp; service de log typé</p><p class="note">nouveaux en v2</p></div></div>
+        <div class="row"><span class="dot dot--partial"></span><div class="row-text"><p>Helper <code>fetch</code> côté serveur</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Journalisation structurée / niveaux de log configurables</p></div></div>
+      </div>` },
+
+    { id: "actions", label: "Actions & console", eyebrow: "§11.1–11.2 — Couche d'actions & console", title: "Trois demandes qui n'en font qu'une", role: "La variable globale et l'éditeur de scripts ne sont que deux consommateurs d'une même couche d'actions à extraire.", html: `
+      <div class="ledger single">
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Collection d'actions typée, déclarée comme <code>APICollection</code> (§5)</p><p class="note">même idiome que les APIs — s'ajoute aux <code>BaseAppTypes</code></p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Les tests portent sur les actions, pas sur les clics</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p><code>.d.ts</code> des actions embarqué pour l'éditeur</p><p class="note">déjà émis par <code>tsc</code> — juste à embarquer comme ressource Monaco</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Variable globale <code>dagda</code> exposant services, entités et actions</p><p class="note">précédent : <code>window.MQTT</code> dans MQTTToolbox v1</p></div></div>
+      </div>
+      <div class="callout"><strong>Où placer la frontière —</strong> doit être une action toute opération qui porte un <em>invariant métier</em> ou qu'un utilisateur voudrait scripter ; peut rester dans un gestionnaire de clic le séquencement propre à l'écran. Test d'arbitrage : rejouée depuis la console, la même séquence obtient-elle un état valide ?</div>
+      <div class="ledger single">
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>⚠️ Masquer un bouton n'est plus un contrôle d'accès</p><p class="note">l'autorisation doit être vérifiée côté serveur sur les permissions résolues (§7.1) — la console rend le contournement trivial</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>⚠️ L'API console devient un contrat public</p><p class="note">renommer une action casse les scripts existants — versionnement à assumer</p></div></div>
+      </div>` },
+
+    { id: "scripts", label: "Éditeur de scripts", eyebrow: "§11.3 — Éditeur de scripts intégré", title: "Monaco, avec la session de l'utilisateur — sans bac à sable", role: "Aucune dépendance de plus que Monaco lui-même ; c'est le typage qui protège, pas un sandbox.", html: `
+      <div class="ledger">
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Éditeur TypeScript fourni par le framework</p><p class="note">Monaco — <strong>dépendance validée</strong> (cf. §0)</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Les scripts sont du TypeScript, jamais du JavaScript</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Chargé à la demande, jamais dans le bundle principal</p><p class="note">Monaco pèse plusieurs Mo</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Autocomplétion sur l'API réelle de l'application</p><p class="note">via les <code>.d.ts</code> embarqués (§11.1)</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Transpilation par Monaco lui-même</p><p class="note">aucune dépendance supplémentaire pour compiler dans le navigateur</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Une erreur de type bloque l'exécution</p><p class="note">ici, un vrai garde-fou — pas qu'un confort d'édition</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Déclaration de paramètres par le script</p><p class="note">le framework en dérive un formulaire avant exécution</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Exécution dans la page, avec la session utilisateur</p><p class="note"><strong>aucun bac à sable nécessaire</strong> — ne confère rien de plus que la console déjà ouverte</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Scripts privés à leur auteur par défaut</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>⚠️ Le partage de scripts entre utilisateurs est un XSS stocké</p><p class="note">un script de A exécuté par B tourne avec les droits de B<span class="flag">à trancher</span></p></div></div>
+      </div>` },
+
+    { id: "native", label: "Données natives & paramètres", eyebrow: "§11.4–11.5 — Données natives & paramètres système", title: "Deux mécanismes à part, en dehors des entités", role: "Décidé : rien de ce qui est interne à Dagda (comptes, thème, scripts, secrets) ne transite par le cache d'entités.", html: `
+      <div class="callout"><strong>Décidé —</strong> comptes utilisateurs, préférences, scripts, configuration : tout cela est interne au framework, exposé par API typée (§5), jamais par le cache. Les entités restent réservées aux objets métier de l'application.</div>
+      <div class="ledger single">
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Type <code>USER_ID</code> utilisable dans un modèle applicatif</p><p class="note">permet <code>ownerId: { type: "USER_ID" }</code> — le seul pont vers le framework</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Annuaire des utilisateurs côté client, chargé une fois, <strong>synchrone</strong></p><p class="note">nécessaire pour afficher « créé par X » — besoin réel de MQTTToolbox</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Politique de suppression d'un compte</p><p class="note">désactiver plutôt que supprimer — des entités métier le référencent</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Déclaration typée des paramètres système, stockés côté framework</p><p class="note">même esprit que <code>EntitiesModel</code> (§2)</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Un paramètre <strong>ne quitte jamais le serveur</strong> par défaut</p><p class="note">ni cache, ni contexte, ni transaction — sauf marquage explicite</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Paramètres « secrets » : écriture seule</p><p class="note">jamais relus en clair, exclus des exports</p></div></div>
+        <div class="row"><span class="dot dot--new"></span><div class="row-text"><p>Notification de changement côté serveur, à chaud</p><p class="note">ex. reconnexion au broker MQTT sans redémarrage</p></div></div>
+      </div>` },
+
+    { id: "trancher", label: "Points à trancher", eyebrow: "Synthèse — pour la revue", title: "Ce qui mérite une décision explicite", role: "Extrait des « à trancher » et avertissements semés dans le document — le fil conducteur d'une revue.", html: `
+      <div class="trancher">
+        <div class="t-row"><span class="tag">§7</span><p>Un même utilisateur peut-il être rattaché à plusieurs méthodes de connexion (Google <em>et</em> compte local), ou un compte par stratégie ?</p></div>
+        <div class="t-row"><span class="tag">§7</span><p>Réinitialisation de mot de passe par le même lien d'invitation, régénéré par l'administrateur.<span class="note">évite un service d'envoi de mail — à confirmer comme solution définitive</span></p></div>
+        <div class="t-row"><span class="tag">§8</span><p>Séparation store / vue dans les composants : à évaluer indépendamment du choix (déjà tranché) d'écarter le Worker.</p></div>
+        <div class="t-row"><span class="tag">§8</span><p>Un seul jeu d'icônes pour l'application ou par thème ?<span class="note">tranché dans cette revue : Phosphor unique, graisse pilotée par jeton de thème, pas de composant <code>dagda-icon</code></span></p></div>
+        <div class="t-row"><span class="tag">§11.2</span><p>Masquer un contrôle dans l'UI n'est jamais un contrôle d'accès — toute autorisation doit être revérifiée côté serveur sur les permissions résolues (§7.1), la console rendant le contournement trivial.</p></div>
+        <div class="t-row"><span class="tag">§11.2</span><p>L'API console devient un contrat public dès sa sortie : renommer une action casse les scripts utilisateur — un plan de versionnement est à prévoir avant la première sortie.</p></div>
+        <div class="t-row"><span class="tag">§11.3</span><p>Le partage de scripts entre utilisateurs est un XSS stocké par construction : rester privé par défaut, ou concevoir l'avertissement explicite le jour où le partage s'ouvre.</p></div>
+      </div>` },
+  ];
+
+  const railList = document.getElementById("railList");
+  const slidesEl = document.getElementById("slides");
+  slidesData.forEach((s, i) => {
+    const btn = document.createElement("button");
+    btn.className = "rail-item";
+    btn.dataset.index = i;
+    btn.innerHTML = `<span class="n">${String(i).padStart(2, "0")}</span><span>${s.label}</span>`;
+    railList.appendChild(btn);
+
+    const el = document.createElement("section");
+    el.className = "slide";
+    el.dataset.index = i;
+    el.innerHTML = (s.eyebrow ? `<p class="eyebrow">${s.eyebrow}</p>` : "") +
+      (s.title ? `<h2>${s.title}</h2>` : "") +
+      (s.role ? `<p class="role">${s.role}</p>` : "") +
+      `<div class="slide-body">${s.html}</div>`;
+    slidesEl.appendChild(el);
+  });
+
+  const total = slidesData.length;
+  document.getElementById("totalNum").textContent = String(total).padStart(2, "0");
+  let current = 0;
+  const hash = parseInt((location.hash || "").replace("#", ""), 10);
+  if (!isNaN(hash) && hash >= 0 && hash < total) current = hash;
+
+  const slideEls = Array.from(document.querySelectorAll(".slide"));
+  const railItems = Array.from(document.querySelectorAll(".rail-item"));
+
+  function render() {
+    slideEls.forEach((el, i) => {
+      if (i === current) el.setAttribute("data-active", ""); else el.removeAttribute("data-active");
+    });
+    railItems.forEach((el, i) => {
+      el.setAttribute("aria-current", i === current ? "true" : "false");
+    });
+    document.getElementById("curNum").textContent = String(current + 1).padStart(2, "0");
+    const activeRailItem = railItems[current];
+    if (activeRailItem) activeRailItem.scrollIntoView({ block: "nearest" });
+    history.replaceState(null, "", "#" + current);
+  }
+  function go(i) {
+    current = Math.max(0, Math.min(total - 1, i));
+    render();
+  }
+
+  railItems.forEach((el, i) => el.addEventListener("click", () => { go(i); document.getElementById("rail").classList.remove("open"); }));
+  document.getElementById("prevBtn").addEventListener("click", () => go(current - 1));
+  document.getElementById("nextBtn").addEventListener("click", () => go(current + 1));
+  document.getElementById("railToggle").addEventListener("click", () => document.getElementById("rail").classList.toggle("open"));
+
+  window.addEventListener("keydown", (e) => {
+    if (["ArrowRight", "ArrowDown", "PageDown", " "].includes(e.key)) { e.preventDefault(); go(current + 1); }
+    else if (["ArrowLeft", "ArrowUp", "PageUp"].includes(e.key)) { e.preventDefault(); go(current - 1); }
+    else if (e.key === "Home") { e.preventDefault(); go(0); }
+    else if (e.key === "End") { e.preventDefault(); go(total - 1); }
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
