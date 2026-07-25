@@ -1,6 +1,20 @@
 import { PGRunner } from "../sql/impl/pg.runner";
 
 /**
+ * Declared here rather than next to the global setup that provides the value.
+ *
+ * A spec reads it with `inject("databaseAvailable")` and imports this fixture,
+ * never the global setup — which an application's tsconfig does not compile at
+ * all, leaving `inject` typed as taking `never`.
+ */
+declare module "vitest" {
+    interface ProvidedContext {
+        /** False when no PostgreSQL server answered, so the tests that need one are skipped */
+        databaseAvailable: boolean;
+    }
+}
+
+/**
  * Connection string used by the tests.
  *
  * Defaults to the database started by `npm run db:up` (see docker-compose.yml).

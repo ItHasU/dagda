@@ -11,10 +11,3 @@ import { isDatabaseAvailable } from "./pg.fixture";
 export default async function setup(project: TestProject): Promise<void> {
     project.provide("databaseAvailable", await isDatabaseAvailable());
 }
-
-declare module "vitest" {
-    interface ProvidedContext {
-        /** False when no PostgreSQL server answered, so the tests that need one are skipped */
-        databaseAvailable: boolean;
-    }
-}

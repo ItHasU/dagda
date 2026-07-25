@@ -52,14 +52,21 @@ const MODEL = new SettingsModel({
 
 const KEY = generateEncryptionKey();
 
+/**
+ * The declaration behind MODEL.
+ * Typing the helper below `SettingsStore<any>` would collapse every key to
+ * `never` and silently drop the checks these tests are here to make.
+ */
+type TestSettings = typeof MODEL extends SettingsModel<infer D> ? D : never;
+
 describe.runIf(available)("Settings store", () => {
 
     let db: TestDatabase;
     let logged: string[];
 
     /** A store on the scratch schema, with the framework table already created */
-    async function createStore(env: Record<string, string | undefined> = {}, encryptionKey: string | undefined = KEY): Promise<SettingsStore<any>> {
-        const store = new SettingsStore({
+    async function createStore(env: Record<string, string | undefined> = {}, encryptionKey: string | undefined = KEY): Promise<SettingsStore<TestSettings>> {
+        const store = new SettingsStore<TestSettings>({
             model: MODEL,
             runner: db.runner,
             encryptionKey,
