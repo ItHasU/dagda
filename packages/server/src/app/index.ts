@@ -6,6 +6,8 @@ import { EntitiesService } from "@dagda/shared/src/entities/service";
 import { EntitiesModel } from "@dagda/shared/src/entities/model";
 import { ContextAdapter, Data } from "@dagda/shared/src/entities/tools/adapters";
 import { initBaseServices } from "@dagda/shared/src/services";
+import { SettingsDeclaration, SettingsModel } from "@dagda/shared/src/settings/model";
+import { SettingsStore } from "../settings/store";
 import { SQLTransactionData, SQLTransactionResult } from "@dagda/shared/src/sql/transaction";
 import express from "express";
 import passport from "passport";
@@ -53,13 +55,23 @@ export interface EnvConfig {
     clientSecret?: string;
 
     // -- Database --
-    /** 
+    /**
      * Database connexion string.
-     * 
+     *
      * postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&...]
      * https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING
      */
     dbURL: string;
+
+    // -- Settings --
+    /**
+     * Key protecting the secret settings at rest (FEATURES §11.5).
+     *
+     * A bootstrap parameter for the same reason as the connection string: it
+     * cannot be read from the table it protects. Only needed when the
+     * application declares a secret setting.
+     */
+    secretKey?: string;
 }
 
 /** Alias to avoid importing passport in project */
@@ -69,15 +81,26 @@ export type PassportProfile = passport.Profile;
  * Base server app. 
  * This gather all the logic of the server app.
  */
-export abstract class AbstractServerApp<AppTypes extends BaseAppTypes> {
+export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings extends SettingsDeclaration<Settings> = {}> {
 
     protected _config: EnvConfig;
     protected _app: express.Express;
     protected _auth: AuthHandler;
     protected _db: PGRunner;
     protected _notification: ServerNotificationImpl<AppTypes["events"]>;
+    protected _settings: SettingsStore<Settings>;
 
-    constructor(protected _params: ServerParams, protected _model: EntitiesModel<any, any>, protected _contextAdapter: ContextAdapter<AppTypes["contexts"]>) {
+    constructor(
+        protected _params: ServerParams,
+        protected _model: EntitiesModel<any, any>,
+        protected _contextAdapter: ContextAdapter<AppTypes["contexts"]>,
+        /**
+         * The settings the application declares (FEATURES §11.5).
+         * Omitted, the store is still there with nothing in it, so the framework
+         * can rely on it unconditionally.
+         */
+        protected _settingsModel: SettingsModel<Settings> = new SettingsModel({} as Settings)
+    ) {
         console.log("Reading config for environment variables...");
         // Read the config from env variables
         this._config = this._readConfigFromEnv();
@@ -146,6 +169,14 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes> {
         // ever heard about a write made by the server itself.
         console.log("Registering standard services...");
         this._notification = new ServerNotificationImpl<AppTypes["events"]>();
+        // Built here, loaded in migrate(): the table it reads is created by a
+        // framework migration, so there is nothing to read yet. Until then any
+        // read throws rather than answering a default nobody chose.
+        this._settings = new SettingsStore<Settings>({
+            model: this._settingsModel,
+            runner: this._db,
+            encryptionKey: this._config.secretKey
+        });
         initBaseServices<AppTypes["entities"], AppTypes["contexts"], AppTypes["events"]>({
             model: this._model,
             contextAdapter: this._contextAdapter,
@@ -157,7 +188,10 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes> {
             // One handler per call: two requests must not share a cache, since
             // what it holds depends on who asked.
             handlerPerCall: true,
-            extraServices: this._buildServices()
+            extraServices: {
+                settings: this._settings.settings,
+                ...this._buildServices()
+            }
         });
     }
 
@@ -197,6 +231,22 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes> {
 
         console.log("Checking the schema against the model...");
         await checkSchemaCoherence(this._db, this._model);
+
+        // After the migrations: the table holding them has just been created by
+        // one. Before listen(): a request must never find the configuration
+        // half-read.
+        console.log("Loading settings...");
+        await this._settings.load();
+    }
+
+    /**
+     * The settings of the application (FEATURES §11.5).
+     *
+     * Reading is synchronous; `settings.on(key, …)` is how a component
+     * reconfigures itself without a restart.
+     */
+    public get settings(): SettingsStore<Settings> {
+        return this._settings;
     }
 
     /** Listen */
@@ -268,6 +318,8 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes> {
             clientSecret: getEnvStringOptional(`${prefix}GOOGLE_CLIENT_SECRET`),
             // -- Database --
             dbURL: getEnvString(`${prefix}DB_URL`),
+            // -- Settings --
+            secretKey: getEnvStringOptional(`${prefix}SECRET_KEY`),
         } satisfies EnvConfig;
     }
 
