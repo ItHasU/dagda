@@ -1,6 +1,6 @@
 import { ContextAdapter } from "@dagda/shared/src/entities/tools/adapters";
+import { alwaysIntersects, buildContextAdapter, intersectsOnEqualOptions, intersectsWhen } from "@dagda/shared/src/entities/tools/contexts";
 import { BaseContext } from "@dagda/shared/src/entities/types";
-import { assertUnreachable } from "@dagda/shared/src/tools/asserts";
 import { ProjectId, UserId } from "./types";
 
 //#region Fetch contexts ------------------------------------------------------
@@ -15,34 +15,23 @@ export type ProjectContext = BaseContext<"project", { projectId: ProjectId }>;
 /** List of all contexts */
 export type AppContexts = UsersContext | ProjectsContext | ProjectContext;
 
-/** Implementation of context adapter for the app */
-export class AppContextAdapter implements ContextAdapter<AppContexts> {
-    /** @inheritdoc */
-    public contextEquals(newContext: AppContexts, oldContext: AppContexts): boolean {
-        if (newContext.type !== oldContext.type) {
-            return false;
-        } else {
-            switch (newContext.type) {
-                case "users": {
-                    return true; // No options to compare
-                }
-                case "projects": {
-                    return newContext.options.userId === (oldContext as ProjectsContext).options.userId;
-                }
-                case "project": {
-                    return newContext.options.projectId === (oldContext as ProjectContext).options.projectId;
-                }
-                default: {
-                    assertUnreachable(newContext);
-                }
-            }
-        }
-    }
-
-    /** @inheritdoc */
-    public contextIntersects(newContext: AppContexts, oldContext: AppContexts): boolean {
-        return this.contextEquals(newContext, oldContext);
-    }
-}
+/**
+ * Implementation of the context adapter for the app.
+ *
+ * An application only declares one rule per context type, the framework
+ * assembles the ContextAdapter the EntitiesHandler expects.
+ */
+export const APP_CONTEXT_ADAPTER: ContextAdapter<AppContexts> = buildContextAdapter<AppContexts>({
+    // No option : every "users" context describes the same data
+    users: alwaysIntersects(),
+    // userId is optional and undefined means "every user", so a change on one
+    // user's projects also concerns the unfiltered list
+    projects: intersectsWhen((newContext, oldContext) =>
+        newContext.options.userId == null
+        || oldContext.options.userId == null
+        || newContext.options.userId === oldContext.options.userId),
+    // A change on a project only concerns that project
+    project: intersectsOnEqualOptions()
+});
 
 //#endregion

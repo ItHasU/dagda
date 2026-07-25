@@ -1,5 +1,5 @@
 import { AppTypes } from "@dagda-app/shared/src/app/types";
-import { AppContextAdapter } from "@dagda-app/shared/src/entities/contexts";
+import { APP_CONTEXT_ADAPTER } from "@dagda-app/shared/src/entities/contexts";
 import { APP_MODEL } from "@dagda-app/shared/src/entities/model";
 import { DagdaClient } from "@dagda/client/src/app";
 import { PageContainer } from "@dagda/client/src/components/container/container.component";
@@ -18,4 +18,4 @@ EntitiesStatusComponent;
 // reach them through Dagda.get(), and wait on Dagda.loaded.
 initServices();
 
-DagdaClient.start<AppTypes>(APP_MODEL, new AppContextAdapter());
+DagdaClient.start<AppTypes>(APP_MODEL, APP_CONTEXT_ADAPTER);

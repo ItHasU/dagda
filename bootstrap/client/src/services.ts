@@ -1,4 +1,4 @@
-import { AppContextAdapter } from "@dagda-app/shared/src/entities/contexts";
+import { APP_CONTEXT_ADAPTER } from "@dagda-app/shared/src/entities/contexts";
 import { APP_MODEL } from "@dagda-app/shared/src/entities/model";
 import { SharedServices } from "@dagda-app/shared/src/services";
 import { GoodbyePage } from "@dagda/client/src/app/goodbye/goodbye.page";
@@ -30,7 +30,7 @@ export function initServices(): void {
     Dagda.init<ClientServices>({
         log: buildConsoleLogService(),
         notification: new ClientNotificationImpl(),
-        entities: buildClientEntitiesService(APP_MODEL, new AppContextAdapter()),
+        entities: buildClientEntitiesService(APP_MODEL, APP_CONTEXT_ADAPTER),
         pages: pageHandler
     });
 }

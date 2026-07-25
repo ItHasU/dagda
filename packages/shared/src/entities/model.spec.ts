@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { TEST_MODEL } from "./_data";
+import { POST_KIND, PUBLICATION_STATUS, TEST_MODEL } from "./_data";
+import { JSTypes } from "./tools/javascript.types";
 import { asNamed } from "./tools/named";
 
 describe("EntitiesModel", () => {
@@ -12,7 +13,7 @@ describe("EntitiesModel", () => {
     });
 
     it("returns the list of types", () => {
-        expect(TEST_MODEL.getTypeNames()).toEqual(["USER_ID", "POST_ID", "INTEGER", "TEXT", "NAME", "SURNAME", "MARKDOWN", "PUBLICATION_STATUS"]);
+        expect(TEST_MODEL.getTypeNames()).toEqual(["USER_ID", "POST_ID", "INTEGER", "BOOLEAN", "TEXT", "NAME", "SURNAME", "MARKDOWN", "PUBLICATION_STATUS", "POST_KIND"]);
     });
 
     it("returns the list of tables", () => {
@@ -62,7 +63,9 @@ describe("EntitiesModel", () => {
             author: "users",
             title: null,
             content: null,
-            status: null
+            status: null,
+            kind: null,
+            pinned: null
         });
     });
 
@@ -75,6 +78,41 @@ describe("EntitiesModel", () => {
             size: null
         };
         expect(user.name).toBe("John");
+    });
+
+    it("provides the enumeration of a type and of a field", () => {
+        expect(TEST_MODEL.getEnum("PUBLICATION_STATUS")).toBe(PUBLICATION_STATUS);
+        expect(TEST_MODEL.getEnum("TEXT")).toBe(null);
+        expect(TEST_MODEL.getFieldEnum("posts", "status")).toBe(PUBLICATION_STATUS);
+        expect(TEST_MODEL.getFieldEnum("posts", "kind")).toBe(POST_KIND);
+        expect(TEST_MODEL.getFieldEnum("posts", "title")).toBe(null);
+    });
+
+    it("exposes the raw type of an enumeration through the model", () => {
+        // The enumeration doubles as the field type definition,
+        // so the storage type stays available for the schema generation.
+        expect(TEST_MODEL.getTypeDefinition("PUBLICATION_STATUS")?.rawType).toBe(JSTypes.number);
+        expect(TEST_MODEL.getTypeDefinition("POST_KIND")?.rawType).toBe(JSTypes.string);
+        expect(TEST_MODEL.getTypeDefinition("UNKNOWN" as any)).toBeUndefined();
+    });
+
+    it("types an enumeration field with the union of its values", () => {
+        const post: typeof TEST_MODEL.tablesFields["posts"] = {
+            id: asNamed(0),
+            author: asNamed(1),
+            title: asNamed("Hello"),
+            content: asNamed("World"),
+            status: asNamed(PUBLICATION_STATUS.values.DRAFT),
+            kind: asNamed(POST_KIND.values.NOTE),
+            pinned: null
+        };
+        expect(post.status).toBe(1);
+        expect(post.kind).toBe("note");
+
+        // @ts-expect-error a value outside of the enumeration is a compilation error
+        post.status = asNamed(3);
+        // @ts-expect-error a value of the wrong enumeration is a compilation error
+        post.kind = asNamed(PUBLICATION_STATUS.values.DRAFT);
     });
 
 });

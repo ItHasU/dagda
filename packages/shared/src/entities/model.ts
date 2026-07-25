@@ -1,8 +1,16 @@
+import { EnumDefinition, EnumEntriesDefinition, EnumValues } from "./tools/enums";
 import { JSStaticType, JSTypes, Nullable } from "./tools/javascript.types";
 import { Named } from "./tools/named";
+import { EntityValidationError, EntityValidationOptions, getEntityErrors, validateEntity } from "./tools/validation";
 
-/** Utility type to constrain the value of a field */
-export type NamedType<Name, T> = T extends FieldTypeDefinition<infer RawType, infer Custom> ? Named<Name, JSStaticType<RawType, Custom>> : never;
+/**
+ * Utility type to constrain the value of a field.
+ * An enumeration is resolved to the union of its values, any other type to its JS type.
+ */
+export type NamedType<Name, T> =
+    T extends EnumDefinition<infer Entries> ? Named<Name, EnumValues<Entries>> :
+    T extends FieldTypeDefinition<infer RawType, infer Custom> ? Named<Name, JSStaticType<RawType, Custom>> :
+    never;
 
 /** 
  * Type definition that can be used for the properties of the entities.
@@ -71,6 +79,25 @@ export class EntitiesModel<
         return definition;
     }
 
+    /**
+     * Utility method to declare an enumeration as a triplet <uid, value, label>.
+     *
+     * The returned object is both the enumeration itself (MY_ENUM.values.MY_UID,
+     * MY_ENUM.getLabel(value), ...) and a valid field type definition, so it can be
+     * passed directly in the types of the model.
+     *
+     * ```ts
+     * export const PUBLICATION_STATUS = EntitiesModel.enum({
+     *     DRAFT: { value: 1, label: "Draft" },
+     *     PUBLISHED: { value: 2, label: "Published" }
+     * });
+     * export type PublicationStatus = typeof PUBLICATION_STATUS.type; // 1 | 2
+     * ```
+     */
+    public static enum<const Entries extends EnumEntriesDefinition>(entries: Entries): EnumDefinition<Entries> {
+        return new EnumDefinition(entries);
+    }
+
     //#endregion
 
     //#region Typing methods, to be used with typeof
@@ -112,6 +139,22 @@ export class EntitiesModel<
 
     public getTypeNames(): (keyof FieldTypes)[] {
         return Object.keys(this._types);
+    }
+
+    /** Get the definition of a type, or undefined if the type is not declared */
+    public getTypeDefinition<TypeName extends keyof FieldTypes>(typeName: TypeName): FieldTypes[TypeName] | undefined {
+        return this._types[typeName];
+    }
+
+    /** @returns the enumeration declared for a type, or null if the type is not an enumeration */
+    public getEnum<TypeName extends keyof FieldTypes>(typeName: TypeName): EnumDefinition<any> | null {
+        const definition = this._types[typeName];
+        return definition instanceof EnumDefinition ? definition : null;
+    }
+
+    /** @returns the enumeration of a field, or null if the field is not an enumeration */
+    public getFieldEnum<T extends keyof TablesFields, F extends keyof TablesFields[T]>(tableName: T, fieldName: F): EnumDefinition<any> | null {
+        return this.getEnum(this.getFieldTypeName(tableName, fieldName));
     }
 
     /** Get the list of tables */
@@ -195,6 +238,32 @@ export class EntitiesModel<
     }
 
     protected _validateType(type: keyof FieldTypes): void {
+    }
+
+    /**
+     * Check that an entity matches the declaration of its table :
+     * type of each field, mandatory fields, enumeration values and unknown fields.
+     *
+     * This is NOT called automatically : validating every entity on the critical path
+     * (cache insertion, transactions, fetch results) is a performance trade-off that
+     * belongs to the application. Suggested call sites are, by decreasing interest :
+     * - server side, in the submit endpoint, on the items of the incoming transaction,
+     * - client side, in SQLTransaction.insert()/update(), behind a development flag,
+     * - in the tests of an application, on the fixtures.
+     *
+     * @returns the list of problems found, empty if the entity is valid
+     */
+    public getEntityErrors<T extends keyof TablesFields>(tableName: T, entity: unknown, options?: EntityValidationOptions): EntityValidationError[] {
+        return getEntityErrors(this, tableName as string, entity, options);
+    }
+
+    /**
+     * Check that an entity matches the declaration of its table.
+     * @see getEntityErrors
+     * @throws EntityValidationException if the entity does not match
+     */
+    public validateEntity<T extends keyof TablesFields>(tableName: T, entity: unknown, options?: EntityValidationOptions): void {
+        validateEntity(this, tableName as string, entity, options);
     }
 
     protected _validateTable(table: keyof TablesFields): void {

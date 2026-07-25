@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PublicationStatus, TEST_MODEL } from "./_data";
+import { POST_KIND, PUBLICATION_STATUS, TEST_MODEL } from "./_data";
 import { EntitiesHandler } from "./handler";
 import { TestContext, TestContextAdapter, TestPersistanceAdapter } from "./impl/test.adapters";
 import { asNamed } from "./tools/named";
@@ -74,7 +74,9 @@ describe("EntitiesHandler", () => {
                 author: user1TmpId, // Here we use the temporary id of the author
                 title: asNamed("My first post"),
                 content: asNamed("Hello **world**!"),
-                status: asNamed(PublicationStatus.PUBLISHED)
+                status: asNamed(PUBLICATION_STATUS.values.PUBLISHED),
+                kind: asNamed(POST_KIND.values.ARTICLE),
+                pinned: null
             };
             tr.insert("posts", post1);
         });

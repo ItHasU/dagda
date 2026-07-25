@@ -57,18 +57,78 @@ Deux tables `data_projects` par exemple (préfixe `data_`, FEATURES §2) sont
 alors dérivées avec DDL, noms quotés, et types nommés (`ProjectId` ≠
 `UserId` bien que tous deux des `number`).
 
-**Cible v2 (tranche 1)** — remplacer les `enum` TypeScript par une
-**énumération déclarative** `<uid, valeur, libellé>` : c'est ce libellé qui
-permettra au générateur de formulaires (§8.1, tranche 3) de rendre un menu
-déroulant sans table de correspondance écrite à la main dans chaque écran.
+#### Énumérations déclaratives
+
+Les `enum` TypeScript sont remplacés par une **énumération déclarative**
+`<uid, valeur, libellé>` : c'est ce libellé qui permet au générateur de
+formulaires (§8.1, tranche 3) de rendre un menu déroulant sans table de
+correspondance écrite à la main dans chaque écran.
 
 ```ts
-// cible v2 — remplace `export const enum ProjectStatus { ... }`
-export const PROJECT_STATUS = declareEnum<ProjectStatus>({
+// remplace `export const enum ProjectStatus { ... }`
+export const PROJECT_STATUS = EntitiesModel.enum({
     ACTIVE:   { value: 1, label: "Actif" },
     ARCHIVED: { value: 2, label: "Archivé" },
 });
+/** Type des valeurs : 1 | 2 */
+export type ProjectStatus = typeof PROJECT_STATUS.type;
 ```
+
+- **La valeur persistée est toujours choisie explicitement**, jamais dérivée de
+  l'ordre de déclaration : c'est ce qui permettra de reprendre à l'identique les
+  colonnes déjà remplies d'EurekAI (`ComputationStatus`, `PictureType`).
+- Elle peut être un **entier ou une chaîne** ; toutes les entrées d'une même
+  énumération doivent partager le même type (vérifié à la construction, comme
+  l'unicité des valeurs).
+- L'objet rendu est **aussi une définition de type de champ** : la même
+  constante sert à déclarer l'énumération et à typer la colonne.
+
+```ts
+export const APP_MODEL = new EntitiesModel({
+    PROJECT_STATUS,                        // directement utilisable comme type
+    // ...
+}, {
+    projects: {
+        status: { type: "PROJECT_STATUS" }, // typé `1 | 2`, pas `number`
+    },
+});
+
+PROJECT_STATUS.values.ACTIVE     // 1, typé 1
+PROJECT_STATUS.values.INCONNU    // erreur de compilation
+PROJECT_STATUS.getLabel(1)       // "Actif"
+PROJECT_STATUS.getEntries()      // [{ uid, value, label }, ...] pour un <select>
+PROJECT_STATUS.isValidValue(3)   // false
+```
+
+#### Validation runtime des entités
+
+Le modèle sait vérifier à l'exécution qu'un objet correspond bien à sa table :
+type de chaque champ, champs obligatoires présents, valeur d'énumération
+déclarée, champ inconnu.
+
+```ts
+APP_MODEL.getEntityErrors("projects", item);            // liste des problèmes
+APP_MODEL.getEntityErrors("projects", values, { partial: true }); // pour un update
+APP_MODEL.validateEntity("projects", item);             // lève EntityValidationException
+```
+
+Chaque erreur nomme la table et le champ fautif — elle est écrite pour être lue
+par quelqu'un qui débogue :
+
+```
+Table "projects", field "status": 42 is not a valid value for the enumeration
+"PROJECT_STATUS" (expected one of 1, 2)
+```
+
+**Ce n'est pas branché automatiquement** : valider chaque entité sur le chemin
+critique (insertion dans le cache, transactions, résultats de fetch) est un
+arbitrage de performance qui appartient à l'application. Points d'appel
+suggérés, par intérêt décroissant : côté serveur dans la soumission de
+transaction, côté client dans `SQLTransaction.insert()`/`update()` derrière un
+drapeau de développement, et dans les tests de l'application sur les fixtures.
+
+Les champs déclarés en `JSTypes.custom` ne sont pas vérifiés : le modèle ne
+connaît rien de leur représentation à l'exécution.
 
 **Ce que le développeur ne déclare jamais** : les tables `system_*`
 (comptes, rôles, paramètres, préférences) — elles arrivent en état de
@@ -79,28 +139,85 @@ marche avec le framework, migrations comprises (FEATURES §2, §11.4).
 Un contexte typé par cas d'usage, et la fonction qui dit si deux contextes
 se recouvrent (pour l'invalidation du cache, FEATURES §3) :
 
+L'application ne déclare plus qu'**une règle par type de contexte** ; le
+framework assemble le `ContextAdapter` attendu par l'`EntitiesHandler` :
+
 ```ts
 // shared/src/entities/contexts.ts
+export type UsersContext    = BaseContext<"users",    undefined>;
 export type ProjectsContext = BaseContext<"projects", { userId?: UserId }>;
 export type ProjectContext  = BaseContext<"project",  { projectId: ProjectId }>;
-export type AppContexts = ProjectsContext | ProjectContext;
+export type AppContexts = UsersContext | ProjectsContext | ProjectContext;
 
-export class AppContextAdapter implements ContextAdapter<AppContexts> {
-    public contextEquals(a: AppContexts, b: AppContexts): boolean {
-        if (a.type !== b.type) return false;
-        switch (a.type) {
-            case "projects": return a.options.userId === (b as ProjectsContext).options.userId;
-            case "project":  return a.options.projectId === (b as ProjectContext).options.projectId;
-        }
-    }
-    public contextIntersects = this.contextEquals; // souvent identique
-}
+export const APP_CONTEXT_ADAPTER = buildContextAdapter<AppContexts>({
+    // aucune option : tous les contextes "users" décrivent la même donnée
+    users: alwaysIntersects(),
+    // userId absent signifie « tous les utilisateurs »
+    projects: intersectsWhen((a, b) =>
+        a.options.userId == null || b.options.userId == null
+        || a.options.userId === b.options.userId),
+    // une modification sur un projet ne concerne que ce projet
+    project: intersectsOnEqualOptions(),
+});
 ```
 
-**Cible v2 (tranche 1)** — pour les cas courants, une fonction toute faite
-au lieu de ce `switch` écrit à la main : `always()`, `never()`,
-`sameOptions()` (égalité de tous les paramètres). Le code ci-dessus
-deviendrait `contextIntersects: sameOptions()` pour le cas `project`.
+Les deux notions ne sont pas interchangeables :
+
+| | Question posée | Décide |
+|---|---|---|
+| `equals` | « est-ce exactement le même fetch ? » | si le contexte est déjà en cache |
+| `intersects` | « un changement ici touche-t-il là ? » | quels contextes deviennent *dirty* |
+
+`equals` est donc toujours l'**égalité de tous les paramètres** (`optionsEqual`,
+une comparaison stricte par paramètre ; un paramètre à `undefined` et un
+paramètre absent sont équivalents). Seule l'intersection varie :
+`alwaysIntersects()`, `neverIntersects()`, `intersectsOnEqualOptions()`, et
+`intersectsWhen(prédicat)` pour tout le reste.
+
+#### Intersection entre types différents
+
+Deux contextes de types différents ne sont **jamais égaux**, et par défaut ne
+s'intersectent pas non plus. Mais une liste qui porte un résumé du détail doit
+être invalidée par un changement sur le détail — et l'écriture peut venir du
+serveur, sans passer par un client qui aurait la liste dans ses contextes
+actifs. C'est le cas central de MQTTToolbox 2 : la liste des topics porte
+`lastMessageAt`, donc un message arrivant sur le topic 42 salit `topic{42}`
+**et** `topics`.
+
+```ts
+export type TopicsContext = BaseContext<"topics", undefined>;
+export type TopicContext  = BaseContext<"topic",  { topicId: TopicId }>;
+export type AppContexts = TopicsContext | TopicContext;
+
+export const APP_CONTEXT_ADAPTER = buildContextAdapter<AppContexts>({
+    // La liste porte lastMessageAt de chaque topic : tout ce qui arrive sur
+    // n'importe quel topic la périme, y compris depuis un autre type de contexte
+    topics: alsoIntersectsOtherTypes(alwaysIntersects()),
+    // Deux historiques ne se recouvrent que s'il s'agit du même topic
+    topic: intersectsOnEqualOptions(),
+});
+```
+
+`alsoIntersectsOtherTypes(règle, prédicat?)` enveloppe une règle existante et
+ajoute la relation vers les autres types — tous par défaut, ou ceux que le
+prédicat retient :
+
+```ts
+pictures: alsoIntersectsOtherTypes(intersectsOnEqualOptions(),
+    (own, other) => other.type === "project" && other.options.projectId === own.options.projectId),
+```
+
+Trois propriétés à connaître :
+
+- **Facultatif** : une application qui n'en a pas besoin n'écrit rien de plus,
+  et oublier une relation n'est jamais une erreur de compilation.
+- **Symétrique par construction** : `buildContextAdapter` interroge les *deux*
+  règles quand les types diffèrent et garde `true` si l'une des deux l'affirme.
+  Déclarer la relation d'un seul côté suffit, et `contextIntersects(a, b)` vaut
+  toujours `contextIntersects(b, a)`.
+- **À l'intérieur d'un même type**, la symétrie reste à la charge de
+  l'application : les quatre règles fournies sont symétriques, mais un prédicat
+  passé à `intersectsWhen()` peut ne pas l'être — c'est un bug, testez-le.
 
 ### 1.3 Permissions — **cible v2 (tranche 3, FEATURES §7.1)**
 

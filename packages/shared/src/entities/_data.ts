@@ -1,11 +1,21 @@
 import { EntitiesModel } from "./model";
 import { JSTypes } from "./tools/javascript.types";
 
-/** Custom type */
-export enum PublicationStatus {
-    DRAFT = 1,
-    PUBLISHED
-}
+/** Declarative enumeration stored as an integer */
+export const PUBLICATION_STATUS = EntitiesModel.enum({
+    DRAFT: { value: 1, label: "Draft" },
+    PUBLISHED: { value: 2, label: "Published" }
+});
+/** Type of the values of PUBLICATION_STATUS */
+export type PublicationStatus = typeof PUBLICATION_STATUS.type;
+
+/** Declarative enumeration stored as a string */
+export const POST_KIND = EntitiesModel.enum({
+    ARTICLE: { value: "article", label: "Article" },
+    NOTE: { value: "note", label: "Note" }
+});
+/** Type of the values of POST_KIND */
+export type PostKind = typeof POST_KIND.type;
 
 /** A test model with users and posts */
 export const TEST_MODEL = new EntitiesModel({
@@ -17,6 +27,9 @@ export const TEST_MODEL = new EntitiesModel({
     },
     "INTEGER": {
         rawType: JSTypes.number
+    },
+    "BOOLEAN": {
+        rawType: JSTypes.boolean
     },
     "TEXT": {
         rawType: JSTypes.string
@@ -30,9 +43,8 @@ export const TEST_MODEL = new EntitiesModel({
     "MARKDOWN": {
         rawType: JSTypes.string
     },
-    "PUBLICATION_STATUS": EntitiesModel.type<JSTypes.number, PublicationStatus>({
-        rawType: JSTypes.number
-    })
+    "PUBLICATION_STATUS": PUBLICATION_STATUS,
+    "POST_KIND": POST_KIND
 }, {
     "users": {
         id: {
@@ -73,6 +85,13 @@ export const TEST_MODEL = new EntitiesModel({
         },
         status: {
             type: "PUBLICATION_STATUS"
+        },
+        kind: {
+            type: "POST_KIND"
+        },
+        pinned: {
+            type: "BOOLEAN",
+            optional: true
         }
     }
 });
