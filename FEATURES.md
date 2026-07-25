@@ -54,8 +54,8 @@
 | Broadcast automatique du changement de contexte aux autres clients | ✅ | ✅ | |
 | Handler utilisable côté serveur (un handler par requête) | ✅ | ✅ | même API que côté client |
 | Adapter de test en mémoire | ✅ | ✅ | `test.adapters.ts` |
-| **NEW** — Résolution de conflits / stratégie en cas d'échec de submit | | | aujourd'hui : on invalide tout le cache |
-| **NEW** — Persistance du cache côté client (IndexedDB / offline) | | | |
+| **NEW** — ~~Résolution de conflits / stratégie en cas d'échec de submit~~ | | | aujourd'hui : on invalide tout le cache |
+| **NEW** — ~~Persistance du cache côté client (IndexedDB / offline)~~ => Ce n'est pas possible comme on va juste avoir une vue partielle du cache | | | |
 
 ## 4. Accès base de données (serveur)
 
@@ -63,10 +63,10 @@
 |---|:--:|:--:|---|
 | Abstraction `AbstractSQLRunner` (`run` / `get` / `all` / `insert`) | ✅ | ✅ | |
 | Implémentation PostgreSQL | ✅ | ✅ | pool + `withReservedConnection` |
-| Implémentation SQLite | ✅ | ❌ | **à réintroduire ?** utile pour les petits déploiements |
+| Implémentation SQLite | ✅ | ❌ | **à réintroduire ?** utile pour les petits déploiements => NON |
 | Transactions SQL réelles côté serveur | ✅ | ✅ | |
 | Statistiques de base au démarrage (taille des bases) | ❌ | ✅ | |
-| **NEW** — Support d'un backend non-SQL (fichier JSON) pour prototypage | | | |
+| **NEW** — Support d'un backend non-SQL (fichier JSON) pour prototypage => NON | | | |
 
 ## 5. API typée client ↔ serveur
 
@@ -106,6 +106,7 @@
 | **NEW** — Notion de propriétaire d'une entité + partage entre utilisateurs | | | besoin remonté par MQTTToolbox 2 (tableaux de bord) |
 | **NEW** — Filtrage des données par utilisateur au niveau du fetch | | | |
 | **NEW** — Identité de l'utilisateur courant accessible côté serveur dans les écritures | | | pour tracer l'auteur d'une modification |
+=> Ajouter une gestion locale des utilisateurs + la gestion de plusieurs stratégies dans la même application
 
 ## 8. Client / UI
 
