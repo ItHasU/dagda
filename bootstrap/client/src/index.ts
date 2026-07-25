@@ -4,23 +4,29 @@ import { APP_MODEL } from "@dagda-app/shared/src/entities/model";
 import { DagdaClient } from "@dagda/client/src/app";
 import { GoodbyePage } from "@dagda/client/src/app/goodbye/goodbye.page";
 import { HelloPage } from "@dagda/client/src/app/hello/hello.page";
-import { PageContainer } from "@dagda/client/src/components/container/container.component";
-import { LoginComponent } from "@dagda/client/src/components/login/login.component";
-import { Navbar } from "@dagda/client/src/components/navbar/navbar.component";
-import { EntitiesStatusComponent } from "@dagda/client/src/components/status/status.component";
 import { AppPages } from "./services";
 
-// Add all components here to make sure they are registered
-LoginComponent;
-Navbar;
-PageContainer;
-EntitiesStatusComponent;
+// No component imported for its side effect any more: the framework registers
+// its own custom elements, and `index.html` is down to `<dagda-app>`
+// (specs/navigation.md §6.1).
 
 DagdaClient.start<AppTypes, AppPages>({
     model: APP_MODEL,
     contextAdapter: APP_CONTEXT_ADAPTER,
+    title: "Dagda",
+    brand: {
+        label: "Dagda",
+        compact: "DG",
+        icon: "ph-wrench"
+    },
+    // Two pages under one section, so the boilerplate exercises the nesting
+    // and not only the flat case: a click on a collapsed section badge, which
+    // navigates to the first page, has nothing to act on otherwise.
+    sections: {
+        demo: { label: "Démonstration", icon: "ph-flask", order: 1 }
+    },
     pages: {
-        hello: { order: 1, title: "Hello", constructor: HelloPage },
-        goodbye: { order: 2, title: "Goodbye", constructor: GoodbyePage }
+        hello: { title: "Hello", constructor: HelloPage, icon: "ph-hand-waving", menu: { section: "demo", order: 1 } },
+        goodbye: { title: "Goodbye", constructor: GoodbyePage, icon: "ph-door-open", menu: { section: "demo", order: 2 } }
     }
 });

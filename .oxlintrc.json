@@ -29,24 +29,19 @@
   ],
   "overrides": [
     {
-      // Known debt, not a waiver: this component paints an avatar on a
-      // canvas with two hard-coded greys, so the avatar ignores the theme.
-      // It belongs to the component work happening in parallel and must be
-      // read from the tokens (`getComputedStyle`) when that lands.
-      "files": [
-        "packages/client/src/components/login/login.component.ts"
-      ],
-      "rules": {
-        "adherence/design-system": "off"
-      }
-    },
-    {
-      // Known debt, not a waiver: the login page carries its own styles
-      // because it is the one page served before anything else is reachable,
-      // and the framework stylesheet does not exist yet. Its colours are
-      // written as `var(--token, #fallback)` already, so when `dagda-ui.css`
-      // lands — and is served to anonymous visitors, a stylesheet being no
-      // secret — this becomes a link tag and the fallbacks go away.
+      // Known debt, not a waiver. The reason has changed now that the shell
+      // is built, so it is restated rather than left standing: the login page
+      // no longer waits for `dagda-ui.css` to exist — it exists. It waits for
+      // that stylesheet to be reachable by an anonymous visitor, and today it
+      // is not: `style-loader` injects the CSS from inside `main.js`, which
+      // sits behind the authentication gate. There is no file to link to.
+      //
+      // Getting rid of this means emitting the stylesheet as its own file,
+      // which means a build dependency (`mini-css-extract-plugin`) — and
+      // FEATURES §0 says a dependency is proposed and approved, never added
+      // along the way. So it stays, with its colours written as
+      // `var(--token, #fallback)`, ready to become a link tag the day that
+      // proposal is made.
       "files": [
         "packages/server/src/auth/login.page.ts"
       ],

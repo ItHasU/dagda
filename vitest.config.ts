@@ -54,6 +54,14 @@ export default defineConfig({
                     name: "client",
                     root: "./packages/client",
                     environment: "jsdom",
+                    // An origin, because `about:blank` is opaque and web
+                    // storage does not exist on an opaque origin.
+                    environmentOptions: {
+                        jsdom: { url: "http://localhost/" }
+                    },
+                    // And a storage on top of that, because an origin is not
+                    // enough under Node 24 — see the file for what shadows what.
+                    setupFiles: ["src/test/storage.setup.ts"],
                     include: ["src/**/*.spec.ts"]
                 }
             },

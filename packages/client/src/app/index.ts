@@ -8,14 +8,21 @@ import { NotificationService } from "@dagda/shared/src/notification/service";
 import { EntitiesModel } from "@dagda/shared/src/entities/model";
 import { ContextAdapter } from "@dagda/shared/src/entities/tools/adapters";
 import { buildBaseServices } from "@dagda/shared/src/services";
-import "bootstrap";
-import "bootstrap-icons/font/bootstrap-icons.css";
-import "bootstrap/dist/css/bootstrap.css";
 import Handlebars from "handlebars";
 import { apiCall } from "../api";
+// Defines `<dagda-app>` and, through it, every element of the shell. Importing
+// it here is what lets an application's `index.html` hold nothing but that one
+// tag (`specs/navigation.md` §6.1).
+import "../components/app/app.component";
+import { AbstractWebComponent } from "../components/abstract.webcomponent";
 import { ClientNotificationImpl } from "../notification/notification.impl";
 import { BasePageTypes, PageHandler, PageInfo } from "../pages/handler";
+import { SectionInfo } from "../pages/menu";
+import { BrandInfo } from "./brand";
 import headerTemplate from "./index.header.html";
+// The framework stylesheet, replacing Bootstrap: tokens, faces, vocabulary and
+// shell, in that order (FEATURES §8).
+import "../styles/index.css";
 
 export interface BaseClientAppTypes extends BaseAppTypes {
 }
@@ -28,6 +35,21 @@ export interface ClientStartParams<AppTypes extends BaseClientAppTypes, PageType
     contextAdapter: ContextAdapter<AppTypes["contexts"]>;
     /** The pages of the application, the only thing the framework cannot know */
     pages: { [Name in keyof PageTypes]: PageInfo<PageTypes[Name]> };
+    /**
+     * Menu sections the pages hang from, keyed by the name pages refer to.
+     *
+     * Optional: an application whose pages all stand on their own declares
+     * none, and each page becomes an entry of its own.
+     */
+    sections?: Record<string, SectionInfo>;
+    /**
+     * How the application names itself in the shell.
+     *
+     * Here rather than in `index.html` — the decision of
+     * `specs/navigation.md` §6.1. It keeps that file down to `<dagda-app>` and
+     * makes the brand typed like everything else the application declares.
+     */
+    brand?: BrandInfo;
     /** Title of the document */
     title?: string;
     /** Services of the application, registered next to the framework's */
@@ -75,6 +97,14 @@ export class DagdaClient {
         for (const [name, info] of Object.entries(params.pages)) {
             pageHandler.registerPage(name, info as PageInfo<any>);
         }
+        pageHandler.registerSections(params.sections ?? {});
+        // Until the role matrix of FEATURES §7.1 exists, the super-admin flag
+        // is the whole of it: the first account holds every permission, and a
+        // page that declares one is not offered to anybody else. Deliberately
+        // closed rather than open — a menu that offers what the server will
+        // refuse is worse than one entry short.
+        pageHandler.canAccess = (permission) =>
+            permission == null || (this.currentUser?.isSuperAdmin ?? false);
 
         Dagda.init({
             ...buildBaseServices<AppTypes["entities"], AppTypes["contexts"], AppTypes["events"]>({
@@ -87,6 +117,7 @@ export class DagdaClient {
                 notification: new ClientNotificationImpl<AppTypes["events"]>()
             }),
             pages: pageHandler,
+            brand: params.brand ?? { label: params.title ?? "Dagda" },
             ...(params.services ?? {})
         });
 
@@ -94,18 +125,30 @@ export class DagdaClient {
         this._injectHeaders(params.title);
 
         // -- Read the system information (including the current user) --
+        // Before the shell draws: the menu is filtered by permission, and the
+        // permissions are in that answer. Drawing first would flash entries
+        // that then disappear.
         await this.refreshSystemInfo();
+
+        // -- Draw the shell --
+        // The element is in the page from the start, so it may already have
+        // rendered against an empty registry; this second pass is the one that
+        // has services and an account to work with.
+        await document.querySelector<AbstractWebComponent>("dagda-app")?.refresh();
     }
 
     /** Read the system information from the server and cache it */
     public static async refreshSystemInfo(): Promise<SystemInfo | null> {
         try {
             this._systemInfo = await apiCall<SystemAPI, "getSystemInfo">("getSystemInfo", {});
-            // Announced rather than left to be polled: a component built before
-            // this answered would otherwise keep whatever it had at startup —
-            // which is how the avatar spent its life displaying "Unknown".
-            Dagda.get<NotificationService<AuthEvents>>("notification")
-                ?.broadcast("userInfoChanged", this._systemInfo.user);
+            // No broadcast here, deliberately. On the client `broadcast()` does
+            // not notify anything locally: it writes to the websocket, and the
+            // server relays whatever arrives to every other browser. Announcing
+            // the current account that way told nobody in this page and told
+            // everybody in the others who is signed in here.
+            //
+            // The account is read from `currentUser` by whoever displays it,
+            // and the shell refreshes once this call has answered.
         } catch (err) {
             console.error("Error while reading system information", err);
             this._systemInfo = null;

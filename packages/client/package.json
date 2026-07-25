@@ -10,12 +10,9 @@
   },
   "devDependencies": {
     "@dagda/build": "*",
-    "@dagda/shared": "*",
-    "@types/bootstrap": "=5.2.10"
+    "@dagda/shared": "*"
   },
   "dependencies": {
-    "bootstrap": "=5.3.5",
-    "bootstrap-icons": "=1.11.3",
     "handlebars": "^4.7.8"
   }
 }

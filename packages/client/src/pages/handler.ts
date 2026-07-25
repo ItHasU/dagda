@@ -1,8 +1,6 @@
 import { EventHandlerData, EventHandlerImpl, EventListener } from "@dagda/shared/src/tools/events";
-import "bootstrap";
-import "bootstrap-icons/font/bootstrap-icons.css";
-import "bootstrap/dist/css/bootstrap.css";
 import { AbstractPageElement } from "./abstract.page.element";
+import { ALLOW_ALL, buildMenu, MenuGroup, MenuNode, MenuPlacement, PermissionPredicate, SectionInfo } from "./menu";
 
 export type BasePageTypes = {
     [pageName: string]: AbstractPageElement;
@@ -19,14 +17,27 @@ export type PageEvents = {
 
 /** Page information mostly for the menu plus the constructor */
 export interface PageInfo<Page extends AbstractPageElement> {
-    /** Option icon for the page. Space between icon and title will be automatically helped */
-    iconHTML?: string;
-    /** Page order in the menu */
-    order?: number;
     /** Display name of the page, mostly used by the menu */
     title: string;
     /** Page constructor */
     constructor: { new(): Page };
+    /**
+     * Phosphor class of the page icon, e.g. `"ph-house"`.
+     *
+     * A class name, not markup: FEATURES §8 settled on writing `<i class="ph
+     * ph-…">` directly, and a name cannot smuggle markup into the menu.
+     */
+    icon?: string;
+    /**
+     * Where the page sits in the menu.
+     *
+     * Absent means the page is reachable through the navigation service but
+     * never listed — menu registration is optional (FEATURES §8), and a page
+     * opened from a link or from another page has no reason to appear.
+     */
+    menu?: MenuPlacement;
+    /** Permission required to see and open the page (FEATURES §7.1) */
+    permission?: string;
 }
 
 /**
@@ -40,9 +51,22 @@ export class PageHandler<PageTypes extends BasePageTypes> {
     // Storage for registered pages
     private readonly _registeredPages: { [PageName in keyof PageTypes]?: PageInfo<PageTypes[PageName]> } = {};
 
+    // Menu sections the pages hang from
+    private readonly _sections: Record<string, SectionInfo> = {};
+
     // Current active page
     private _currentPage: AbstractPageElement | null = null;
     private _currentPageUID: keyof PageTypes | null = null;
+
+    /**
+     * Whether the current account may see something.
+     *
+     * A hook rather than a lookup: the role matrix of FEATURES §7.1 is not
+     * built yet, and the menu must not be rewritten when it is. Until then the
+     * application supplies the answer — `DagdaClient` wires it to the
+     * super-admin flag.
+     */
+    public canAccess: PermissionPredicate = ALLOW_ALL;
 
     //#region Events
 
@@ -66,34 +90,32 @@ export class PageHandler<PageTypes extends BasePageTypes> {
         this._registeredPages[name] = page;
     }
 
-    /** Get the list of pages, sorted */
-    public getPageInfos(): ({ uid: string } & Omit<PageInfo<any>, "constructor">)[] {
-        const result: ({ uid: string } & Omit<PageInfo<any>, "constructor">)[] = [];
-        for (const [uid, info] of Object.entries(this._registeredPages)) {
-            result.push({
-                uid,
-                iconHTML: info.iconHTML,
-                order: info.order,
-                title: info.title
-            });
-        }
-        result.sort((a, b) => {
-            let res = 0;
-            if (res === 0) {
-                // Sort by order
-                res = (a.order ?? 0) - (b.order ?? 0);
-            }
-            if (res === 0) {
-                // Sort by title
-                res = a.title.localeCompare(b.title);
-            }
-            if (res === 0) {
-                // Sort by uid
-                res = a.uid.localeCompare(b.uid);
-            }
-            return res;
-        });
-        return result;
+    /** Declare the sections pages hang from */
+    public registerSections(sections: Record<string, SectionInfo>): void {
+        Object.assign(this._sections, sections);
+    }
+
+    /**
+     * The menu, filtered and sorted, as the four renderings consume it.
+     *
+     * Rebuilt on each call rather than cached: it depends on the permissions of
+     * the account, which are known only after the session answers, and a stale
+     * menu is a menu that shows what the account may not open.
+     */
+    public getMenu(group: MenuGroup = "primary"): MenuNode[] {
+        const pages = Object.entries(this._registeredPages).map(([uid, info]) => ({
+            uid,
+            title: info!.title,
+            icon: info!.icon,
+            menu: info!.menu,
+            permission: info!.permission
+        }));
+        return buildMenu(pages, this._sections, this.canAccess, group);
+    }
+
+    /** @returns the page to open on startup: the first one the menu offers */
+    public getDefaultPageUID(): string | null {
+        return this.getMenu()[0]?.target ?? null;
     }
 
     //#endregion
@@ -125,6 +147,14 @@ export class PageHandler<PageTypes extends BasePageTypes> {
         if (!pageInfo) {
             console.error(`Page ${String(name)} not found`);
             throw new Error(`Page ${String(name)} not found`);
+        }
+
+        // Hiding a page from the menu is not access control: the navigation
+        // service is reachable from the console (FEATURES §11.2). This refuses
+        // the same thing the menu declines to offer. The gate that matters is
+        // still the server's, on the data the page would ask for.
+        if (!this.canAccess(pageInfo.permission)) {
+            throw new Error(`Page ${String(name)} is not accessible with the current permissions`);
         }
 
         // Create and initialize the new page

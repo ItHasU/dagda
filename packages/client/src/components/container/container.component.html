@@ -1,11 +1,6 @@
-<div class="d-flex flex-column w-100 h-100">
-    <slot name="header">
-        <!-- Navbar -->
-    </slot>
-    <div ref="page-container" class="d-flex-grow-1">
-        <!-- Not a slot, only used by the component itself to display the page -->
-    </div>
-    <slot name="footer">
-        <!-- Footer -->
-    </slot>
+<div ref="shell" class="shell">
+    <dagda-navbar ref="nav" class="shell-nav" role="navigation" aria-label="Navigation principale"></dagda-navbar>
+    <main ref="page" class="shell-content">
+        <!-- The current page, replaced on every navigation -->
+    </main>
 </div>

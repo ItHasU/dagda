@@ -150,22 +150,17 @@ Le squelette complet de l'application, avec le minimum de fonctionnalités.
 - Notifications WebSocket serveur → clients, reconnexion.
 - Composants et pages, composant de statut.
 - **Coquille SPA — disposition paysage** (FEATURES §8, spec détaillée dans
-  [`specs/navigation.md`](specs/navigation.md)) : composants `PageContainer` et
+  [`specs/navigation.md`](specs/navigation.md)) — **faite**. `PageContainer` et
   `Navbar`, menu piloté par la seule liste des pages enregistrées, page
-  courante marquée. **L'application n'écrit qu'un `<dagda-app>` dans son
-  `index.html`** (`specs/navigation.md` §6.1) : la coquille entière est montée
-  par le framework, qui enregistre aussi ses propres éléments personnalisés —
-  les imports « pour effet de bord » de `Navbar`, `PageContainer` et
-  `EntitiesStatusComponent` disparaissent des applications. Une question reste
-  à trancher avant d'écrire le composant : par quoi une application
-  personnalise sa marque et son groupe secondaire. **Seule la disposition paysage** (déployée et rétractée)
-  est construite ici ; la disposition portrait (barre + tiroir) attend la
-  tranche 4, avec le reste du mobile. Trois questions de la spec sont à
-  trancher avant d'écrire `Navbar`, pas en cours de route : le déclencheur du
-  rétracté (bascule manuelle, seuil de largeur automatique, ou les deux), le
-  comportement d'un clic sur une section repliée qui a des pages enfants, et
-  si les sections s'auto-développent sur la page active ou fonctionnent en
-  accordéon.
+  courante marquée. L'application n'écrit qu'un `<dagda-app>` dans son
+  `index.html` (`specs/navigation.md` §6.1) : la coquille entière est montée
+  par le framework, qui enregistre ses propres éléments personnalisés — les
+  imports « pour effet de bord » ont disparu des deux applications. Les quatre
+  questions ouvertes sont tranchées et consignées dans la spec : bascule
+  manuelle mémorisée, sections toujours développées, clic sur un badge rétracté
+  = navigation vers la première page, et la marque en paramètre de
+  `DagdaClient.start()`. Seule la disposition paysage est construite ; le
+  portrait (barre + tiroir) attend la tranche 4, avec le reste du mobile.
 - Variables d'environnement pour l'amorçage seul (port, URL de base, connexion PG).
 - **Mécanisme de paramètres système** (FEATURES §11.5) : déclaration typée,
   stockage côté framework, notification de changement. Nécessaire dès cette

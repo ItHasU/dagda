@@ -1,0 +1,249 @@
+/* ==========================================================================
+   shell.css — the SPA shell: navigation column and content area.
+
+   Separate from `dagda-ui.css` on purpose. That file is the Claude Design
+   vocabulary, taken as delivered, and adding rules of our own to it would make
+   the next bundle impossible to diff. The shell is ours: it is specified by
+   `specs/navigation.md`, not by the bundle.
+
+   Same hard constraint as `dagda-ui.css` though: NOT ONE literal value. Every
+   size, colour and duration is a `var()` from `themes.css`. Structural values
+   (0, 100%, `none`) are not design decisions and stay literal.
+
+   Landscape only for now — deployed column and collapsed rail. The portrait
+   family (top bar + drawer) lands with the rest of mobile, in slice 4.
+   ========================================================================== */
+
+/* — the frame —
+   The shell owns the viewport: the column scrolls on its own and the page
+   area scrolls on its own, so a long page never pushes the menu off-screen. */
+.shell {
+    display: flex;
+    height: 100vh;
+    width: 100%;
+    overflow: hidden;
+    /* The frame carries the column's ground, so the content area can be the
+       one thing painted differently. Without this the inset margin below opens
+       gutters the same colour as the page and the sheet does not read as one
+       (`specs/navigation.md` §3.1). */
+    background: var(--color-surface);
+}
+
+/* — navigation column —
+   One element for both states. Collapsing is a width change plus the labels
+   going away, not a second component: `specs/navigation.md` §3.2 asks for one
+   tree rendered four ways, and two elements would drift apart. */
+.shell-nav {
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 auto;
+    width: var(--nav-width);
+    padding: var(--space-3);
+    gap: var(--space-3);
+    background: var(--color-surface);
+    overflow-x: hidden;
+    overflow-y: auto;
+    transition: width var(--dur-md) var(--ease-out);
+}
+
+.shell[data-nav="collapsed"] .shell-nav {
+    width: var(--nav-width-collapsed);
+    /* The rail is exactly as wide as its badges: centre them rather than
+       leaving the deployed left padding, which would push them off-centre. */
+    align-items: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .shell-nav {
+        transition: none;
+    }
+}
+
+/* — brand —
+   Two renderings, not one truncated. A sigil is legible at rail width; the
+   first letters of a name clipped mid-word are not (`specs/navigation.md` §3.2). */
+.shell-brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2);
+    font-family: var(--font-heading);
+    font-size: var(--font-size-nav-brand);
+    font-weight: var(--font-heading-weight);
+    letter-spacing: var(--tracking-heading);
+    color: var(--color-text);
+    white-space: nowrap;
+}
+
+.shell-brand-icon {
+    color: var(--color-accent);
+    font-size: var(--font-size-h4);
+    line-height: 1;
+}
+
+.shell-brand-compact {
+    display: none;
+}
+
+.shell[data-nav="collapsed"] .shell-brand-full {
+    display: none;
+}
+
+.shell[data-nav="collapsed"] .shell-brand-compact {
+    display: block;
+    font-size: var(--font-size-label);
+    letter-spacing: var(--tracking-caps);
+    text-transform: uppercase;
+    text-align: center;
+}
+
+/* — groups —
+   The flexible gap lives between them, which is what anchors the secondary
+   group to the bottom whatever the length of the primary one (§3.1). */
+.shell-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.shell-group-primary {
+    flex: 1 1 auto;
+}
+
+.shell-group-secondary {
+    flex: 0 0 auto;
+    padding-top: var(--space-3);
+    border-top: var(--hairline) solid var(--color-divider);
+}
+
+/* — entries —
+   Section rows and page rows share a base so the two never drift apart in
+   height, and so the rail is a single column of identical badges. */
+.shell-entry {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2);
+    border: 0;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--color-text);
+    font-family: var(--font-body);
+    font-size: var(--font-size-control);
+    text-align: left;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+    width: 100%;
+}
+
+.shell-entry:hover {
+    background: var(--btn-ghost-bg-hover);
+}
+
+/* The active convention is one and the same in all four renderings (§5), so
+   it is written once, here, and never per layout. */
+.shell-entry[aria-current="page"] {
+    font-weight: var(--font-weight-strong);
+    text-decoration: underline;
+    text-underline-offset: var(--link-underline-offset);
+    color: var(--color-accent);
+}
+
+/* — badges —
+   Round, fixed size: they are what the rail is made of, so their width sets
+   the collapsed width and must not depend on the label beside them. */
+.shell-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: var(--nav-badge-size);
+    height: var(--nav-badge-size);
+    border-radius: var(--radius-round);
+    background: var(--color-neutral-800);
+    color: var(--color-text);
+    font-size: var(--font-size-h5);
+    line-height: 1;
+}
+
+.shell-entry[aria-current="page"] .shell-badge {
+    background: var(--color-accent-800);
+    color: var(--color-accent-200);
+}
+
+/* Something is wrong or unsaved. In the rail the badge is the whole message,
+   so this state has to be visible without its label. */
+.shell-badge[data-state="alert"] {
+    background: var(--color-danger-tint);
+    color: var(--color-danger);
+}
+
+/* Initials stand in for the avatar: local accounts have no photograph, so
+   there is nothing to load and nothing to request from a third party. */
+.shell-initials {
+    font-size: var(--font-size-label);
+    font-weight: var(--font-weight-strong);
+    letter-spacing: var(--tracking-caps);
+}
+
+/* The status and account rows are components, and a custom element is inline
+   by default — which would collapse them next to each other. */
+dagda-status,
+dagda-login {
+    display: block;
+}
+
+/* — pages under a section —
+   Indented while deployed, gone entirely while collapsed, labels included
+   (§3.2): the rail shows badges and nothing else. */
+.shell-pages {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    list-style: none;
+    margin: 0;
+    padding: 0 0 0 calc(var(--nav-badge-size) + var(--space-2));
+}
+
+.shell-pages .shell-entry {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+}
+
+.shell-pages .shell-entry[aria-current="page"] {
+    color: var(--color-accent);
+}
+
+.shell[data-nav="collapsed"] .shell-pages,
+.shell[data-nav="collapsed"] .shell-label {
+    display: none;
+}
+
+/* — content area —
+   Rounded and inset, so the page reads as a sheet laid on the shell rather
+   than as the rest of the same surface (§3.1). */
+.shell-content {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: var(--space-3);
+    margin-left: 0;
+    padding: var(--space-4);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg);
+    overflow: auto;
+}
+
+/* — the toggle —
+   Manual and remembered, VS Code style: no width threshold in landscape
+   (`specs/navigation.md`, decisions). */
+.shell-toggle {
+    align-self: flex-end;
+}
+
+.shell[data-nav="collapsed"] .shell-toggle {
+    align-self: center;
+}

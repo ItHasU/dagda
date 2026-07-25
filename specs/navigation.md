@@ -139,11 +139,30 @@ Conséquences à traiter en même temps :
 - **La composition de la coquille appartient au framework.** Une application ne
   choisit pas où va la barre ni où va l'indicateur d'état ; elle déclare ses
   pages (`DagdaClient.start`), le reste en découle.
-- **Ce qu'il reste à trancher** : par quoi une application personnalise la
-  marque et le groupe secondaire. Un attribut sur `<dagda-app>`, un paramètre de
-  `DagdaClient.start()`, ou des `slot` nommés — les trois sont tenables, aucun
-  n'est décidé. À régler avant d'écrire le composant, comme les trois questions
-  ci-dessous l'ont été.
+- **La marque est un paramètre de `DagdaClient.start()`** — tranché. Les deux
+  autres candidats (attributs sur `<dagda-app>`, `slot` nommés) remettaient tous
+  deux du contenu dans l'`index.html` que cette section existe précisément pour
+  vider, et un attribut ne peut porter ni icône ni vérification de type. La
+  marque rejoint donc `title`, `pages` et `services`, ce qui la range du même
+  côté que le reste de la déclaration client (FEATURES §12) :
+
+  ```ts
+  DagdaClient.start({
+      brand: { label: "MQTT Toolbox", compact: "MQTT", icon: "ph-broadcast" },
+      sections: { supervision: { label: "Supervision", icon: "ph-gauge" } },
+      pages: { status: { title: "Statut", constructor: StatusPage, menu: { section: "supervision" } } }
+  });
+  ```
+
+  `compact` est bien **un second rendu** et non une troncature ; il vaut à
+  défaut les deux premières lettres du libellé — correct pour « Dagda », mauvais
+  pour « MQTT Toolbox », d'où le champ.
+- **Le groupe secondaire n'a rien à personnaliser** : il ne contient que des
+  éléments du framework (Paramètres, Utilisateur). Une application y place une
+  page en la déclarant `menu: { group: "secondary" }` — même arbre, même
+  filtrage, même rendu. En tranche 1 il est vide : Configuration et Préférences
+  arrivent avec les rôles (tranche 3), et afficher des entrées mortes en
+  attendant aurait été pire que de n'en afficher aucune.
 
 ## 7. Hors de cette spec
 
