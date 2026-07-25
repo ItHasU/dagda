@@ -123,24 +123,40 @@ distinctes quelle que soit la disposition, pas un sous-menu commun.
 - Les valeurs visuelles (couleurs, espacements, rayons) — held par les
   jetons de thème (FEATURES §8, `dagda-ui.css`), pas par cette spec.
 
+## Décisions prises (tranche 1)
+
+Les trois questions qui bloquaient l'écriture de `Navbar` sont tranchées. Le
+point commun des trois réponses : **aucun état de menu à conserver**. Le seul
+état du composant est déployé/rétracté, et la seule chose à calculer au rendu
+est la page active.
+
+- **Déclencheur du rétracté en paysage** : **bascule manuelle mémorisée**,
+  façon VS Code. Pas de seuil de largeur en paysage — le seuil ne sert qu'à
+  choisir entre paysage et portrait. Le choix est rangé dans les préférences
+  utilisateur (FEATURES §11.6, tranche 3) ; en attendant, miroir local, pour
+  que l'état soit appliqué avant le premier rendu et n'affiche pas la colonne
+  déployée le temps d'un aller-retour serveur.
+- **Sections en colonne déployée** : **toujours toutes développées**. Pas de
+  pliage, pas d'accordéon, pas d'auto-développement sur la page active — donc
+  rien à mémoriser et rien à recalculer quand la page change. La maquette
+  montrait la Section 1 sans ses pages ; on lit ça comme une section sans
+  enfants, pas comme une section repliée.
+- **Clic sur une icône de section en rail rétracté** : **navigation directe
+  vers la première page** de la section. Aucun nouveau composant (ni flyout,
+  ni redéploiement temporaire), et le contenu n'est jamais poussé puis remis
+  en place.
+
+  Limite assumée : les autres pages d'une section sont inatteignables tant que
+  le rail est rétracté. C'est acceptable parce que le rétracté est désormais
+  un choix explicite de l'utilisateur — il redéploie s'il a besoin de
+  naviguer. À revoir si une application se retrouve avec beaucoup de sections
+  à plusieurs pages.
+
 ## Questions ouvertes
 
-- **Déclencheur du rétracté en paysage** : la maquette ne montre aucun bouton
-  de bascule sur les slides 1 et 2. Trois options possibles, à trancher avant
-  l'implémentation en tranche 1 : bascule manuelle persistante (façon VS
-  Code), bascule automatique sous un seuil de largeur, ou les deux (auto par
-  défaut, override manuel mémorisé en préférence utilisateur — FEATURES
-  §11.6).
-- **Clic sur une icône de section en rail rétracté** (paysage) quand cette
-  section a des pages enfants : navigation directe vers un enfant par défaut,
-  redéploiement temporaire de la colonne, ou flyout au survol ? Non représenté.
 - **Fermeture du panneau en portrait** : tap en dehors, deuxième tap sur ☰,
-  sélection d'une page — probablement les trois, à confirmer.
-- **Sections toujours développées ou accordéon** : sur la maquette (état
-  déployé paysage), la Section 2 montre ses pages alors que la Section 1 n'en
-  montre pas — ambigu entre « toutes les sections avec une page active
-  s'auto-développent » et « une seule section développée à la fois »
-  (accordéon). À trancher en tranche 1, avant d'écrire `Navbar`.
+  sélection d'une page — probablement les trois, à confirmer. *Tranche 4.*
 - **Seuil paysage / portrait** : largeur de bascule non fournie par la
   maquette (probablement dérivé des breakpoints déjà en usage côté design
   system plutôt qu'une valeur ad hoc — à vérifier au moment de l'implémenter).
+  *Tranche 4.*
