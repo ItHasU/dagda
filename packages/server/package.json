@@ -1,31 +1,31 @@
 {
-  "name": "@dagda/server",
-  "version": "1.0.0",
-  "description": "Server part of the tools",
-  "author": "Matthieu Aubry",
-  "license": "ISC",
-  "scripts": {
-    "build": "tsc",
-    "watch": "tsc -w"
-  },
-  "dependencies": {
-    "express": "=5.1.0",
-    "express-session": "=1.18.1",
-    "passport": "=0.7.0",
-    "passport-google-oauth20": "=2.0.0",
-    "pg": "=8.14.1",
-    "pg-format": "=1.0.4",
-    "ws": "=8.18.1"
-  },
-  "devDependencies": {
-    "@dagda/build": "*",
-    "@dagda/shared": "*",
-    "@types/express": "=5.0.1",
-    "@types/express-session": "=1.18.1",
-    "@types/passport": "=1.0.17",
-    "@types/passport-google-oauth20": "=2.0.16",
-    "@types/pg": "=8.11.13",
-    "@types/pg-format": "=1.0.5",
-    "@types/ws": "=8.18.1"
-  }
+    "name": "@dagda/server",
+    "version": "1.0.0",
+    "description": "Server part of the tools",
+    "author": "Matthieu Aubry",
+    "license": "ISC",
+    "scripts": {
+        "build": "tsc",
+        "watch": "tsc -w"
+    },
+    "dependencies": {
+        "express": "=5.1.0",
+        "express-session": "=1.18.1",
+        "passport": "=0.7.0",
+        "passport-google-oauth20": "=2.0.0",
+        "pg": "=8.14.1",
+        "pg-format": "=1.0.4",
+        "ws": "=8.18.1"
+    },
+    "devDependencies": {
+        "@dagda/build": "*",
+        "@dagda/shared": "*",
+        "@types/express": "=5.0.1",
+        "@types/express-session": "=1.18.1",
+        "@types/passport": "=1.0.17",
+        "@types/passport-google-oauth20": "=2.0.16",
+        "@types/pg": "=8.11.13",
+        "@types/pg-format": "=1.0.5",
+        "@types/ws": "=8.18.1"
+    }
 }

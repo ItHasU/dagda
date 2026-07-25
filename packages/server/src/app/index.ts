@@ -16,6 +16,9 @@ import { getSystemInfo, triggerError } from "../api/impl/system.api";
 import { AuthHandler, AuthStrategy } from "../auth";
 import { ServerNotificationImpl } from "../notification/notification.impl";
 import { PGRunner } from "../sql/impl/pg.runner";
+import { checkSchemaCoherence } from "../sql/coherence";
+import { FRAMEWORK_MIGRATIONS } from "../sql/framework.migrations";
+import { applyMigrations, Migration } from "../sql/migrations";
 import { getEnvNumber, getEnvString, getEnvStringOptional } from "../tools/config";
 
 /** Parameters */
@@ -168,8 +171,37 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes> {
 
     //#region HTTP Server -----------------------------------------------------
 
+    /**
+     * Migrations of the application, applied at startup after the framework's.
+     * Override to declare yours; the ids are recorded once applied and must
+     * never be renamed.
+     */
+    protected _migrations(): Migration[] {
+        return [];
+    }
+
+    /**
+     * Bring the database up to date, then verify it matches the model.
+     *
+     * Called by listen() before the first request is accepted: a server that
+     * answers on a stale schema fails later, on a random screen, far from the
+     * cause. The coherence check is what makes a forgotten migration visible at
+     * startup instead (FEATURES §2).
+     */
+    public async migrate(): Promise<void> {
+        console.log("Applying migrations...");
+        const framework = await applyMigrations(this._db, this._model, FRAMEWORK_MIGRATIONS, "framework");
+        const app = await applyMigrations(this._db, this._model, this._migrations(), "app");
+        const total = framework.length + app.length;
+        console.log(total === 0 ? "Database already up to date." : `${total} migration(s) applied.`);
+
+        console.log("Checking the schema against the model...");
+        await checkSchemaCoherence(this._db, this._model);
+    }
+
     /** Listen */
-    public listen(): Promise<void> {
+    public async listen(): Promise<void> {
+        await this.migrate();
         return new Promise<void>((resolve) => {
             const server = this._app.listen(this._config.port, () => resolve());
             // The notification service already exists and is registered; it only

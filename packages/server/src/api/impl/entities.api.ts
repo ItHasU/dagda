@@ -31,7 +31,7 @@ export function submit<Contexts, Tables extends EntitiesTypes>(
                         values.push(sqlValue(operation.options.item[key]));
                     }
                     let paramIndex = 1;
-                    const query = format.default(`INSERT INTO %I (%I) VALUES (%L)`, operation.options.table as string, columnNames, values);
+                    const query = format.default(`INSERT INTO %I (%I) VALUES (%L)`, model.getTableSqlName(operation.options.table as string), columnNames, values);
                     const newId = await connection.insert(query);
                     if (newId != null) {
                         result.updatedIds[operation.options.item.id] = newId;
@@ -52,12 +52,12 @@ export function submit<Contexts, Tables extends EntitiesTypes>(
                         params.push(sqlValue(operation.options.values[key]));
                     }
                     params.push(_getUpdatedId(result, operation.options.id));
-                    const query = format.default(`UPDATE %I SET ${columnNameEqualValues.join(",")} WHERE "id"=%L`, operation.options.table as string, ...params);
+                    const query = format.default(`UPDATE %I SET ${columnNameEqualValues.join(",")} WHERE "id"=%L`, model.getTableSqlName(operation.options.table as string), ...params);
                     await connection.run(query);
                     break;
                 }
                 case OperationType.DELETE: {
-                    const query = format.default(`DELETE FROM %I WHERE "id"=%L`, operation.options.table as string, _getUpdatedId(result, operation.options.id));
+                    const query = format.default(`DELETE FROM %I WHERE "id"=%L`, model.getTableSqlName(operation.options.table as string), _getUpdatedId(result, operation.options.id));
                     await connection.run(query);
                     break;
                 }

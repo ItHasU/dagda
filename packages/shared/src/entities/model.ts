@@ -4,6 +4,18 @@ import { Named } from "./tools/named";
 import { EntityValidationError, EntityValidationOptions, getEntityErrors, validateEntity } from "./tools/validation";
 
 /**
+ * Prefix of the tables holding business data, declared by an EntitiesModel.
+ * FEATURES §2: the split is visible down to the schema.
+ */
+export const DATA_TABLE_PREFIX = "data_";
+
+/**
+ * Prefix of the tables owned by the framework: migrations, accounts, roles,
+ * settings, preferences. They are never part of an EntitiesModel (§11.4).
+ */
+export const SYSTEM_TABLE_PREFIX = "system_";
+
+/**
  * Utility type to constrain the value of a field.
  * An enumeration is resolved to the union of its values, any other type to its JS type.
  */
@@ -20,6 +32,13 @@ export type NamedType<Name, T> =
 export type FieldTypeDefinition<RawType extends JSTypes, Custom> = {
     /** The type of the value when stored in JS */
     rawType: RawType;
+    /**
+     * Overrides the PostgreSQL type derived from rawType.
+     * Needed for JSTypes.custom, which says nothing about storage, and useful
+     * when the default is correct but wasteful — a millisecond timestamp is a
+     * number, so it defaults to DOUBLE PRECISION, while BIGINT says more.
+     */
+    sqlType?: string;
 }
 
 /**
@@ -160,6 +179,20 @@ export class EntitiesModel<
     /** Get the list of tables */
     public getTableNames(): (keyof TablesFields)[] {
         return Object.keys(this._tables) as (keyof TablesFields)[];
+    }
+
+    /**
+     * @returns the name of the table in the database.
+     *
+     * Business tables are prefixed, so the boundary of §11.4 — what belongs to
+     * the application versus what belongs to the framework — is visible in the
+     * schema itself, and a business table can never collide with a framework one.
+     * Everything an EntitiesModel declares is business data by definition: the
+     * framework keeps its own tables (accounts, settings, migrations) out of the
+     * model on purpose.
+     */
+    public getTableSqlName<T extends keyof TablesFields>(tableName: T): string {
+        return `${DATA_TABLE_PREFIX}${String(tableName)}`;
     }
 
     /** Get the list of fields for a table */

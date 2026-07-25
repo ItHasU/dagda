@@ -3,17 +3,27 @@ import { JSTypes } from "@dagda/shared/src/entities/tools/javascript.types";
 
 //#region Custom field types --------------------------------------------------
 
-/** State of computation of images */
-export const enum ProjectStatus {
+/**
+ * State of a project.
+ *
+ * A declarative enumeration rather than a TypeScript enum (FEATURES §2): the
+ * labels travel with the declaration, the values are chosen explicitly, and the
+ * field really gets typed — `EntitiesModel.type<JSTypes.custom, X>` did not,
+ * its custom parameter is never used and the field fell back to the raw type.
+ */
+export const PROJECT_STATUS = EntitiesModel.enum({
     /** Project is not active */
-    INACTIVE = 0,
+    INACTIVE: { value: 0, label: "Inactif" },
     /** Project is active */
-    ACTIVE = 1,
+    ACTIVE: { value: 1, label: "Actif" },
     /** Project is active and starred */
-    STARRED = 2,
+    STARRED: { value: 2, label: "Favori" },
     /** Project is active but finished */
-    FINISHED = 3,
-}
+    FINISHED: { value: 3, label: "Terminé" },
+});
+
+/** Union of the values a project status can take */
+export type ProjectStatus = typeof PROJECT_STATUS.type;
 
 //#endregion
 
@@ -34,9 +44,7 @@ export const APP_MODEL = new EntitiesModel({
     TEXT: {
         rawType: JSTypes.string
     },
-    PROJECT_STATUS: EntitiesModel.type<JSTypes.custom, ProjectStatus>({
-        rawType: JSTypes.custom,
-    }),
+    PROJECT_STATUS,
     // -- Custom types --------------------------------------------------------
     USER_UID: {
         rawType: JSTypes.string

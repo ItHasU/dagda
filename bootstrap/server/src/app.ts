@@ -3,10 +3,23 @@ import { AppContexts } from "@dagda-app/shared/src/entities/contexts";
 import { AppEntityTypes, UserEntity, UserId } from "@dagda-app/shared/src/entities/types";
 import { RequestOptions } from "@dagda/server/src/api";
 import { AbstractServerApp, PassportProfile } from "@dagda/server/src/app";
+import { Migration } from "@dagda/server/src/sql/migrations";
 import { Data } from "@dagda/shared/src/entities/tools/adapters";
 import { asNamed } from "@dagda/shared/src/entities/tools/named";
+import { APP_MODEL } from "@dagda-app/shared/src/entities/model";
+import { APP_MIGRATIONS } from "./migrations";
+
+// Physical names, prefixed by the framework (FEATURES §2). Read from the
+// model rather than written by hand, so a rename is caught by the compiler.
+const USERS = APP_MODEL.getTableSqlName("users");
+const PROJECTS = APP_MODEL.getTableSqlName("projects");
 
 export class ServerApp extends AbstractServerApp<AppTypes> {
+
+    /** @inheritdoc */
+    protected override _migrations(): Migration[] {
+        return APP_MIGRATIONS;
+    }
 
     /** @inheritdoc */
     protected override async _isUserValid(profile: PassportProfile): Promise<boolean> {
@@ -42,12 +55,12 @@ export class ServerApp extends AbstractServerApp<AppTypes> {
                 if (request.type !== "server") {
                     throw new Error("Request can only be made from the server");
                 }
-                result.users = await this._db.all(`SELECT * FROM users`);
+                result.users = await this._db.all(`SELECT * FROM ${USERS}`);
                 break;
             }
             case "projects": {
                 const userId = await this._getUserId(request);
-                result.projects = await this._db.all(`SELECT * FROM projects WHERE userId = $1`, userId);
+                result.projects = await this._db.all(`SELECT * FROM ${PROJECTS} WHERE "userId" = $1`, userId);
                 break;
             }
             case "project": {
@@ -56,7 +69,7 @@ export class ServerApp extends AbstractServerApp<AppTypes> {
                 if (projectId == null) {
                     throw new Error("Missing projectId in context");
                 }
-                result.projects = await this._db.all(`SELECT * FROM projects WHERE id = $1 AND userId = $2`, projectId, userId);
+                result.projects = await this._db.all(`SELECT * FROM ${PROJECTS} WHERE "id" = $1 AND "userId" = $2`, projectId, userId);
             }
         }
         return result;
@@ -72,7 +85,7 @@ export class ServerApp extends AbstractServerApp<AppTypes> {
         if (userUID == null) {
             throw new Error("Missing userUID in request");
         }
-        const user = await this._db.get<UserEntity>(`SELECT * FROM users WHERE uid = $1`, userUID);
+        const user = await this._db.get<UserEntity>(`SELECT * FROM ${USERS} WHERE "uid" = $1`, userUID);
         if (user == null) {
             throw new Error("User not found");
         }
