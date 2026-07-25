@@ -1,15 +1,34 @@
+import { EntitiesAPI } from "@dagda/shared/src/api/impl/entities.api";
 import { SystemAPI, SystemInfo } from "@dagda/shared/src/api/impl/system.api";
 import { BaseAppTypes } from "@dagda/shared/src/app/types";
+import { Dagda } from "@dagda/shared/src/dagda";
 import { EntitiesModel } from "@dagda/shared/src/entities/model";
 import { ContextAdapter } from "@dagda/shared/src/entities/tools/adapters";
+import { buildBaseServices } from "@dagda/shared/src/services";
 import "bootstrap";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import "bootstrap/dist/css/bootstrap.css";
 import Handlebars from "handlebars";
 import { apiCall } from "../api";
+import { ClientNotificationImpl } from "../notification/notification.impl";
+import { BasePageTypes, PageHandler, PageInfo } from "../pages/handler";
 import headerTemplate from "./index.header.html";
 
 export interface BaseClientAppTypes extends BaseAppTypes {
+}
+
+/** What an application hands to DagdaClient.start() */
+export interface ClientStartParams<AppTypes extends BaseClientAppTypes, PageTypes extends BasePageTypes> {
+    /** The application entities model */
+    model: EntitiesModel<any, any>;
+    /** How two contexts compare */
+    contextAdapter: ContextAdapter<AppTypes["contexts"]>;
+    /** The pages of the application, the only thing the framework cannot know */
+    pages: { [Name in keyof PageTypes]: PageInfo<PageTypes[Name]> };
+    /** Title of the document */
+    title?: string;
+    /** Services of the application, registered next to the framework's */
+    services?: Record<string, unknown>;
 }
 
 /**
@@ -35,12 +54,41 @@ export class DagdaClient {
     }
 
     /**
-     * Start the client application.
-     * Call it after the services have been registered with `Dagda.init()`.
+     * Start the client application: register the services, then boot.
+     *
+     * An application no longer wires the standard services itself — log,
+     * entities and notification are the framework's own implementations and it
+     * only ever repeated the same four lines (FEATURES §0). All it declares
+     * here is what belongs to it: its model, its contexts and its pages.
      */
-    public static async start<AppTypes extends BaseClientAppTypes>(model: EntitiesModel<any, any>, contextAdapter: ContextAdapter<AppTypes["contexts"]>): Promise<void> {
+    public static async start<AppTypes extends BaseClientAppTypes, PageTypes extends BasePageTypes>(
+        params: ClientStartParams<AppTypes, PageTypes>
+    ): Promise<void> {
+        // -- Register the services --
+        // Everything goes in a single Dagda.init(): registering resolves
+        // Dagda.loaded, which every component waits on, so no service may be
+        // missing by the time the first one wakes up.
+        const pageHandler = new PageHandler<PageTypes>();
+        for (const [name, info] of Object.entries(params.pages)) {
+            pageHandler.registerPage(name, info as PageInfo<any>);
+        }
+
+        Dagda.init({
+            ...buildBaseServices<AppTypes["entities"], AppTypes["contexts"], AppTypes["events"]>({
+                model: params.model,
+                contextAdapter: params.contextAdapter,
+                persistence: {
+                    fetch: (context) => apiCall<EntitiesAPI<AppTypes["contexts"], AppTypes["entities"]>, "fetch">("fetch", {}, context),
+                    submit: (data) => apiCall<EntitiesAPI<AppTypes["contexts"], AppTypes["entities"]>, "submit">("submit", {}, data)
+                },
+                notification: new ClientNotificationImpl<AppTypes["events"]>()
+            }),
+            pages: pageHandler,
+            ...(params.services ?? {})
+        });
+
         // -- Inject headers in the app --
-        this._injectHeaders();
+        this._injectHeaders(params.title);
 
         // -- Read the system information (including the current user) --
         await this.refreshSystemInfo();
@@ -58,11 +106,9 @@ export class DagdaClient {
     }
 
     /** Inject app headers in the page so you don't have to bother */
-    protected static _injectHeaders(): void {
+    protected static _injectHeaders(title: string = "Dagda"): void {
         const headersTemplate = Handlebars.compile(headerTemplate);
-        const headers = headersTemplate({
-            title: "Dagda"
-        });
+        const headers = headersTemplate({ title });
         document.head.insertAdjacentHTML("beforeend", headers);
     }
 

@@ -1,8 +1,11 @@
 import { EntitiesAPI } from "@dagda/shared/src/api/impl/entities.api";
 import { BaseAppTypes } from "@dagda/shared/src/app/types";
+import { Dagda } from "@dagda/shared/src/dagda";
 import { EntitiesHandler } from "@dagda/shared/src/entities/handler";
+import { EntitiesService } from "@dagda/shared/src/entities/service";
 import { EntitiesModel } from "@dagda/shared/src/entities/model";
 import { ContextAdapter, Data } from "@dagda/shared/src/entities/tools/adapters";
+import { initBaseServices } from "@dagda/shared/src/services";
 import { SQLTransactionData, SQLTransactionResult } from "@dagda/shared/src/sql/transaction";
 import express from "express";
 import passport from "passport";
@@ -69,7 +72,7 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes> {
     protected _app: express.Express;
     protected _auth: AuthHandler;
     protected _db: PGRunner;
-    protected _notification: ServerNotificationImpl<AppTypes["events"]> | null = null;
+    protected _notification: ServerNotificationImpl<AppTypes["events"]>;
 
     constructor(protected _params: ServerParams, protected _model: EntitiesModel<any, any>, protected _contextAdapter: ContextAdapter<AppTypes["contexts"]>) {
         console.log("Reading config for environment variables...");
@@ -132,17 +135,47 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes> {
         apiRegister<EntitiesAPI<AppTypes["contexts"], AppTypes["entities"]>, "submit">(this._app, "submit", (options: RequestOptions, transactionData: SQLTransactionData<AppTypes["entities"], AppTypes["contexts"]>): Promise<SQLTransactionResult> => {
             return this._submit(transactionData);
         });
+
+        // -- Register the standard services --
+        // Until this landed, the server never called Dagda.init() at all: every
+        // Dagda.get() answered undefined there, so an entities handler built on
+        // the server silently skipped its contextChanged broadcast and no client
+        // ever heard about a write made by the server itself.
+        console.log("Registering standard services...");
+        this._notification = new ServerNotificationImpl<AppTypes["events"]>();
+        initBaseServices<AppTypes["entities"], AppTypes["contexts"], AppTypes["events"]>({
+            model: this._model,
+            contextAdapter: this._contextAdapter,
+            persistence: {
+                fetch: (context) => this._fetch(context, { type: "server" }),
+                submit: (transactionData) => this._submit(transactionData)
+            },
+            notification: this._notification,
+            // One handler per call: two requests must not share a cache, since
+            // what it holds depends on who asked.
+            handlerPerCall: true,
+            extraServices: this._buildServices()
+        });
+    }
+
+    /**
+     * Services of the application, registered next to the framework's.
+     * Override to add your own; they land in the same Dagda.init().
+     */
+    protected _buildServices(): Record<string, unknown> {
+        return {};
     }
 
     //#region HTTP Server -----------------------------------------------------
 
     /** Listen */
     public listen(): Promise<void> {
-        return new Promise((resolve, reject) => {
-            const server = this._app.listen(this._config.port, resolve);
-            this._notification = new ServerNotificationImpl(server);
+        return new Promise<void>((resolve) => {
+            const server = this._app.listen(this._config.port, () => resolve());
+            // The notification service already exists and is registered; it only
+            // needs the HTTP server, which does not exist before this point.
+            this._notification.attach(server);
         }).then(() => {
-            ;
             console.log(`Server listening on port ${this._config.port}`);
             console.log(`Base URL: ${this._config.baseURL}`);
         });
@@ -155,10 +188,6 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes> {
     }
 
     public broadcast<NotificationKind extends keyof AppTypes["events"]>(kind: NotificationKind, data: AppTypes["events"][NotificationKind]): void {
-        if (this._notification == null) {
-            console.warn("Notification server is not initialized. Notification will be lost.");
-            return;
-        }
         this._notification.broadcast(kind, data);
     }
 
@@ -219,15 +248,9 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes> {
      * The handler is exposed directly and should be used to access the entities.
      */
     public getTemporaryHandler(): EntitiesHandler<AppTypes["entities"], AppTypes["contexts"]> {
-        // -- Init the entities handler --
-        console.log("Initializing entities handler...");
-        const handler: EntitiesHandler<AppTypes["entities"], AppTypes["contexts"]> = new EntitiesHandler(this._model, this._contextAdapter, {
-            fetch: (contexts) => this._fetch(contexts, { type: "server" }),
-            submit: this._submit.bind(this)
-        });
-
-
-        return handler;
+        // The service builds a new handler on every call, so each request gets
+        // its own cache. Equivalent to Dagda.get("entities").getHandler().
+        return Dagda.get<EntitiesService<AppTypes["entities"], AppTypes["contexts"]>>("entities").getHandler();
     }
 
     /** Fetch implementation to be provided by the app */

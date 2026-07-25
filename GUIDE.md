@@ -316,37 +316,44 @@ export interface AppTypes extends BaseAppTypes {
 
 ## 2. Partie *client*
 
-### 2.1 Déclarer les services (`Dagda.init`)
+### 2.1 Démarrer l'application (`DagdaClient.start`)
 
-```ts
-// client/src/services.ts
-export function initServices(): void {
-    const pageHandler = new PageHandler<AppPages>();
-    pageHandler.registerPage("projects", { order: 1, title: "Projets", constructor: ProjectsPage });
-
-    Dagda.init<ClientServices>({
-        log: buildConsoleLogService(),
-        notification: new ClientNotificationImpl(),
-        entities: buildClientEntitiesService(APP_MODEL, new AppContextAdapter()),
-        pages: pageHandler,
-        // cible v2 : auth: buildAuthService()  (FEATURES §9)
-    });
-}
-```
-
-`Dagda` vient du paquet *shared* : c'est le registre de services, et il
-s'utilise à l'identique côté client et côté serveur — `Dagda.init(...)` pour
-enregistrer, `Dagda.get("nom")` pour lire, `Dagda.loaded` pour attendre.
-
-Une fois les services enregistrés, l'application cliente démarre avec
-`DagdaClient.start(...)`, qui vient du paquet *client* et ne fait que
-l'amorçage (en-têtes de page, informations système, appels d'API) :
+Une application ne câble **pas** les services de base : `log`, `entities` et
+`notification` sont des implémentations du framework, et les déclarer revenait
+à recopier les mêmes quatre lignes dans chaque projet (FEATURES §0, « les
+services de base sont autonomes »). Tout se fait au démarrage, et l'application
+ne déclare que ce qui lui appartient — son modèle, ses contextes, ses pages :
 
 ```ts
 // client/src/index.ts
-initServices();
-DagdaClient.start<AppTypes>(APP_MODEL, new AppContextAdapter());
+DagdaClient.start<AppTypes, AppPages>({
+    title: "Mon application",
+    model: APP_MODEL,
+    contextAdapter: APP_CONTEXT_ADAPTER,
+    pages: {
+        projects: { order: 1, title: "Projets", constructor: ProjectsPage }
+    }
+});
 ```
+
+Le serveur n'a rien à écrire non plus : `AbstractServerApp` enregistre les mêmes
+services dans son constructeur, avec la persistance SQL au lieu des appels
+d'API, et un handler d'entités **par requête** — deux requêtes ne doivent jamais
+partager un cache, puisque son contenu dépend de qui a demandé.
+
+`Dagda` reste le registre, identique des deux côtés : `Dagda.get("nom")` pour
+lire un service, `Dagda.loaded` pour attendre qu'ils soient tous là.
+
+Pour ajouter un service **propre à l'application**, passer `services` à
+`DagdaClient.start()` côté client, ou surcharger `_buildServices()` côté
+serveur. Dans les deux cas il rejoint le même `Dagda.init()` : les services
+arrivent tous ensemble, donc aucun composant réveillé par `Dagda.loaded` ne peut
+en trouver un manquant.
+
+> **Piège à connaître** : les événements serveur → client de l'application
+> doivent être déclarés dans `AppTypes["events"]`. Sans ça ils retombent sur les
+> seuls événements du framework, et un `notification.on("monEvenement", …)`
+> compile avec une charge utile `unknown` au lieu d'être vérifié.
 
 ### 2.2 Pages
 
