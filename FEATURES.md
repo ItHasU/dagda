@@ -4,12 +4,29 @@
 > (client + serveur + code partagé), pensé pour être minimaliste, typé de bout
 > en bout et sans dépendance à un gros framework front.
 >
-> Légende :
-> - `v1` : présent dans la version utilisée par EurekAI (`eurekai/dagda/*`)
-> - `v2` : présent dans la ré-écriture (`dagda/packages/*`)
-> - `NEW` : à faire / envisagé, absent des deux versions
+> Légende des colonnes `v1` / `v2` :
+> - `v1` : version utilisée par EurekAI (`eurekai/dagda/*`)
+> - `v2` : ré-écriture en cours (`dagda/packages/*`)
+> - ✅ présent · ⚠️ partiel / à revoir · ❌ absent
+>
+> Légende des préfixes :
+> - **NEW** — à faire / envisagé, absent des deux versions
+> - **ÉCARTÉ** — décision prise de ne pas le faire (conservé pour garder la trace)
 
 ---
+
+## 0. Partis pris
+
+Décisions structurantes qui expliquent plusieurs choix ci-dessous :
+
+- **PostgreSQL est le seul back-end de persistance.** Pas de SQLite, pas de
+  stockage fichier. Toute application Dagda nécessite donc une base Postgres,
+  y compris pour un petit déploiement.
+- **Le client est toujours connecté.** Le cache client n'est qu'une vue
+  *partielle* des données ; il n'est ni persisté ni utilisable hors ligne.
+- **En cas d'échec d'écriture, on invalide et on recharge.** Pas de résolution
+  de conflit : la stratégie assumée est de repartir de l'état serveur.
+- **L'authentification est obligatoire.** Pas de mode « application ouverte ».
 
 ## 1. Structure & outillage
 
@@ -25,6 +42,7 @@
 | **NEW** — Générateur de projet (`npm create dagda`) | | | scaffolding d'une app à partir du bootstrap |
 | **NEW** — Documentation (README par package, guide de démarrage) | | | actuellement quasi inexistante |
 | **NEW** — Build en mode watch / hot reload confortable | | | |
+| **NEW** — `docker-compose` de développement (app + Postgres) | | | conséquence du choix « Postgres uniquement » |
 
 ## 2. Modèle d'entités (le cœur du framework)
 
@@ -54,8 +72,10 @@
 | Broadcast automatique du changement de contexte aux autres clients | ✅ | ✅ | |
 | Handler utilisable côté serveur (un handler par requête) | ✅ | ✅ | même API que côté client |
 | Adapter de test en mémoire | ✅ | ✅ | `test.adapters.ts` |
-| **NEW** — ~~Résolution de conflits / stratégie en cas d'échec de submit~~ | | | aujourd'hui : on invalide tout le cache |
-| **NEW** — ~~Persistance du cache côté client (IndexedDB / offline)~~ => Ce n'est pas possible comme on va juste avoir une vue partielle du cache | | | |
+| Invalidation totale du cache en cas d'échec de submit | ✅ | ✅ | **comportement assumé**, pas un manque |
+| **NEW** — Rendre l'échec de submit visible pour l'utilisateur | | | aujourd'hui : `console.error` + cache *dirty*, l'utilisateur ne voit rien |
+| **ÉCARTÉ** — Résolution de conflits | | | on invalide et on recharge |
+| **ÉCARTÉ** — Persistance du cache client (IndexedDB / offline) | | | le cache n'est qu'une vue partielle des données, le mode hors ligne n'a pas de sens |
 
 ## 4. Accès base de données (serveur)
 
@@ -63,10 +83,15 @@
 |---|:--:|:--:|---|
 | Abstraction `AbstractSQLRunner` (`run` / `get` / `all` / `insert`) | ✅ | ✅ | |
 | Implémentation PostgreSQL | ✅ | ✅ | pool + `withReservedConnection` |
-| Implémentation SQLite | ✅ | ❌ | **à réintroduire ?** utile pour les petits déploiements => NON |
 | Transactions SQL réelles côté serveur | ✅ | ✅ | |
 | Statistiques de base au démarrage (taille des bases) | ❌ | ✅ | |
-| **NEW** — Support d'un backend non-SQL (fichier JSON) pour prototypage => NON | | | |
+| **ÉCARTÉ** — Implémentation SQLite | ✅ | ❌ | présente en v1, **supprimée volontairement** en v2 |
+| **ÉCARTÉ** — Back-end non-SQL (fichier JSON) pour le prototypage | | | |
+
+> **Décidé** : l'abstraction `AbstractSQLRunner` ne sert plus qu'aux tests (adapter
+> en mémoire, §3). Elle reste en place à ce titre, mais il n'est plus utile de la
+> concevoir pour accueillir d'autres moteurs : le code applicatif peut assumer
+> PostgreSQL (SQL spécifique, types natifs, `RETURNING`…) sans chercher la portabilité.
 
 ## 5. API typée client ↔ serveur
 
@@ -78,6 +103,7 @@
 | API entités intégrée (`fetch` / `submit`) | ✅ | ✅ | |
 | Passage du contexte de requête (utilisateur, session) au handler | ⚠️ | ✅ | `RequestOptions` |
 | **NEW** — Gestion homogène des erreurs API (codes, messages typés) | | | |
+| **NEW** — Authentification par jeton pour les appels hors navigateur | | | besoin remonté par MQTTToolbox 2 (API `curl`-friendly) |
 
 ## 6. Notifications temps réel
 
@@ -90,7 +116,7 @@
 | Notifications navigateur (Web Notification API) | ✅ | ⚠️ | dans EurekAI en v1, à remonter dans le framework |
 | **NEW** — Notifications ciblées (par utilisateur / par salon) | | | aujourd'hui uniquement du broadcast global |
 
-## 7. Serveur applicatif
+## 7. Serveur applicatif & authentification
 
 | Fonctionnalité | v1 | v2 | Notes |
 |---|:--:|:--:|---|
@@ -101,18 +127,25 @@
 | Stratégie Google OAuth2 | ✅ | ✅ | |
 | Point d'extension pour d'autres stratégies | ❌ | ✅ | `registerAuthStrategy` |
 | Validation applicative de l'utilisateur (`_isUserValid`) | ✅ | ✅ | permet la liste blanche d'utilisateurs |
-| Mode « sans authentification » explicite (`NO_AUTH`) | ✅ | ⚠️ | à ne pas conserver : MQTTToolbox 2 exige l'authentification |
-| **NEW** — Gestion des rôles / permissions | | | |
+| **NEW** — **Gestion locale des utilisateurs** (compte + mot de passe) | | | permet de déployer sans dépendre d'un fournisseur externe |
+| **NEW** — ↳ stockage sécurisé des mots de passe (hachage + sel) | | | |
+| **NEW** — ↳ création de compte **sur invitation d'un administrateur uniquement** | | | pas d'inscription publique : aucun formulaire d'inscription exposé |
+| **NEW** — ↳ mécanisme d'invitation (lien à usage unique, avec expiration) | | | l'administrateur crée le compte, l'utilisateur choisit son mot de passe |
+| **NEW** — ↳ changement de mot de passe par l'utilisateur | | | |
+| **NEW** — ↳ réinitialisation : par le même lien d'invitation, régénéré par l'administrateur | | | évite d'imposer un service d'envoi de mail ; à confirmer |
+| **NEW** — **Plusieurs stratégies actives simultanément** dans une même app | | | ex. Google *et* comptes locaux ; le serveur doit exposer la liste des stratégies disponibles au client |
+| **NEW** — ↳ un même utilisateur rattaché à plusieurs méthodes de connexion ? | | | à trancher : identité unique ou un compte par stratégie |
+| **NEW** — Gestion des rôles / permissions | | | au minimum : administrateur vs utilisateur |
 | **NEW** — Notion de propriétaire d'une entité + partage entre utilisateurs | | | besoin remonté par MQTTToolbox 2 (tableaux de bord) |
 | **NEW** — Filtrage des données par utilisateur au niveau du fetch | | | |
 | **NEW** — Identité de l'utilisateur courant accessible côté serveur dans les écritures | | | pour tracer l'auteur d'une modification |
-=> Ajouter une gestion locale des utilisateurs + la gestion de plusieurs stratégies dans la même application
+| **NEW** — Écran d'administration des utilisateurs | | | aujourd'hui dans EurekAI : activation manuelle en base |
+| **ÉCARTÉ** — Mode « sans authentification » (`NO_AUTH`) | ✅ | ⚠️ | présent en v1, à retirer |
 
 ## 8. Client / UI
 
 | Fonctionnalité | v1 | v2 | Notes |
 |---|:--:|:--:|---|
-| Bootstrap 5 + bootstrap-icons intégrés | ✅ | ✅ | **à remplacer** — cf. choix du design system ci-dessous |
 | Injection automatique des `<head>` (meta, styles, manifest) | ❌ | ✅ | template Handlebars |
 | Web components : classe de base `AbstractWebComponent` | ⚠️ | ✅ | v1 : composants ad-hoc dans l'app |
 | Template HTML importé par `require()` et injecté | ✅ | ✅ | |
@@ -123,12 +156,15 @@
 | Système de pages / navigation (`PageHandler`, `AbstractPageElement`) | ⚠️ | ✅ | v1 : géré dans l'app EurekAI |
 | Composant de statut (téléchargement / envoi / cache sale) | ✅ | ✅ | |
 | Composant de navbar | ❌ | ✅ | |
-| Composant de login | ❌ | ✅ | |
+| Composant de login | ❌ | ✅ | à faire évoluer : afficher les stratégies disponibles + formulaire local (§7) |
 | Composant conteneur | ❌ | ✅ | |
-| **NEW** — Routage par URL (deep-link, bouton retour navigateur) | | | |
-| **NEW** — Support PWA de série (manifest + service worker) | | | fait à la main dans les apps aujourd'hui |
+| Bootstrap 5 + bootstrap-icons intégrés | ✅ | ✅ | **à remplacer** — cf. ligne suivante |
 | **NEW** — **Choix d'un design system** (en remplacement de Bootstrap) | | | décision à prendre au niveau de Dagda ; couvre le thème clair / sombre |
+| **NEW** — Jeu d'icônes associé au design system | | | remplace bootstrap-icons |
+| **NEW** — Routage par URL (deep-link, bouton retour navigateur) | | | |
 | **NEW** — Navigation mobile (gestes, *swipe* entre pages) | | | besoin remonté par MQTTToolbox 2 |
+| **NEW** — Support PWA : installation, manifest, icônes | | | fait à la main dans les apps aujourd'hui |
+| **NEW** — Écran « hors ligne » / perte de connexion | | | le mode hors ligne étant écarté (§0), il faut au moins le signaler proprement |
 
 ## 9. Injection de services (nouveauté v2)
 
@@ -138,6 +174,7 @@
 | `Dagda.init(services)` + promesse `Dagda.loaded` | ❌ | ✅ | les composants attendent l'init |
 | Services standard : `log`, `notification`, `entities`, `pages` | ❌ | ✅ | |
 | Types applicatifs centralisés (`BaseAppTypes`) | ❌ | ✅ | `entities` / `contexts` / `apis` / `events` en un seul endroit |
+| **NEW** — Service `auth` (utilisateur courant, connexion, déconnexion) | | | conséquence de §7 |
 | **NEW** — Déclaration de services applicatifs custom documentée | | | |
 | **NEW** — Nettoyer les `Dagda<...>(...)` marqués `FIXME` dans le handler | | | |
 
