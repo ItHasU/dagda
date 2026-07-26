@@ -10,6 +10,7 @@ import "../container/container.component";
 import "../login/login.component";
 import "../navbar/navbar.component";
 import "../status/status.component";
+import "../toast/toast.component";
 import { PageContainer } from "../container/container.component";
 
 /**
@@ -31,7 +32,7 @@ export class DagdaApp extends AbstractWebComponent {
     protected _container: PageContainer | null = null;
 
     constructor() {
-        super({ template: "<dagda-page-container ref=\"container\"></dagda-page-container>" });
+        super({ template: "<dagda-page-container ref=\"container\"></dagda-page-container><dagda-toast-host></dagda-toast-host>" });
     }
 
     protected override async _refresh(): Promise<void> {
