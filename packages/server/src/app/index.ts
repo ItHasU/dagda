@@ -188,6 +188,7 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
         console.log("Registering standard actions...");
         this._registerAccountActions();
         this._registerPreferencesActions();
+        this._registerSettingsActions();
 
         // -- Register the standard services --
         // Until this landed, the server never called Dagda.init() at all: every
@@ -316,15 +317,20 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
         actionRegister(this._app, name, callback);
     }
 
+    /**
+     * @throws if `user` does not hold `permission`.
+     *
+     * The gate that matters for an action: hiding a screen is not access
+     * control (§11.2), and an action is reachable from any console.
+     */
+    protected _requirePermission(user: UserInfo, permission: string): void {
+        if (!hasPermission(user, permission)) {
+            throw new Error("Missing permission: " + permission);
+        }
+    }
+
     /** Account and role management actions, the same for every application (FEATURES §7.1, §11.4) */
     protected _registerAccountActions(): void {
-        const requirePermission = (user: UserInfo, permission: string): void => {
-            if (!hasPermission(user, permission)) {
-                // The gate that matters: hiding a screen is not access
-                // control (§11.2), and this is reachable from any console.
-                throw new Error("Missing permission: " + permission);
-            }
-        };
         const toInvitationResult = (invitation: { user: UserInfo, token: string, expiresAt: number }) => ({
             user: invitation.user,
             url: `${this._config.baseURL.replace(/\/$/, "")}/invite/${invitation.token}`,
@@ -332,40 +338,40 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
         });
 
         actionRegister<DagdaActions, "listUsers">(this._app, "listUsers", async (user) => {
-            requirePermission(user, "users.manage");
+            this._requirePermission(user, "users.manage");
             return this._users.list();
         });
         actionRegister<DagdaActions, "inviteUser">(this._app, "inviteUser", async (user, params) => {
-            requirePermission(user, "users.manage");
+            this._requirePermission(user, "users.manage");
             return toInvitationResult(await this._users.invite(params));
         });
         actionRegister<DagdaActions, "reinviteUser">(this._app, "reinviteUser", async (user, params) => {
-            requirePermission(user, "users.manage");
+            this._requirePermission(user, "users.manage");
             return toInvitationResult(await this._users.reinvite(params.id));
         });
         actionRegister<DagdaActions, "setUserEnabled">(this._app, "setUserEnabled", async (user, params) => {
-            requirePermission(user, "users.manage");
+            this._requirePermission(user, "users.manage");
             await this._users.setEnabled(params.id, params.enabled);
         });
         actionRegister<DagdaActions, "setUserRole">(this._app, "setUserRole", async (user, params) => {
-            requirePermission(user, "users.manage");
+            this._requirePermission(user, "users.manage");
             await this._users.setRole(params.id, params.roleId);
         });
 
         actionRegister<DagdaActions, "listRoles">(this._app, "listRoles", async (user) => {
-            requirePermission(user, "roles.manage");
+            this._requirePermission(user, "roles.manage");
             return this._roles.list();
         });
         actionRegister<DagdaActions, "createRole">(this._app, "createRole", async (user, params) => {
-            requirePermission(user, "roles.manage");
+            this._requirePermission(user, "roles.manage");
             return this._roles.create(params);
         });
         actionRegister<DagdaActions, "updateRole">(this._app, "updateRole", async (user, params) => {
-            requirePermission(user, "roles.manage");
+            this._requirePermission(user, "roles.manage");
             return this._roles.update(params.id, params);
         });
         actionRegister<DagdaActions, "deleteRole">(this._app, "deleteRole", async (user, params) => {
-            requirePermission(user, "roles.manage");
+            this._requirePermission(user, "roles.manage");
             await this._roles.delete(params.id);
         });
 
@@ -405,6 +411,37 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
             // a dynamically-keyed write always needs, `validateValue` is what
             // actually rejects a mismatched value.
             await this._preferences.set(user.id, params.key as keyof Preferences, params.value as never);
+        });
+    }
+
+    /**
+     * System settings actions (FEATURES §11.5, ROADMAP tranche 3), gated by
+     * `settings.manage` — an administrator concern, unlike preferences above.
+     */
+    protected _registerSettingsActions(): void {
+        actionRegister<DagdaActions, "getSettingsValues">(this._app, "getSettingsValues", async (user) => {
+            this._requirePermission(user, "settings.manage");
+            // Not `getValuesFor(SettingVisibility.client)`: that filters by
+            // who may read a setting at runtime, which would hide most
+            // settings from the very screen meant to edit them. Here every
+            // non-secret key goes out, regardless of its declared visibility
+            // — `settings.get()` is not visibility-filtered, unlike
+            // `getValuesFor()`. Secrets are the only exclusion: written,
+            // never read back in clear (§11.5).
+            const result: Record<string, unknown> = {};
+            for (const key of this._settingsModel.getKeys()) {
+                if (!this._settingsModel.isSecret(key)) {
+                    result[String(key)] = this._settings.settings.get(key);
+                }
+            }
+            return result;
+        });
+        actionRegister<DagdaActions, "setSetting">(this._app, "setSetting", async (user, params) => {
+            this._requirePermission(user, "settings.manage");
+            // Same idiom as setPreference() above: set() validates the value
+            // against the declared type of params.key, and throws usefully
+            // if the key is not declared at all.
+            await this._settings.set(params.key as keyof Settings, params.value as never);
         });
     }
 

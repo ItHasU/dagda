@@ -67,4 +67,23 @@ export type DagdaActions = {
     getPreferences(): Record<string, unknown>;
     /** Sets one preference for the calling user. @throws if `value` does not match the declared type */
     setPreference(params: { key: string, value: unknown }): void;
+
+    /**
+     * Every declared system setting's current value, secrets excluded
+     * (FEATURES §11.5), for the editing screen (ROADMAP tranche 3). Gated by
+     * `settings.manage`.
+     *
+     * Deliberately not `SettingsStore.getValuesFor(SettingVisibility.client)`
+     * on the server side: that answers "what may ordinary client-side code
+     * read", filtered by the `visibility` a setting was declared with, which
+     * would hide most settings from the very screen meant to edit them. This
+     * is a different question — "what may an administrator see and change"
+     * — answered without regard to `visibility` at all.
+     */
+    getSettingsValues(): Record<string, unknown>;
+    /**
+     * Sets one system setting (FEATURES §11.5). Gated by `settings.manage`.
+     * @throws if `key` is not declared or `value` does not match its type.
+     */
+    setSetting(params: { key: string, value: unknown }): void;
 };
