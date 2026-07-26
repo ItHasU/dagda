@@ -402,8 +402,8 @@ seraient exposés. Le mécanisme de paramètres est la réponse à ça.
 | **NEW** — ↳ Paramètres marqués **secrets** : écriture seule depuis l'interface | | | saisis puis jamais relus en clair ; exclus des exports ; chiffrement au repos à prévoir |
 | **NEW** — ↳ Règle de cohérence : un secret ne peut pas être de visibilité `client` | | | à refuser à la déclaration, pas à l'exécution |
 | **NEW** — ↳ Secrets **chiffrés en base**, clé fournie par variable d'environnement | | | la clé est donc un paramètre d'amorçage, comme la connexion à la base |
-| **NEW** — Écran de gestion de la configuration | | | dérivé de la déclaration typée via le générateur de formulaires (§8.1) |
-| **NEW** — ↳ Édition réservée aux administrateurs | | | dépend des rôles (§7) |
+| **NEW** — Écran de gestion de la configuration | | ✅ | dérivé de la déclaration typée via le générateur de formulaires (§8.1, `<dagda-form>`, premier vrai consommateur). Deux actions gardées par `settings.manage` : `getSettingsValues()` (toute clé non secrète, **sans filtrage par visibilité** — `SettingsStore.getValuesFor(visibility)` répond à une autre question, celle de ce qu'un lecteur ordinaire peut voir à l'exécution, pas de ce qu'un administrateur peut éditer) et `setSetting({ key, value })`. Un champ secret démarre vide (la valeur n'est jamais renvoyée) et, laissé vide au submit, n'est pas réécrit — sinon un enregistrement sans y toucher l'écraserait par une chaîne vide |
+| **NEW** — ↳ Édition réservée aux administrateurs | | ✅ | dépend des rôles (§7), `settings.manage` |
 | **NEW** — ↳ **Notification de changement côté serveur** | | | reprise d'un mécanisme éprouvé : MQTTToolbox v1 fait `Config.on("mqtt", …)` pour se reconnecter au broker à chaud. Sans ça, tout changement impose un redémarrage |
 | **NEW** — ↳ Frontière avec les variables d'environnement | | | l'amorçage reste en variables d'environnement (port, URL de base, **chaîne de connexion à la base**) — on ne peut pas lire en base de quoi se connecter à la base. Tout le reste va dans les paramètres |
 

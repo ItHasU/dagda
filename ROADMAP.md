@@ -336,10 +336,34 @@ pendant une publication est visible et rattrapable.
   - ✅ Assemblage : `<dagda-form>` prend une liste de `FormFieldDeclaration`
     (libellé, type, défaut, obligatoire), rend un éditeur par champ via le
     registre, valide au submit et émet `dagda-form-submit` avec les valeurs
-    collectées. Encore sans consommateur réel — l'écran de paramètres et la
-    matrice de permissions ci-dessous seront les premiers à s'en servir.
-- Écran d'édition des paramètres système, réservé aux administrateurs, avec les
-  paramètres secrets en écriture seule (FEATURES §11.5).
+    collectées. Premier consommateur réel : l'écran de paramètres système
+    ci-dessous — la matrice de permissions, elle, reste assemblée à la main
+    (un tableau à deux dimensions n'est pas ce que `<dagda-form>` rend, cf.
+    plus haut).
+- ✅ Écran d'édition des paramètres système, réservé aux administrateurs, avec
+  les paramètres secrets en écriture seule (FEATURES §11.5). Deux actions
+  (`DagdaActions`, gardées par `settings.manage`, enregistrées par
+  `AbstractServerApp._registerSettingsActions()`) : `getSettingsValues()`
+  renvoie la valeur courante de chaque paramètre déclaré non secret, et
+  `setSetting({ key, value })` en écrit un. Point délicat, à ne pas « corriger »
+  plus tard : `getSettingsValues()` n'utilise **pas**
+  `SettingsStore.getValuesFor(SettingVisibility.client)` — cette méthode
+  répond à une question différente (« qu'est-ce que du code client ordinaire
+  a le droit de lire »), filtrée par la `visibility` déclarée de chaque
+  paramètre, ce qui exclurait silencieusement la plupart des paramètres de
+  MQTTToolbox (`server` par défaut) de l'écran censé justement les éditer.
+  L'action lit donc directement `_settingsModel.getKeys()` et
+  `_settings.settings.get(key)` (non filtré par visibilité), en excluant
+  uniquement les clés `isSecret`. Écran construit côté MQTTToolbox
+  (`client/src/pages/settings/settings.page.ts`) : un champ par paramètre
+  déclaré dans `APP_SETTINGS` (partagé, lu directement — labels/descriptions/
+  types/défauts n'ont pas besoin d'un aller-retour serveur), monté dans un
+  `<dagda-form>`, premier vrai usage du générateur ci-dessus. Un champ secret
+  démarre toujours vide (jamais la valeur courante, qui de toute façon
+  n'est jamais renvoyée par `getSettingsValues()`) ; au submit, une valeur
+  secrète laissée vide n'est volontairement pas renvoyée au serveur — sinon
+  un enregistrement sans y toucher écraserait le secret stocké par une
+  chaîne vide.
   - **À partir de cet écran, plus aucun réglage applicatif ne doit rester en
     variable d'environnement dès lors qu'il peut être un paramètre système**
     (FEATURES §11.5 : l'amorçage seul — port, URL de base, chaîne de connexion
