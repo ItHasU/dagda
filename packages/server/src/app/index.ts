@@ -168,7 +168,7 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
             return this._fetch(context, options);
         });
         apiRegister<EntitiesAPI<AppTypes["contexts"], AppTypes["entities"]>, "submit">(this._app, "submit", (options: RequestOptions, transactionData: SQLTransactionData<AppTypes["entities"], AppTypes["contexts"]>): Promise<SQLTransactionResult> => {
-            return this._submit(transactionData);
+            return this._submit(transactionData, options);
         });
 
         // -- Register standard actions --
@@ -199,7 +199,7 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
             contextAdapter: this._contextAdapter,
             persistence: {
                 fetch: (context) => this._fetch(context, { type: "server" }),
-                submit: (transactionData) => this._submit(transactionData)
+                submit: (transactionData) => this._submit(transactionData, { type: "server" })
             },
             notification: this._notification,
             // One handler per call: two requests must not share a cache, since
@@ -420,8 +420,17 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
     /** Fetch implementation to be provided by the app */
     protected abstract _fetch(context: AppTypes["contexts"], request: RequestOptions): Promise<Data<AppTypes["entities"]>>;
 
-    /** Implementation of submit with app's methods */
-    protected _submit(transactionData: SQLTransactionData<AppTypes["entities"], AppTypes["contexts"]>): Promise<SQLTransactionResult> {
+    /**
+     * Submit implementation to be provided by the app, mirroring `_fetch` above.
+     *
+     * `request` carries who is writing: `{ type: "client", user, ... }` for a
+     * write coming from the entities route (`user` is always set — the route
+     * refuses an anonymous call before this is reached), `{ type: "server" }`
+     * for a write made by the server itself (an action, a migration, ...),
+     * where there is no request to speak of. An override can use `user` to
+     * stamp who wrote a row, or to reject a write outright.
+     */
+    protected _submit(transactionData: SQLTransactionData<AppTypes["entities"], AppTypes["contexts"]>, request: RequestOptions): Promise<SQLTransactionResult> {
         return submit(this._db, this._model, transactionData);
     }
 

@@ -352,8 +352,12 @@ pendant une publication est visible et rattrapable.
   aucun écran de cette tranche ne l'exige encore, mais le construire plus tard
   reviendrait à le greffer sur des permissions déjà figées. Premier usage réel
   en tranche 6 (déclenchement manuel d'un automatisme).
-- Identité de l'utilisateur courant accessible côté serveur pendant les écritures
-  (nécessaire pour tracer la source `manuel` des messages, MQTT §2).
+- ✅ Identité de l'utilisateur courant accessible côté serveur pendant les
+  écritures (nécessaire pour tracer la source `manuel` des messages, MQTT §2) :
+  `AbstractServerApp._submit()` prend désormais un second paramètre
+  `request: RequestOptions`, au même titre que `_fetch()` côté lecture — les
+  deux points d'appel du constructeur (route `submit` côté client, appel
+  interne côté `initBaseServices`) le lui transmettent au lieu de le jeter.
 - Service `auth` côté client.
 - Préférences par utilisateur — premier usage : mémoriser le thème choisi
   (tranche 4).
