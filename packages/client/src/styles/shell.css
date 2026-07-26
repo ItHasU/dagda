@@ -8,10 +8,18 @@
 
    Same hard constraint as `dagda-ui.css` though: NOT ONE literal value. Every
    size, colour and duration is a `var()` from `themes.css`. Structural values
-   (0, 100%, `none`) are not design decisions and stay literal.
+   (0, 100%, `none`) are not design decisions and stay literal — same posture
+   z-index takes here as it already does in toast.css: no token exists for it
+   anywhere in the bundle, so a literal stays a literal rather than inventing
+   one variable for one property.
 
-   Landscape only for now — deployed column and collapsed rail. The portrait
-   family (top bar + drawer) lands with the rest of mobile, in slice 4.
+   Both families now: `[data-layout="landscape"]` (the default — see
+   `.shell` below) is the deployed column and collapsed rail of tranche 1;
+   `[data-layout="portrait"]` is the top bar and overlay drawer of tranche 4
+   (`specs/navigation.md` §4). `[data-nav]` means the same thing in both:
+   "deployed" is the full column in landscape, the open drawer in portrait —
+   one state, two renderings, same convention `Navbar` already uses for the
+   active page mark (§5).
    ========================================================================== */
 
 /* — the frame —
@@ -228,11 +236,133 @@ dagda-login {
 
 /* — the toggle —
    Manual and remembered, VS Code style: no width threshold in landscape
-   (`specs/navigation.md`, decisions). */
+   (`specs/navigation.md`, decisions). `order: 1`: it is the *first* child of
+   `<dagda-navbar>` in markup (portrait needs it at the far left of the bar,
+   ahead of the brand — see below), so landscape has to push it back after
+   everything else itself, rather than relying on DOM order as it used to. */
 .shell-toggle {
+    order: 1;
     align-self: flex-end;
 }
 
 .shell[data-nav="collapsed"] .shell-toggle {
     align-self: center;
+}
+
+/* ==========================================================================
+   Portrait — top bar and overlay drawer (`specs/navigation.md` §4).
+
+   Same tree as landscape, rearranged: `.shell-nav` becomes a row instead of
+   a column, `.shell-group-primary` leaves that row's normal flow entirely
+   and becomes the drawer, everything else stays where the browser would
+   already put it. No second component, per `specs/navigation.md` §3's own
+   framing ("un tree rendered four ways") — Navbar's TypeScript is unchanged.
+   ========================================================================== */
+
+.shell[data-layout="portrait"] {
+    /* Landscape's `height: 100vh` + `overflow: hidden` on `.shell` assumed a
+       column beside a scrolling content pane; portrait's content pane is the
+       only thing that should ever need to grow past the viewport, and the
+       bar must stay put at the top rather than being clipped by it. */
+    height: auto;
+    min-height: 100vh;
+    flex-direction: column;
+}
+
+.shell[data-layout="portrait"] .shell-nav {
+    position: relative;
+    /* Above the backdrop below: the bar (its toggle included) must stay
+       clickable through it, and the backdrop has no reliable way to know the
+       bar's own height to start just beneath it instead of covering it. */
+    z-index: 41;
+    flex-direction: row;
+    align-items: center;
+    width: 100%;
+    padding: var(--space-2) var(--space-3);
+    gap: var(--space-3);
+    overflow: visible;
+    /* No width transition to fight in portrait — that was landscape's
+       collapse/deploy animation, meaningless once the nav is a fixed-height
+       bar. */
+    transition: none;
+}
+
+.shell[data-layout="portrait"] .shell-toggle {
+    order: -2;
+    align-self: center;
+}
+
+.shell[data-layout="portrait"] .shell-brand {
+    order: -1;
+    padding: 0;
+}
+
+/* The drawer: out of the bar's row flow, overlaying the content beneath it
+   (§4.3 — "il ne redimensionne ni ne pousse la zone de contenu"), anchored
+   under the bar rather than under the brand specifically, since the bar's
+   own height is what "under the marque" collapses to at this width. */
+.shell[data-layout="portrait"] .shell-group-primary {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin: 0;
+    padding: var(--space-3);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-lg);
+    max-height: calc(100vh - var(--space-8));
+    overflow-y: auto;
+    z-index: 40;
+}
+
+.shell[data-layout="portrait"][data-nav="collapsed"] .shell-group-primary {
+    display: none;
+}
+
+.shell[data-layout="portrait"] .shell-group-secondary {
+    order: 1;
+    flex-direction: row;
+    align-items: center;
+    margin-left: auto;
+    gap: var(--space-2);
+    padding-top: 0;
+    border-top: 0;
+}
+
+.shell[data-layout="portrait"] .shell-group-secondary .shell-group {
+    flex-direction: row;
+    gap: var(--space-2);
+}
+
+/* The bar stays icon-only whatever `[data-nav]` says (§4.1: "icônes du
+   groupe secondaire à droite" — not full entries) — only the drawer
+   (`.shell-group-primary`, still hidden/shown by `[data-nav]` above) ever
+   shows labels in portrait. Unlike landscape's rail, this is not a second
+   state to toggle: the bar is simply never the deployed rendering. */
+.shell[data-layout="portrait"] .shell-brand-label,
+.shell[data-layout="portrait"] .shell-group-secondary .shell-label {
+    display: none;
+}
+
+/* A backdrop behind the drawer, above the content: one of the drawer's three
+   close triggers (`specs/navigation.md` §4.3, "clic hors panneau") — the
+   other two, a second ☰ tap and selecting a page, need no styling of their
+   own, they just toggle `[data-nav]` the same way the toggle button does. */
+.shell-backdrop {
+    display: none;
+}
+
+.shell[data-layout="portrait"][data-nav="deployed"] .shell-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 30;
+    border: 0;
+    padding: 0;
+    cursor: default;
+}
+
+.shell[data-layout="portrait"] .shell-content {
+    margin: var(--space-3);
 }

@@ -1,3 +1,12 @@
+<!-- A direct child of <dagda-navbar>, not nested in the secondary group: in
+     portrait (`specs/navigation.md` §4.1) it sits at the far left of the bar,
+     before the brand, which the secondary group's own position (far right)
+     cannot give it while also keeping it a sibling of the status/login rows
+     it toggles nothing to do with. Landscape is unaffected — `.shell-toggle`
+     is still positioned purely by its own rules, not by where it sits in the
+     column. -->
+<button ref="toggle" type="button" class="btn btn-ghost btn-icon shell-toggle"></button>
+
 <div ref="brand" class="shell-brand">
     <!-- Both renderings, the stylesheet shows one -->
 </div>
@@ -12,5 +21,4 @@
     </ul>
     <dagda-status></dagda-status>
     <dagda-login></dagda-login>
-    <button ref="toggle" type="button" class="btn btn-ghost btn-icon shell-toggle"></button>
 </div>

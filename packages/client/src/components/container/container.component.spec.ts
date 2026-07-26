@@ -2,7 +2,7 @@ import { Dagda, DagdaRegistry } from "@dagda/shared/src/dagda";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AbstractPageElement } from "../../pages/abstract.page.element";
 import { PageHandler } from "../../pages/handler";
-import { NAV_COLLAPSED_KEY, PageContainer } from "./container.component";
+import { NAV_COLLAPSED_KEY, PageContainer, PORTRAIT_MAX_WIDTH_PX } from "./container.component";
 // The container's template names them, so they have to be defined.
 import "../login/login.component";
 import "../navbar/navbar.component";
@@ -116,6 +116,79 @@ describe("PageContainer", () => {
                 Object.defineProperty(window, "localStorage", original);
             }
         }
+    });
+
+    /**
+     * The portrait layout: bar and overlay drawer (`specs/navigation.md`
+     * §4, ROADMAP tranche 4). `setInnerWidth()` drives the same
+     * `matchMedia` the component itself listens to (`src/test/
+     * matchmedia.setup.ts`), so these tests exercise the real switch, not a
+     * stand-in for it.
+     */
+    describe("portrait", () => {
+
+        function setInnerWidth(width: number): void {
+            Object.defineProperty(window, "innerWidth", { configurable: true, writable: true, value: width });
+        }
+
+        afterEach(() => {
+            setInnerWidth(1024);
+        });
+
+        it("starts closed even when landscape remembered deployed", async () => {
+            setInnerWidth(480);
+            window.localStorage.setItem(NAV_COLLAPSED_KEY, "false");
+            const { container } = await mount();
+            expect(container.querySelector(".shell")?.getAttribute("data-layout")).toBe("portrait");
+            expect(container.collapsed).toBe(true);
+        });
+
+        it("does not persist its open/closed state to storage", async () => {
+            setInnerWidth(480);
+            const { container } = await mount();
+            container.collapsed = false;
+            expect(window.localStorage.getItem(NAV_COLLAPSED_KEY)).toBeNull();
+        });
+
+        it("closes on a backdrop click", async () => {
+            setInnerWidth(480);
+            const { container } = await mount();
+            container.collapsed = false;
+            container.querySelector<HTMLElement>(".shell-backdrop")!.click();
+            expect(container.collapsed).toBe(true);
+        });
+
+        it("closes when a page is selected", async () => {
+            setInnerWidth(480);
+            const { container, pages } = await mount();
+            container.collapsed = false;
+            await pages.setPage("home");
+            expect(container.collapsed).toBe(true);
+        });
+
+        it("does not close on page selection in landscape", async () => {
+            const { container, pages } = await mount();
+            container.collapsed = false;
+            await pages.setPage("home");
+            expect(container.collapsed).toBe(false);
+        });
+
+        it("switches back to landscape and restores the remembered state", async () => {
+            window.localStorage.setItem(NAV_COLLAPSED_KEY, "true");
+            setInnerWidth(480);
+            const { container } = await mount();
+            expect(container.querySelector(".shell")?.getAttribute("data-layout")).toBe("portrait");
+
+            setInnerWidth(1024);
+            window.matchMedia(`(max-width: ${PORTRAIT_MAX_WIDTH_PX}px)`).dispatchEvent(new Event("change"));
+            // The stub's "change" listener is registered via addEventListener,
+            // triggered here directly rather than through a resize event —
+            // there is no real viewport to resize under jsdom.
+
+            expect(container.querySelector(".shell")?.getAttribute("data-layout")).toBe("landscape");
+            expect(container.collapsed).toBe(true);
+        });
+
     });
 
 });

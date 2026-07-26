@@ -61,7 +61,9 @@ export default defineConfig({
                     },
                     // And a storage on top of that, because an origin is not
                     // enough under Node 24 — see the file for what shadows what.
-                    setupFiles: ["src/test/storage.setup.ts"],
+                    // matchmedia.setup.ts: jsdom has no matchMedia at all,
+                    // needed by PageContainer's landscape/portrait switch.
+                    setupFiles: ["src/test/storage.setup.ts", "src/test/matchmedia.setup.ts"],
                     include: ["src/**/*.spec.ts"]
                 }
             },

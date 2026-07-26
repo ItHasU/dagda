@@ -1,5 +1,10 @@
 <div ref="shell" class="shell">
     <dagda-navbar ref="nav" class="shell-nav" role="navigation" aria-label="Navigation principale"></dagda-navbar>
+    <!-- Portrait only (§4.3): one of the drawer's three close triggers, a
+         click anywhere outside it. Hidden in landscape, and in portrait
+         while the drawer is closed, by shell.css — same idiom as
+         `.dialog-backdrop`. -->
+    <div ref="backdrop" class="shell-backdrop" aria-hidden="true"></div>
     <main ref="page" class="shell-content">
         <!-- The current page, replaced on every navigation -->
     </main>
