@@ -1,5 +1,6 @@
 import { Dagda } from "@dagda/shared/src/dagda";
 import { Event } from "@dagda/shared/src/tools/events";
+import { attachSwipe } from "../../gestures/swipe";
 import { PageEvents } from "../../pages/handler";
 import { PageService } from "../../pages/service";
 import { AbstractWebComponent, Ref } from "../abstract.webcomponent";
@@ -88,6 +89,19 @@ export class PageContainer extends AbstractWebComponent {
         // backdrop to click, shell.css keeps it hors de vue there.
         this._backdrop.addEventListener("click", () => {
             this.collapsed = true;
+        });
+
+        // Swipe detection on the content area (ROADMAP tranche 4: "porte sur
+        // le contenu, pas sur le menu") — attached once, here, same posture
+        // as `dagda-nav-toggle`: the container has an opinion about *where*
+        // a swipe is detected, none about what it means. A page listens for
+        // `dagda-swipe` to decide that for itself (a dashboard switching to
+        // its neighbour, say); the shell has no page-specific logic of its
+        // own to run on it.
+        attachSwipe(this._page, {
+            onSwipe: (direction) => {
+                this._page.dispatchEvent(new CustomEvent("dagda-swipe", { detail: { direction }, bubbles: true }));
+            }
         });
     }
 
