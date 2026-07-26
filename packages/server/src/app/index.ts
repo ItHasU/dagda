@@ -14,7 +14,7 @@ import { SQLTransactionData, SQLTransactionResult } from "@dagda/shared/src/sql/
 import express from "express";
 import { resolve } from "path";
 import { DagdaActions } from "@dagda/shared/src/auth/actions";
-import { hasPermission } from "@dagda/shared/src/auth/permissions";
+import { DAGDA_PERMISSIONS, hasPermission, PermissionsDeclaration } from "@dagda/shared/src/auth/permissions";
 import { UserId, UserInfo } from "@dagda/shared/src/auth/types";
 import { NotificationRecipientFilter } from "@dagda/shared/src/notification/abstract.notification.handler";
 import { actionRegister, ActionCallback } from "../actions";
@@ -109,7 +109,13 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
          * Omitted, the store is still there with nothing in it, same posture as
          * `_settingsModel` above.
          */
-        protected _preferencesModel: PreferencesModel<Preferences> = new PreferencesModel({} as Preferences)
+        protected _preferencesModel: PreferencesModel<Preferences> = new PreferencesModel({} as Preferences),
+        /**
+         * The permissions the application declares (FEATURES §7.1), on top of
+         * `DAGDA_PERMISSIONS`. Omitted, only the framework's own are checkable
+         * — an app with nothing of its own to gate needs nothing here.
+         */
+        protected _permissions: PermissionsDeclaration = {}
     ) {
         console.log("Reading config for environment variables...");
         // Read the config from env variables
@@ -126,7 +132,7 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
         // Before the authentication handler, which reads the accounts from it.
         console.log("Initializing database connection...");
         this._db = new PGRunner(this._config.dbURL);
-        this._roles = new RoleStore(this._db);
+        this._roles = new RoleStore(this._db, { ...DAGDA_PERMISSIONS, ...this._permissions });
         this._users = new UserStore(this._db, this._roles);
         this._audit = new AuditLogStore(this._db);
 
