@@ -45,11 +45,15 @@ export class LoginComponent extends AbstractWebComponent {
     }
 
     protected override async _refresh(): Promise<void> {
-        // The event is a notification of change, not the source of truth.
-        // Relying on it alone loses the race it cannot win: `userInfoChanged`
-        // is broadcast once, while the shell is being built, and a component
-        // that subscribes a tick later never hears it and shows an empty badge
-        // for the rest of the session. Ask, then listen.
+        // The event is a notification of change, not the source of truth for
+        // this tab. `userInfoChanged` now genuinely fires (`DagdaClient
+        // .refreshSystemInfo()`, via `notifyLocal()` — never `broadcast()`,
+        // which would leak this session's identity to every other connected
+        // browser, FEATURES §6) — but it fires once, while the shell is
+        // being built, and a component that subscribes a tick later hears
+        // nothing. Ask, then listen: read the value directly for this tab,
+        // and let the event keep this badge in step with a value that
+        // changes afterward.
         this._user ??= DagdaClient.currentUser;
         const displayName = this._user?.displayName ?? "";
         this._photo.textContent = LoginComponent.getInitials(displayName);

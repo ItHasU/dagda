@@ -17,6 +17,7 @@ import { actionCall } from "../actions";
 // tag (`specs/navigation.md` §6.1).
 import "../components/app/app.component";
 import { AbstractWebComponent } from "../components/abstract.webcomponent";
+import { AuthServiceImpl } from "../auth/auth.service";
 import { UsersDirectory } from "../auth/directory";
 import { ClientNotificationImpl } from "../notification/notification.impl";
 import { BasePageTypes, PageHandler, PageInfo } from "../pages/handler";
@@ -118,6 +119,13 @@ export class DagdaClient {
         // below once the shell's own bootstrap calls are underway.
         const users = new UsersDirectory(() => actionCall<DagdaActions, "listUserNames">("listUserNames"));
 
+        // The auth service (ROADMAP tranche 3): reachable via Dagda.get("auth")
+        // from the first render, same placement as `users` above. It is a thin
+        // accessor over `DagdaClient` itself (see auth.service.ts) — no load()
+        // step, since there is nothing here that isn't already read by
+        // refreshSystemInfo() below.
+        const auth = new AuthServiceImpl();
+
         Dagda.init({
             ...buildBaseServices<AppTypes["entities"], AppTypes["contexts"], AppTypes["events"]>({
                 model: params.model,
@@ -130,6 +138,7 @@ export class DagdaClient {
             }),
             pages: pageHandler,
             users,
+            auth,
             brand: params.brand ?? { label: params.title ?? "Dagda" },
             ...(params.services ?? {})
         });
@@ -161,14 +170,14 @@ export class DagdaClient {
     public static async refreshSystemInfo(): Promise<SystemInfo | null> {
         try {
             this._systemInfo = await apiCall<SystemAPI, "getSystemInfo">("getSystemInfo", {});
-            // No broadcast here, deliberately. On the client `broadcast()` does
-            // not notify anything locally: it writes to the websocket, and the
-            // server relays whatever arrives to every other browser. Announcing
-            // the current account that way told nobody in this page and told
-            // everybody in the others who is signed in here.
-            //
-            // The account is read from `currentUser` by whoever displays it,
-            // and the shell refreshes once this call has answered.
+            // notifyLocal(), not broadcast(): this fact is true for this
+            // session alone. broadcast() has no per-recipient filtering yet
+            // (FEATURES §6) — every other connected browser would receive it,
+            // whoever *they* are signed in as, and their own login badge
+            // would render this session's identity. `user` is never null
+            // here: the route refuses an anonymous call, so a resolved
+            // SystemInfo always carries one.
+            Dagda.get<NotificationService<AuthEvents>>("notification").notifyLocal("userInfoChanged", this._systemInfo.user);
         } catch (err) {
             console.error("Error while reading system information", err);
             this._systemInfo = null;

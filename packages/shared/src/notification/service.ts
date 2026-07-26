@@ -9,6 +9,8 @@ export interface NotificationService<Notifications extends BaseNotifications> {
         on: <NotificationKind extends keyof Notifications>(kind: NotificationKind, listener: EventListener<Notifications[NotificationKind]>) => void;
         /** Broadcast a notification */
         broadcast: <NotificationKind extends keyof Notifications>(kind: NotificationKind, data: Notifications[NotificationKind]) => void;
+        /** Fire a notification within this process only — see `AbstractNotificationHandler.notifyLocal` */
+        notifyLocal: <NotificationKind extends keyof Notifications>(kind: NotificationKind, data: Notifications[NotificationKind]) => void;
     }
 }
 
