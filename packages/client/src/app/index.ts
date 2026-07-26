@@ -9,12 +9,15 @@ import { EntitiesModel } from "@dagda/shared/src/entities/model";
 import { ContextAdapter } from "@dagda/shared/src/entities/tools/adapters";
 import { buildBaseServices } from "@dagda/shared/src/services";
 import Handlebars from "handlebars";
+import { DagdaActions } from "@dagda/shared/src/auth/actions";
 import { apiCall } from "../api";
+import { actionCall } from "../actions";
 // Defines `<dagda-app>` and, through it, every element of the shell. Importing
 // it here is what lets an application's `index.html` hold nothing but that one
 // tag (`specs/navigation.md` §6.1).
 import "../components/app/app.component";
 import { AbstractWebComponent } from "../components/abstract.webcomponent";
+import { UsersDirectory } from "../auth/directory";
 import { ClientNotificationImpl } from "../notification/notification.impl";
 import { BasePageTypes, PageHandler, PageInfo } from "../pages/handler";
 import { SectionInfo } from "../pages/menu";
@@ -110,6 +113,11 @@ export class DagdaClient {
             || (this.currentUser?.isSuperAdmin ?? false)
             || (this.currentUser?.permissions.includes(permission) ?? false);
 
+        // The user directory (ROADMAP tranche 3): built here so it is
+        // reachable via Dagda.get("users") from the first render, loaded
+        // below once the shell's own bootstrap calls are underway.
+        const users = new UsersDirectory(() => actionCall<DagdaActions, "listUserNames">("listUserNames"));
+
         Dagda.init({
             ...buildBaseServices<AppTypes["entities"], AppTypes["contexts"], AppTypes["events"]>({
                 model: params.model,
@@ -121,6 +129,7 @@ export class DagdaClient {
                 notification: new ClientNotificationImpl<AppTypes["events"]>()
             }),
             pages: pageHandler,
+            users,
             brand: params.brand ?? { label: params.title ?? "Dagda" },
             ...(params.services ?? {})
         });
@@ -131,11 +140,15 @@ export class DagdaClient {
         // -- Inject headers in the app --
         this._injectHeaders(params.title);
 
-        // -- Read the system information (including the current user) --
+        // -- Read the system information and the user directory --
         // Before the shell draws: the menu is filtered by permission, and the
         // permissions are in that answer. Drawing first would flash entries
-        // that then disappear.
-        await this.refreshSystemInfo();
+        // that then disappear. The directory rides along — its own errors are
+        // swallowed internally (e.g. no session yet), so this never rejects.
+        await Promise.all([
+            this.refreshSystemInfo(),
+            users.load()
+        ]);
 
         // -- Draw the shell --
         // The element is in the page from the start, so it may already have

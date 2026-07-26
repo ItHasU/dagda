@@ -347,6 +347,23 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
             requirePermission(user, "roles.manage");
             await this._roles.delete(params.id);
         });
+
+        this._registerUserDirectoryAction();
+    }
+
+    /**
+     * The client-side user directory action (ROADMAP tranche 3), kept apart
+     * from `_registerAccountActions()` above: every other action there is
+     * gated by `users.manage` or `roles.manage`, this one deliberately isn't.
+     * Any authenticated account needs to resolve an author's id to a name
+     * while rendering a screen — `actionRegister`'s own baseline (a session)
+     * is the whole of the check.
+     */
+    protected _registerUserDirectoryAction(): void {
+        actionRegister<DagdaActions, "listUserNames">(this._app, "listUserNames", async () => {
+            const users = await this._users.list();
+            return users.map(user => ({ id: user.id, displayName: user.displayName }));
+        });
     }
 
     public broadcast<NotificationKind extends keyof AppTypes["events"]>(kind: NotificationKind, data: AppTypes["events"][NotificationKind]): void {

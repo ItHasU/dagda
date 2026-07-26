@@ -9,6 +9,12 @@ export interface InvitationResult {
     expiresAt: number;
 }
 
+/** What the client-side user directory needs for attribution — nothing sensitive (ROADMAP tranche 3) */
+export interface UserName {
+    id: UserId;
+    displayName: string;
+}
+
 /**
  * Account and role management, built into every Dagda application
  * (FEATURES §11.4): both are framework territory, not something an
@@ -38,4 +44,15 @@ export type DagdaActions = {
     updateRole(params: { id: RoleId, name?: string, permissions?: string[] }): Role;
     /** Delete a role. Accounts carrying it fall back to none, not an error */
     deleteRole(params: { id: RoleId }): void;
+
+    /**
+     * Every account's id and display name, for attribution ("published by
+     * X") — the client-side user directory of ROADMAP tranche 3.
+     *
+     * Deliberately not gated by `users.manage`: any authenticated account
+     * needs to resolve an author's id to a name while rendering, not just an
+     * administrator. Returns only what attribution needs — no login, role,
+     * permissions or enabled state, unlike `listUsers()`.
+     */
+    listUserNames(): UserName[];
 };
