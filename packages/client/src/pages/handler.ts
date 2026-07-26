@@ -14,6 +14,23 @@ export type PageEvents = {
     pageChanged: {
         /** The page that was set */
         page: AbstractPageElement;
+        /** The registered name of the page — a `Router` (ROADMAP tranche 4) needs this to build a URL, `page` alone does not carry it */
+        uid: string;
+        /** The params `setPage()` was called with, same reason as `uid` */
+        params: Record<string, string>;
+    }
+
+    /**
+     * Fired by `replaceParams()` (ROADMAP tranche 4): in-page state that
+     * belongs in the URL (which of the current page's own items is showing —
+     * a swipe between dashboards, say) but is not a navigation. A `Router`
+     * reacts with `history.replaceState`, never `pushState` — otherwise
+     * swiping through five dashboards would bury the back button under five
+     * entries that all still point at the same page.
+     */
+    pageParamsChanged: {
+        uid: string;
+        params: Record<string, string>;
     }
 }
 
@@ -70,6 +87,7 @@ export class PageHandler<PageTypes extends BasePageTypes> {
     // Current active page
     private _currentPage: AbstractPageElement | null = null;
     private _currentPageUID: keyof PageTypes | null = null;
+    private _currentPageParams: Record<string, string> = {};
 
     /**
      * Whether the current account may see something.
@@ -172,6 +190,11 @@ export class PageHandler<PageTypes extends BasePageTypes> {
         return this._currentPageUID;
     }
 
+    /** The params the current page was opened with — a `Router` reads this to rebuild the URL (ROADMAP tranche 4) */
+    public get currentPageParams(): Record<string, string> {
+        return this._currentPageParams;
+    }
+
     /**
      * Set and display a page.
      *
@@ -223,13 +246,16 @@ export class PageHandler<PageTypes extends BasePageTypes> {
             }
             this._currentPage = newPage;
             this._currentPageUID = name as string;
+            this._currentPageParams = params ?? {};
 
             // Refresh the page (if applicable)
             await newPage.refresh();
 
             // Fire the pageChanged event
             EventHandlerImpl.fire<PageEvents, "pageChanged">(this._eventHandlerData, "pageChanged", {
-                page: newPage
+                page: newPage,
+                uid: name as string,
+                params: this._currentPageParams
             });
 
             return newPage as PageTypes[PageName];
@@ -247,6 +273,24 @@ export class PageHandler<PageTypes extends BasePageTypes> {
         } else {
             return Promise.resolve();
         }
+    }
+
+    /**
+     * Records a change to the current page's own params without navigating
+     * — see `pageParamsChanged` (ROADMAP tranche 4). Does not touch the page
+     * element itself: the page already reflects whatever changed (e.g. it
+     * drove the swipe that's being recorded here), this only keeps the URL
+     * in step for a deep link or the back button to work later.
+     */
+    public replaceParams(params: Record<string, string>): void {
+        if (this._currentPageUID == null) {
+            return;
+        }
+        this._currentPageParams = params;
+        EventHandlerImpl.fire<PageEvents, "pageParamsChanged">(this._eventHandlerData, "pageParamsChanged", {
+            uid: this._currentPageUID as string,
+            params
+        });
     }
 
     //#endregion

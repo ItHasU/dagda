@@ -23,6 +23,7 @@ import { ClientNotificationImpl } from "../notification/notification.impl";
 import { PreferencesDirectory } from "../preferences/directory";
 import { BasePageTypes, PageHandler, PageInfo } from "../pages/handler";
 import { SectionInfo } from "../pages/menu";
+import { Router } from "../pages/router";
 import { BrandInfo } from "./brand";
 import { installConsoleGlobal } from "./console";
 import headerTemplate from "./index.header.html";
@@ -115,6 +116,13 @@ export class DagdaClient {
             || (this.currentUser?.isSuperAdmin ?? false)
             || (this.currentUser?.permissions.includes(permission) ?? false);
 
+        // Deep-linkable pages (ROADMAP tranche 4): built here so it can
+        // subscribe to pageHandler's events immediately, started below once
+        // every page is registered and the account is known (canAccess must
+        // already answer correctly, or a deep link to a page the account
+        // cannot see would silently open it before the permission is loaded).
+        const router = new Router<PageTypes>(pageHandler);
+
         // The user directory (ROADMAP tranche 3): built here so it is
         // reachable via Dagda.get("users") from the first render, loaded
         // below once the shell's own bootstrap calls are underway.
@@ -146,6 +154,7 @@ export class DagdaClient {
                 notification: new ClientNotificationImpl<AppTypes["events"]>()
             }),
             pages: pageHandler,
+            router,
             users,
             auth,
             preferences,
@@ -169,6 +178,12 @@ export class DagdaClient {
             users.load(),
             preferences.load()
         ]);
+
+        // -- Apply the URL, or fall back to the default page --
+        // After canAccess/currentUser are answerable (a deep link to a page
+        // the account cannot see must not open it first and get corrected
+        // later), before the shell draws.
+        await router.start();
 
         // -- Draw the shell --
         // The element is in the page from the start, so it may already have

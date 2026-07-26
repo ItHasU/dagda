@@ -1,5 +1,3 @@
-import { Dagda } from "@dagda/shared/src/dagda";
-import { PageService } from "../../pages/service";
 import { AbstractWebComponent } from "../abstract.webcomponent";
 // Imported for their side effect — defining the custom elements. This is the
 // one place in the codebase where such an import is right: the framework
@@ -39,18 +37,10 @@ export class DagdaApp extends AbstractWebComponent {
     protected override async _refresh(): Promise<void> {
         this._container ??= this.querySelector<PageContainer>("dagda-page-container");
 
-        // Open something. Until routing by URL exists (FEATURES §8), the first
-        // entry of the menu is the landing page — an application that starts on
-        // an empty content area looks broken, and every one of them would
-        // otherwise write the same line.
-        const pages = Dagda.get<PageService>("pages");
-        if (pages.currentPageUID == null) {
-            const first = pages.getDefaultPageUID();
-            if (first != null) {
-                await pages.setPage(first);
-            }
-        }
-
+        // Opening a page is `Router`'s job now (ROADMAP tranche 4,
+        // `DagdaClient.start()` calls `router.start()` before this first
+        // draw) — deep link if the URL names one, the default page
+        // otherwise. Nothing left to do here beyond rendering.
         await this._container?.refresh();
     }
 
