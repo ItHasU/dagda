@@ -9,6 +9,9 @@
 /** Identifier of an account. The only bridge between framework data and an application model (§11.4) */
 export type UserId = number;
 
+/** Identifier of a role (FEATURES §7.1) */
+export type RoleId = number;
+
 /** What the client is told about a user */
 export interface UserInfo {
     id: UserId;
@@ -31,6 +34,24 @@ export interface UserInfo {
      * them, and a deleted row would leave those dangling (§11.4).
      */
     enabled: boolean;
+    /** The role carried by this account, or null if it has none (FEATURES §7.1: at most one) */
+    roleId: RoleId | null;
+    /**
+     * The permission keys of `roleId`'s role, resolved server-side — empty for
+     * a super-admin, whose `isSuperAdmin` flag is what to check instead (see
+     * `hasPermission()` in `./permissions`). Sent to the client to hide
+     * inaccessible UI, never a substitute for the server's own check.
+     */
+    permissions: string[];
+}
+
+/** A role: a name and the subset of permissions it grants (FEATURES §7.1) */
+export interface Role {
+    id: RoleId;
+    /** Chosen freely by the administrator, unique */
+    name: string;
+    /** Permission keys, validated against the declared vocabulary at write time */
+    permissions: string[];
 }
 
 /** The login credentials, as the login form sends them */

@@ -1,5 +1,6 @@
 import { TEST_MODEL } from "@dagda/shared/src/entities/_data";
 import { afterEach, beforeEach, describe, expect, inject, it } from "vitest";
+import { RoleStore } from "./roles";
 import { FRAMEWORK_MIGRATIONS } from "../sql/framework.migrations";
 import { applyMigrations } from "../sql/migrations";
 import { createTestDatabase, TestDatabase } from "../test/pg.fixture";
@@ -10,6 +11,7 @@ const available = inject("databaseAvailable");
 describe.runIf(available)("Accounts", () => {
 
     let db: TestDatabase;
+    let roles: RoleStore;
     let users: UserStore;
     let logged: string[];
 
@@ -17,7 +19,8 @@ describe.runIf(available)("Accounts", () => {
         db = await createTestDatabase("users");
         logged = [];
         await applyMigrations(db.runner, TEST_MODEL, FRAMEWORK_MIGRATIONS, "framework");
-        users = new UserStore(db.runner, (m: string) => logged.push(m));
+        roles = new RoleStore(db.runner);
+        users = new UserStore(db.runner, roles, (m: string) => logged.push(m));
     });
 
     afterEach(async () => {
@@ -312,6 +315,57 @@ describe.runIf(available)("Accounts", () => {
             const alice = await users.create({ login: "alice", password: "x" });
             expect((await users.getById(alice.id))?.login).toBe("alice");
             expect(await users.getById(999999)).toBeNull();
+        });
+
+    });
+
+    describe("Roles (FEATURES §7.1)", () => {
+
+        it("carries no role and no permission by default", async () => {
+            const alice = await users.create({ login: "alice", password: "x" });
+            expect(alice.roleId).toBeNull();
+            expect(alice.permissions).toEqual([]);
+        });
+
+        it("resolves the permissions of the role it is given", async () => {
+            const role = await roles.create({ name: "Support", permissions: ["users.manage"] });
+            const alice = await users.create({ login: "alice", password: "x" });
+            await users.setRole(alice.id, role.id);
+
+            const updated = await users.getById(alice.id);
+            expect(updated?.roleId).toBe(role.id);
+            expect(updated?.permissions).toEqual(["users.manage"]);
+        });
+
+        it("goes back to no permission once the role is cleared", async () => {
+            const role = await roles.create({ name: "Support", permissions: ["users.manage"] });
+            const alice = await users.create({ login: "alice", password: "x" });
+            await users.setRole(alice.id, role.id);
+            await users.setRole(alice.id, null);
+
+            const updated = await users.getById(alice.id);
+            expect(updated?.roleId).toBeNull();
+            expect(updated?.permissions).toEqual([]);
+        });
+
+        it("does not enumerate permissions for a super-admin, its flag is the whole check", async () => {
+            const role = await roles.create({ name: "Support", permissions: ["users.manage"] });
+            const admin = await users.create({ login: "root", password: "x", isSuperAdmin: true });
+            await users.setRole(admin.id, role.id);
+
+            const updated = await users.getById(admin.id);
+            expect(updated?.isSuperAdmin).toBe(true);
+            expect(updated?.permissions).toEqual([]);
+        });
+
+        it("follows a role's permissions being edited, without reassigning it", async () => {
+            const role = await roles.create({ name: "Support", permissions: ["users.manage"] });
+            const alice = await users.create({ login: "alice", password: "x" });
+            await users.setRole(alice.id, role.id);
+
+            await roles.update(role.id, { permissions: ["roles.manage"] });
+
+            expect((await users.getById(alice.id))?.permissions).toEqual(["roles.manage"]);
         });
 
     });

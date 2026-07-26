@@ -99,13 +99,16 @@ export class DagdaClient {
             pageHandler.registerPage(name, info as PageInfo<any>);
         }
         pageHandler.registerSections(params.sections ?? {});
-        // Until the role matrix of FEATURES §7.1 exists, the super-admin flag
-        // is the whole of it: the first account holds every permission, and a
-        // page that declares one is not offered to anybody else. Deliberately
-        // closed rather than open — a menu that offers what the server will
-        // refuse is worse than one entry short.
+        // Deliberately closed rather than open — a menu that offers what the
+        // server will refuse is worse than one entry short. Mirrors
+        // hasPermission() server-side: super-admin bypasses everything, the
+        // resolved permission list decides the rest (FEATURES §7.1). This is
+        // a convenience only — the server re-checks on every action and page
+        // fetch regardless (§11.2).
         pageHandler.canAccess = (permission) =>
-            permission == null || (this.currentUser?.isSuperAdmin ?? false);
+            permission == null
+            || (this.currentUser?.isSuperAdmin ?? false)
+            || (this.currentUser?.permissions.includes(permission) ?? false);
 
         Dagda.init({
             ...buildBaseServices<AppTypes["entities"], AppTypes["contexts"], AppTypes["events"]>({

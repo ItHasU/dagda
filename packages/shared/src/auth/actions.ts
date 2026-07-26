@@ -1,4 +1,4 @@
-import { UserId, UserInfo } from "./types";
+import { Role, RoleId, UserId, UserInfo } from "./types";
 
 /** What issuing or reissuing an invitation link hands back (FEATURES §7) */
 export interface InvitationResult {
@@ -10,13 +10,13 @@ export interface InvitationResult {
 }
 
 /**
- * Account management, built into every Dagda application (FEATURES §11.4):
- * accounts are framework territory, not something an application declares.
+ * Account and role management, built into every Dagda application
+ * (FEATURES §11.4): both are framework territory, not something an
+ * application declares.
  *
- * Every one of these requires `isSuperAdmin` — there is no role matrix yet
- * (ROADMAP tranche 3), so this is the same stopgap the menu filtering already
- * uses. The permission check is enforced by the handler, not by this type:
- * this only says what is callable and with what, same as any other action.
+ * Gated by permission (`users.manage`, `roles.manage` — FEATURES §7.1),
+ * checked by the handler, not by this type: this only says what is callable
+ * and with what, same as any other action.
  */
 export type DagdaActions = {
     /** Every account, disabled ones included — the administration screen's list */
@@ -27,4 +27,15 @@ export type DagdaActions = {
     reinviteUser(params: { id: UserId }): InvitationResult;
     /** Enable or disable an account. Disabling is how an account is retired (§11.4) */
     setUserEnabled(params: { id: UserId, enabled: boolean }): void;
+    /** Give an account a role, or none (§7.1: at most one) */
+    setUserRole(params: { id: UserId, roleId: RoleId | null }): void;
+
+    /** Every role, for the matrix screen and the account screen's role picker */
+    listRoles(): Role[];
+    /** Create a role. @throws if the name is taken or a permission is not declared */
+    createRole(params: { name: string, permissions: string[] }): Role;
+    /** Rename a role and/or replace the permissions it grants */
+    updateRole(params: { id: RoleId, name?: string, permissions?: string[] }): Role;
+    /** Delete a role. Accounts carrying it fall back to none, not an error */
+    deleteRole(params: { id: RoleId }): void;
 };

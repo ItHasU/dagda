@@ -1,3 +1,4 @@
+import { ROLES_TABLE } from "../auth/roles";
 import { USERS_TABLE } from "../auth/users";
 import { SETTINGS_TABLE } from "../settings/store";
 import { Migration } from "./migrations";
@@ -73,6 +74,35 @@ export const FRAMEWORK_MIGRATIONS: Migration[] = [
             );
             await tools.run(
                 `CREATE UNIQUE INDEX ${qi(`${USERS_TABLE}_invitation_token`)} ON ${qi(USERS_TABLE)} (${qi("invitationToken")})`
+            );
+        }
+    },
+    {
+        id: "0004-roles",
+        up: async (tools) => {
+            // permissions is TEXT, not TEXT[]: the SQL runner's parameter
+            // marshalling (sqlValue()) targets both SQLite and PostgreSQL, and
+            // has no native array type — a JS array is passed through
+            // RoleStore as a JSON string, same idea as the runner's own
+            // fallback for an object.
+            await tools.run(
+                `CREATE TABLE ${qi(ROLES_TABLE)} (
+                    ${qi("id")} SERIAL PRIMARY KEY,
+                    ${qi("name")} TEXT NOT NULL,
+                    ${qi("permissions")} TEXT NOT NULL,
+                    ${qi("createdAt")} TIMESTAMPTZ NOT NULL DEFAULT now()
+                )`
+            );
+            await tools.run(
+                `CREATE UNIQUE INDEX ${qi(`${ROLES_TABLE}_name`)} ON ${qi(ROLES_TABLE)} (lower(${qi("name")}))`
+            );
+            // A user carries at most one role (FEATURES §7.1). Deleting a role
+            // clears the column rather than being refused: nothing about a
+            // role is precious enough to block cleanup over, and an account
+            // with no role simply has no permissions beyond isSuperAdmin.
+            await tools.run(
+                `ALTER TABLE ${qi(USERS_TABLE)}
+                 ADD COLUMN ${qi("roleId")} INTEGER REFERENCES ${qi(ROLES_TABLE)}(${qi("id")}) ON DELETE SET NULL`
             );
         }
     }

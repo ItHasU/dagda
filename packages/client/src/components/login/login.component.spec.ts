@@ -17,7 +17,7 @@ import { LoginComponent } from "./login.component";
  * all.
  */
 
-const ADMIN: UserInfo = { id: 1, login: "admin", displayName: "Ada Lovelace", isSuperAdmin: true, enabled: true };
+const ADMIN: UserInfo = { id: 1, login: "admin", displayName: "Ada Lovelace", isSuperAdmin: true, enabled: true, roleId: null, permissions: [] };
 
 /** A notification service that only does what this component asks of it */
 function notifications(): NotificationService<AuthEvents> & { fire: (user: UserInfo) => void } {

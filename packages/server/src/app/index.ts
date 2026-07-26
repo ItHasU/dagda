@@ -12,12 +12,14 @@ import { SQLTransactionData, SQLTransactionResult } from "@dagda/shared/src/sql/
 import express from "express";
 import { resolve } from "path";
 import { DagdaActions } from "@dagda/shared/src/auth/actions";
+import { hasPermission } from "@dagda/shared/src/auth/permissions";
 import { UserInfo } from "@dagda/shared/src/auth/types";
 import { actionRegister, ActionCallback } from "../actions";
 import { apiRegister, RequestCallback, RequestOptions } from "../api";
 import { submit } from "../api/impl/entities.api";
 import { getSystemInfo, triggerError } from "../api/impl/system.api";
 import { AuthHandler } from "../auth";
+import { RoleStore } from "../auth/roles";
 import { UserStore } from "../auth/users";
 import { ServerNotificationImpl } from "../notification/notification.impl";
 import { PGRunner } from "../sql/impl/pg.runner";
@@ -83,6 +85,7 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
     protected _db: PGRunner;
     protected _notification: ServerNotificationImpl<AppTypes["events"]>;
     protected _settings: SettingsStore<Settings>;
+    protected _roles: RoleStore;
     protected _users: UserStore;
 
     constructor(
@@ -111,7 +114,8 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
         // Before the authentication handler, which reads the accounts from it.
         console.log("Initializing database connection...");
         this._db = new PGRunner(this._config.dbURL);
-        this._users = new UserStore(this._db);
+        this._roles = new RoleStore(this._db);
+        this._users = new UserStore(this._db, this._roles);
 
         // -- Create the authentication handler --
         console.log("Initializing authentication handler...");
@@ -291,13 +295,13 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
         actionRegister(this._app, name, callback);
     }
 
-    /** Account management actions, the same for every application (FEATURES §11.4) */
+    /** Account and role management actions, the same for every application (FEATURES §7.1, §11.4) */
     protected _registerAccountActions(): void {
-        const requireSuperAdmin = (user: UserInfo): void => {
-            if (!user.isSuperAdmin) {
+        const requirePermission = (user: UserInfo, permission: string): void => {
+            if (!hasPermission(user, permission)) {
                 // The gate that matters: hiding a screen is not access
                 // control (§11.2), and this is reachable from any console.
-                throw new Error("Reserved to administrators");
+                throw new Error("Missing permission: " + permission);
             }
         };
         const toInvitationResult = (invitation: { user: UserInfo, token: string, expiresAt: number }) => ({
@@ -307,20 +311,41 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
         });
 
         actionRegister<DagdaActions, "listUsers">(this._app, "listUsers", async (user) => {
-            requireSuperAdmin(user);
+            requirePermission(user, "users.manage");
             return this._users.list();
         });
         actionRegister<DagdaActions, "inviteUser">(this._app, "inviteUser", async (user, params) => {
-            requireSuperAdmin(user);
+            requirePermission(user, "users.manage");
             return toInvitationResult(await this._users.invite(params));
         });
         actionRegister<DagdaActions, "reinviteUser">(this._app, "reinviteUser", async (user, params) => {
-            requireSuperAdmin(user);
+            requirePermission(user, "users.manage");
             return toInvitationResult(await this._users.reinvite(params.id));
         });
         actionRegister<DagdaActions, "setUserEnabled">(this._app, "setUserEnabled", async (user, params) => {
-            requireSuperAdmin(user);
+            requirePermission(user, "users.manage");
             await this._users.setEnabled(params.id, params.enabled);
+        });
+        actionRegister<DagdaActions, "setUserRole">(this._app, "setUserRole", async (user, params) => {
+            requirePermission(user, "users.manage");
+            await this._users.setRole(params.id, params.roleId);
+        });
+
+        actionRegister<DagdaActions, "listRoles">(this._app, "listRoles", async (user) => {
+            requirePermission(user, "roles.manage");
+            return this._roles.list();
+        });
+        actionRegister<DagdaActions, "createRole">(this._app, "createRole", async (user, params) => {
+            requirePermission(user, "roles.manage");
+            return this._roles.create(params);
+        });
+        actionRegister<DagdaActions, "updateRole">(this._app, "updateRole", async (user, params) => {
+            requirePermission(user, "roles.manage");
+            return this._roles.update(params.id, params);
+        });
+        actionRegister<DagdaActions, "deleteRole">(this._app, "deleteRole", async (user, params) => {
+            requirePermission(user, "roles.manage");
+            await this._roles.delete(params.id);
         });
     }
 

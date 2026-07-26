@@ -1,9 +1,10 @@
 import { SYSTEM_TABLE_PREFIX } from "@dagda/shared/src/entities/model";
-import { UserId, UserInfo } from "@dagda/shared/src/auth/types";
+import { RoleId, UserId, UserInfo } from "@dagda/shared/src/auth/types";
 import { randomBytes } from "node:crypto";
 import { AbstractSQLRunner } from "../sql/runner";
 import { qi } from "../sql/schema";
 import { hashPassword, verifyPassword } from "./passwords";
+import { RoleStore } from "./roles";
 
 /** Table holding the accounts, owned by the framework (FEATURES §11.4) */
 export const USERS_TABLE = `${SYSTEM_TABLE_PREFIX}users`;
@@ -26,6 +27,7 @@ interface UserRow {
     enabled: boolean;
     invitationToken: string | null;
     invitationExpiresAt: string | null;
+    roleId: number | null;
 }
 
 /** What issuing or reissuing an invitation hands back, for the admin to pass along */
@@ -33,17 +35,6 @@ export interface Invitation {
     user: UserInfo;
     token: string;
     expiresAt: number;
-}
-
-/** What the rest of the framework sees of a user */
-function toUserInfo(row: UserRow): UserInfo {
-    return {
-        id: row.id,
-        login: row.login,
-        displayName: row.displayName,
-        isSuperAdmin: row.isSuperAdmin,
-        enabled: row.enabled
-    };
 }
 
 /**
@@ -59,20 +50,24 @@ function toUserInfo(row: UserRow): UserInfo {
  */
 export class UserStore {
 
-    constructor(protected readonly _db: AbstractSQLRunner, protected readonly _log: (message: string) => void = console.log) { }
+    constructor(
+        protected readonly _db: AbstractSQLRunner,
+        protected readonly _roles: RoleStore,
+        protected readonly _log: (message: string) => void = console.log
+    ) { }
 
     //#region Reading ---------------------------------------------------------
 
     /** @returns the user, or null if no account carries this id */
     public async getById(id: UserId): Promise<UserInfo | null> {
         const row = await this._db.get<UserRow>(`SELECT * FROM ${qi(USERS_TABLE)} WHERE ${qi("id")} = $1`, id);
-        return row == null ? null : toUserInfo(row);
+        return row == null ? null : this._toUserInfo(row);
     }
 
     /** @returns every account, disabled ones included, for the administration screen */
     public async list(): Promise<UserInfo[]> {
         const rows = await this._db.all<UserRow>(`SELECT * FROM ${qi(USERS_TABLE)} ORDER BY ${qi("login")}`);
-        return rows.map(toUserInfo);
+        return Promise.all(rows.map(row => this._toUserInfo(row)));
     }
 
     /** @returns how many accounts exist */
@@ -107,7 +102,7 @@ export class UserStore {
         if (row == null || !matches || !row.enabled) {
             return null;
         }
-        return toUserInfo(row);
+        return this._toUserInfo(row);
     }
 
     //#endregion
@@ -137,7 +132,7 @@ export class UserStore {
         if (row == null) {
             throw new Error(`Could not create the account "${login}"`);
         }
-        return toUserInfo(row);
+        return this._toUserInfo(row);
     }
 
     /** Replace the password of an account */
@@ -167,6 +162,11 @@ export class UserStore {
     /** Enable or disable an account. Disabling is how an account is retired (§11.4) */
     public async setEnabled(id: UserId, enabled: boolean): Promise<void> {
         await this._db.run(`UPDATE ${qi(USERS_TABLE)} SET ${qi("enabled")} = $1 WHERE ${qi("id")} = $2`, enabled, id);
+    }
+
+    /** Give an account a role, or none (FEATURES §7.1: at most one) */
+    public async setRole(id: UserId, roleId: RoleId | null): Promise<void> {
+        await this._db.run(`UPDATE ${qi(USERS_TABLE)} SET ${qi("roleId")} = $1 WHERE ${qi("id")} = $2`, roleId, id);
     }
 
     //#endregion
@@ -201,7 +201,7 @@ export class UserStore {
         if (row == null) {
             throw new Error(`Could not create the account "${login}"`);
         }
-        return { user: toUserInfo(row), token, expiresAt };
+        return { user: await this._toUserInfo(row), token, expiresAt };
     }
 
     /**
@@ -221,7 +221,7 @@ export class UserStore {
         if (row == null) {
             throw new Error(`No account with id ${id}`);
         }
-        return { user: toUserInfo(row), token, expiresAt };
+        return { user: await this._toUserInfo(row), token, expiresAt };
     }
 
     /**
@@ -236,7 +236,7 @@ export class UserStore {
         if (row == null || row.invitationExpiresAt == null || Number(row.invitationExpiresAt) < Date.now()) {
             return null;
         }
-        return toUserInfo(row);
+        return this._toUserInfo(row);
     }
 
     /**
@@ -262,7 +262,7 @@ export class UserStore {
              WHERE ${qi("id")} = $2 RETURNING *`,
             await hashPassword(password), user.id
         );
-        return row == null ? null : toUserInfo(row);
+        return row == null ? null : await this._toUserInfo(row);
     }
 
     //#endregion
@@ -305,6 +305,25 @@ export class UserStore {
     }
 
     //#endregion
+
+    /**
+     * What the rest of the framework sees of a user: resolves `roleId` to its
+     * role's permissions (FEATURES §7.1). Empty for a super-admin — its
+     * `isSuperAdmin` flag is what `hasPermission()` checks instead, so there
+     * is nothing to enumerate and nothing to keep in step.
+     */
+    protected async _toUserInfo(row: UserRow): Promise<UserInfo> {
+        const role = row.isSuperAdmin || row.roleId == null ? null : await this._roles.getById(row.roleId);
+        return {
+            id: row.id,
+            login: row.login,
+            displayName: row.displayName,
+            isSuperAdmin: row.isSuperAdmin,
+            enabled: row.enabled,
+            roleId: row.roleId,
+            permissions: role?.permissions ?? []
+        };
+    }
 }
 
 /**
