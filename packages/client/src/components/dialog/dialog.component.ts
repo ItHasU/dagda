@@ -11,9 +11,12 @@ export interface DialogAction {
      * Called on click. Omit for a button that only closes the dialog (e.g.
      * "Annuler"). If it throws, the error is shown as a toast and the dialog
      * stays open — same as a form left as-is after a failed submit, so
-     * whatever the user typed is not lost. Otherwise the dialog closes.
+     * whatever the user typed is not lost. Otherwise the dialog closes,
+     * unless it returns exactly `false` — an action that opens a further
+     * dialog of its own (e.g. "here is the invitation link") returns `false`
+     * so the trigger that opened it does not immediately close it again.
      */
-    onClick?: () => Promise<void> | void;
+    onClick?: () => Promise<void | false> | void | false;
 }
 
 export interface DialogOptions {
@@ -95,8 +98,10 @@ export class DialogHost extends AbstractWebComponent {
             return;
         }
         try {
-            await action.onClick();
-            this.close();
+            const result = await action.onClick();
+            if (result !== false) {
+                this.close();
+            }
         } catch (err) {
             showToast(err instanceof Error ? err.message : String(err));
         }

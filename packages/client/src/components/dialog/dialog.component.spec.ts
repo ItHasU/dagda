@@ -65,6 +65,15 @@ describe("DialogHost", () => {
         expect(host.querySelector(".dialog-backdrop")!.hasAttribute("hidden")).toBe(true);
     });
 
+    it("stays open when onClick returns false, e.g. to open a follow-up dialog of its own", async () => {
+        host.open({ title: "T", body: text("x"), actions: [{ label: "Go", onClick: () => false }] });
+        host.querySelector<HTMLButtonElement>(".dialog-actions button")!.click();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(host.querySelector(".dialog-backdrop")!.hasAttribute("hidden")).toBe(false);
+    });
+
     it("stays open and shows a toast when onClick throws", async () => {
         host.open({
             title: "T", body: text("x"),
