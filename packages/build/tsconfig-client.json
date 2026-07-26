@@ -5,6 +5,19 @@
         "lib": [
             "ES2022",
             "DOM"
-        ]
+        ],
+        // Overrides the base's "commonjs" (server code needs that, compiled
+        // to run directly under Node) for client code specifically: webpack
+        // only treats a dynamic import() as a code-splitting boundary when
+        // it sees the real syntax. Compiled down to CommonJS first (ts-loader
+        // runs before webpack ever sees the file), import() becomes a
+        // require() wrapped in a resolved promise — still functions, but
+        // webpack bundles a require() eagerly into the calling chunk instead
+        // of splitting it off, silently defeating lazy-loading (ROADMAP
+        // tranche 4: this is exactly how Monaco, a multi-megabyte dependency
+        // meant to load only when an editor actually opens, ended up inlined
+        // into the main bundle on the first pass).
+        "module": "esnext",
+        "moduleResolution": "bundler"
     }
 }

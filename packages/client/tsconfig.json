@@ -3,6 +3,17 @@
     "compilerOptions": {
         "baseUrl": ".",
         "outDir": "./.tsc-build/",
+        // monaco-editor's package.json declares a "types" condition only for
+        // its root export, which pulls in every language and worker at once;
+        // the deep import actually used (editor/editor.api, ROADMAP tranche
+        // 4) has a real .d.ts on disk, but this repo's "node" moduleResolution
+        // (an ecosystem-wide setting, not something to change for one
+        // dependency) won't resolve it without help. Runtime resolution
+        // (webpack, ts-loader) is unaffected — this mapping is read by `tsc`
+        // alone, for type-checking only.
+        "paths": {
+            "monaco-editor/editor/editor.api": ["../../node_modules/monaco-editor/esm/vs/editor/editor.api.d.ts"]
+        }
     },
     "include": [
         "./src/**/*.ts"

@@ -1,0 +1,19 @@
+/* ==========================================================================
+   editor.css — <dagda-code-editor> (ROADMAP tranche 4).
+
+   Sizing only: Monaco fills whatever box its host is given
+   (`automaticLayout: true` keeps it in step with resizes), it does not pick
+   a height of its own — a custom element is inline by default, which would
+   collapse it to zero height without this.
+   ========================================================================== */
+
+dagda-code-editor {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.code-editor-host {
+    width: 100%;
+    height: 100%;
+}
