@@ -246,6 +246,30 @@ broker, l'historique est persisté, et couper/rétablir le réseau ne casse rien
 survivent à un redémarrage du serveur (sans hook d'arrêt), et un échec réseau
 pendant une publication est visible et rattrapable.
 
+- ✅ Publication immédiate et différée, avec formulaire (topic, message,
+  `retain`, QoS, « maintenant » / « plus tard »), liste des publications
+  programmées et annulation. `publishMessage`/`schedulePublish`/
+  `cancelScheduledPublish`/`listScheduledPublishes` (actions), `PublishScheduler`
+  (`setTimeout`, un par publication programmée), liste tenue à jour côté client
+  par la notification `scheduledPublishesChanged` plutôt que par un sondage.
+  Échec réseau visible via un toast (`showToast`), comme toute action.
+- ⚠️ **Écart assumé par rapport à la porte de sortie telle qu'écrite** : la
+  file des publications différées est **en mémoire seulement** — décision
+  explicite prise plus tôt dans la tranche (« prend l'option d'un setTimeout
+  pour l'instant, ce n'est pas grave si on perd un envoi de message quand le
+  serveur redémarre »). Une publication programmée ne survit donc **pas** à
+  un redémarrage. À revoir si ça devient gênant en pratique : passer par la
+  persistance de Dagda plutôt que par le fichier de configuration que faisait
+  la v1 (FEATURES MQTTToolbox §3).
+- ✅ Formulaire construit avec le générateur de formulaires (FEATURES §8.1),
+  premier consommateur applicatif réel : éditeurs par défaut réutilisés tels
+  quels (texte, nombre, booléen, énumération pour le QoS), et un éditeur
+  `TIMESTAMP` propre à l'application enregistré par-dessus le défaut
+  (`registerForType`) pour le champ « envoyer le ». Assemblage à la main
+  (cinq champs fixes), pas via une déclaration générique — cette pièce-là
+  reste à construire pour l'écran de paramètres et la matrice de permissions
+  (tranche 3).
+
 ---
 
 ## Tranche 3 — « Je me connecte »
@@ -254,30 +278,50 @@ pendant une publication est visible et rattrapable.
 
 **Ce que ça tire de Dagda**
 
-- Comptes locaux : mot de passe haché, création **sur invitation** d'un
-  administrateur (lien à usage unique, expiration). **Seul mode d'authentification.**
-- **`passport` disparaît entièrement**, pas seulement sa stratégie Google.
-  Avec une authentification locale, il ne reste rien qui justifie l'abstraction :
-  `passport.initialize()`, `passport.session()`, `serializeUser` /
-  `deserializeUser` et `passport.authenticate()` se remplacent par une
-  vérification de mot de passe et un identifiant en session. Quatre paquets
-  sortent (`passport`, `passport-google-oauth20` et leurs `@types`) ;
-  `express-session` reste, c'est lui qui porte la session.
-  Deux conséquences sur la surface publique, à traiter ici :
-  - `PassportProfile` et la méthode abstraite `_isUserValid(profile)` de
-    `AbstractServerApp` disparaissent — les deux applications les implémentent
-    aujourd'hui ;
-  - `registerAuthStrategy` / `registerGoogleStrategy` et
-    `isGoogleStrategyConfigured` partent avec, ainsi que les variables
-    d'environnement `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`.
-- Rôles et matrice de permissions, super-admin intégré, premier compte `admin`.
+- ✅ Comptes locaux : mot de passe haché (scrypt), **seul mode d'authentification**.
+  `passport` est entièrement sorti — plus seulement sa stratégie Google : quatre
+  paquets ont quitté l'arbre de dépendances (`passport`, `passport-google-oauth20`
+  et leurs `@types`), `PassportProfile` / `_isUserValid(profile)` /
+  `registerAuthStrategy` / `registerGoogleStrategy` ont disparu avec, ainsi que
+  `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`. `express-session` reste, c'est lui
+  qui porte la session. Premier compte `admin`/`admin` amorcé sur base vide.
+- ✅ **Création sur invitation d'un administrateur** (lien à usage unique, avec
+  expiration) : `UserStore.invite()`/`acceptInvitation()`/`reinvite()`, routes
+  `GET`/`POST /invite/:token`. Pas de service d'e-mail (FEATURES §0) — le lien
+  est copié à la main par l'administrateur. `reinvite()` sert aussi de
+  réinitialisation de mot de passe : même mécanisme, le mot de passe courant
+  reste valide tant que le nouveau lien n'a pas été utilisé. Exposé via
+  `dagda.actions.inviteUser/reinviteUser/listUsers/setUserEnabled` — premier
+  usage réel de la couche d'actions (§11.1) côté framework, et premières
+  actions gardées par une permission (`isSuperAdmin`, en attendant la matrice
+  de rôles ci-dessous).
+- ⚠️ Rôles et matrice de permissions, super-admin intégré — le super-admin
+  existe et protège déjà les actions de comptes ci-dessus ; la **matrice**
+  éditable par rôle reste à construire, avec le générateur de formulaires.
 - **Générateur de formulaires** (FEATURES §8.1), construit ici plutôt qu'à
   l'apparition du premier écran métier : c'est lui qui rend possible, dans la
   même tranche, l'écran de matrice rôle × permission *et* l'écran de paramètres
   système ci-dessous — les deux premiers de ses trois usages identifiés
   (le troisième, les paramètres de script, attend la tranche 5 bis).
+  - ✅ Mécanisme d'enregistrement d'un éditeur par type de champ, avec un
+    éditeur par défaut pour chaque type de base (texte, nombre, booléen,
+    énumération). C'est la brique qui laisse chaque application décider
+    l'éditeur d'un type nommé particulier (ex. `MARKDOWN` face à un simple
+    `TEXT`) sans rien reconstruire pour les autres.
+  - ✅ Assemblage : `<dagda-form>` prend une liste de `FormFieldDeclaration`
+    (libellé, type, défaut, obligatoire), rend un éditeur par champ via le
+    registre, valide au submit et émet `dagda-form-submit` avec les valeurs
+    collectées. Encore sans consommateur réel — l'écran de paramètres et la
+    matrice de permissions ci-dessous seront les premiers à s'en servir.
 - Écran d'édition des paramètres système, réservé aux administrateurs, avec les
   paramètres secrets en écriture seule (FEATURES §11.5).
+  - **À partir de cet écran, plus aucun réglage applicatif ne doit rester en
+    variable d'environnement dès lors qu'il peut être un paramètre système**
+    (FEATURES §11.5 : l'amorçage seul — port, URL de base, chaîne de connexion
+    à la base — reste en variable d'environnement, tout le reste va dans les
+    paramètres). Un choix explicite à faire ici, réglage par réglage : ce qui
+    est amorçage reste en `.env` / variable d'environnement, ce qui peut
+    attendre le premier accès en base bascule vers les paramètres système.
 - **Routes client → serveur protégées par permission** (FEATURES §5) : le
   mécanisme est posé ici, en même temps que les permissions qu'il vérifie —
   aucun écran de cette tranche ne l'exige encore, mais le construire plus tard

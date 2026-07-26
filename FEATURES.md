@@ -165,22 +165,22 @@ Décisions structurantes qui expliquent plusieurs choix ci-dessous :
 | Lecture de la config depuis les variables d'environnement | ✅ | ✅ | `getEnvString` / `getEnvNumber` / `...Optional`, préfixe configurable. **Réservé à l'amorçage** (port, URL de base, connexion à la base) : le reste passe par les paramètres système (§11.5) |
 | Session serveur | ✅ | ✅ | |
 | Validation applicative de l'utilisateur (`_isUserValid`) | ✅ | ✅ | permet la liste blanche d'utilisateurs |
-| **NEW** — **Comptes locaux, seul mode d'authentification** (compte + mot de passe) | | | plus de dépendance à un fournisseur externe |
-| **ÉCARTÉ** — Stratégie Google OAuth2 | ✅ | ✅ | **présente dans les deux versions, à retirer**. Impact réel : EurekAI authentifie aujourd'hui ses utilisateurs par Google (cf. tranche 8) |
-| **ÉCARTÉ** — Point d'extension pour d'autres stratégies (`registerAuthStrategy`) | ❌ | ✅ | |
-| **ÉCARTÉ** — Plusieurs stratégies actives simultanément | | | sans objet : il n'en reste qu'une |
-| **ÉCARTÉ** — Un utilisateur rattaché à plusieurs méthodes de connexion | | | sans objet |
-| **NEW** — ↳ Bénéfice : **`passport` disparaît entièrement**, pas seulement sa stratégie | | | quatre paquets sortent (`passport`, `passport-google-oauth20`, leurs `@types`). En local, `initialize()` / `session()` / `serializeUser` / `authenticate()` se remplacent par une vérification de mot de passe et un identifiant en session. `express-session` reste. Emporte au passage `PassportProfile`, `_isUserValid(profile)`, `registerAuthStrategy`, `registerGoogleStrategy` et les variables `GOOGLE_*` |
-| **NEW** — ↳ stockage sécurisé des mots de passe (hachage + sel) | | | |
-| **NEW** — ↳ création de compte **sur invitation d'un administrateur uniquement** | | | pas d'inscription publique : aucun formulaire d'inscription exposé |
-| **NEW** — ↳ mécanisme d'invitation (lien à usage unique, avec expiration) | | | l'administrateur crée le compte, l'utilisateur choisit son mot de passe |
-| **NEW** — ↳ changement de mot de passe par l'utilisateur | | | |
-| **NEW** — ↳ réinitialisation : par le même lien d'invitation, régénéré par l'administrateur | | | évite d'imposer un service d'envoi de mail ; à confirmer |
-| **NEW** — Rôles & permissions | | | modèle détaillé en §7.1 |
+| **NEW** — **Comptes locaux, seul mode d'authentification** (compte + mot de passe) | | ✅ | plus de dépendance à un fournisseur externe |
+| **ÉCARTÉ** — Stratégie Google OAuth2 | ✅ | ❌ | **retirée**. Impact réel : EurekAI authentifiait ses utilisateurs par Google (cf. tranche 8) |
+| **ÉCARTÉ** — Point d'extension pour d'autres stratégies (`registerAuthStrategy`) | ❌ | ❌ | |
+| **ÉCARTÉ** — Plusieurs stratégies actives simultanément | | ❌ | sans objet : il n'en reste qu'une |
+| **ÉCARTÉ** — Un utilisateur rattaché à plusieurs méthodes de connexion | | ❌ | sans objet |
+| **NEW** — ↳ Bénéfice : **`passport` disparaît entièrement**, pas seulement sa stratégie | | ✅ | quatre paquets sont sortis (`passport`, `passport-google-oauth20`, leurs `@types`). `initialize()` / `session()` / `serializeUser` / `authenticate()` sont remplacés par une vérification de mot de passe et un identifiant en session. `express-session` reste. `PassportProfile`, `_isUserValid(profile)`, `registerAuthStrategy`, `registerGoogleStrategy` et les variables `GOOGLE_*` ont disparu avec |
+| **NEW** — ↳ stockage sécurisé des mots de passe (hachage + sel) | | ✅ | scrypt, `node:crypto` — aucune dépendance ajoutée (§0) |
+| **NEW** — ↳ création de compte **sur invitation d'un administrateur uniquement** | | ✅ | pas d'inscription publique : aucun formulaire d'inscription exposé |
+| **NEW** — ↳ mécanisme d'invitation (lien à usage unique, avec expiration) | | ✅ | `UserStore.invite()` / `acceptInvitation()`, routes `GET`/`POST /invite/:token`. Sept jours de validité |
+| **NEW** — ↳ changement de mot de passe par l'utilisateur | | | `UserStore.changePassword()` existe côté serveur ; pas encore exposé au client (aucun écran « mes préférences ») |
+| **NEW** — ↳ réinitialisation : par le même lien d'invitation, régénéré par l'administrateur | | ✅ | **décidé** : pas de service d'envoi de mail (§0), l'administrateur copie le lien à la main. `UserStore.reinvite()` : le mot de passe courant reste valide tant que le nouveau lien n'a pas été utilisé |
+| **NEW** — Rôles & permissions | | | modèle détaillé en §7.1 — le super-admin existe, la matrice reste à construire |
 | **NEW** — Notion de propriétaire d'une entité + partage entre utilisateurs | | | besoin remonté par MQTTToolbox 2 (tableaux de bord) — se compose avec les permissions (§7.1), ne les remplace pas |
-| **NEW** — Identité de l'utilisateur courant accessible côté serveur dans les écritures | | | pour tracer l'auteur d'une modification |
-| **NEW** — Écran d'administration des utilisateurs et des rôles | | | aujourd'hui dans EurekAI : activation manuelle en base |
-| **NEW** — Comptes et préférences **internes au framework**, hors modèle d'entités | | | cf. §11.4 — exposés par API typée, pas par le cache |
+| **NEW** — Identité de l'utilisateur courant accessible côté serveur dans les écritures | | ✅ | chaque action reçoit le compte qui l'a appelée (§11.1) |
+| **NEW** — Écran d'administration des utilisateurs et des rôles | | | mécanisme prêt (`dagda.actions.inviteUser/reinviteUser/listUsers/setUserEnabled`), pas d'écran encore — testé en console en attendant |
+| **NEW** — Comptes et préférences **internes au framework**, hors modèle d'entités | | ✅ | cf. §11.4 — exposés par action typée (§11.1), pas par le cache |
 | **ÉCARTÉ** — Mode « sans authentification » (`NO_AUTH`) | ✅ | ⚠️ | présent en v1, à retirer |
 
 ### 7.1 Rôles & permissions — décidé
@@ -261,8 +261,9 @@ Une liste de champs typés en entrée, un formulaire rendu et validé en sortie.
 
 | Fonctionnalité | v1 | v2 | Notes |
 |---|:--:|:--:|---|
-| **NEW** — Génération d'un formulaire depuis une déclaration de champs | | | libellé, type, valeur par défaut, obligatoire ou non |
+| **NEW** — Génération d'un formulaire depuis une déclaration de champs | | ✅ | libellé, type, valeur par défaut, obligatoire ou non. `FormFieldDeclaration` (`packages/shared/src/forms/types.ts`) est la forme commune ; `<dagda-form>` (`packages/client/src/forms/form.component.ts`) rend un éditeur par champ via le registre, valide au submit (erreur de l'éditeur, ou champ obligatoire vide) et émet `dagda-form-submit` avec les valeurs collectées — écrire ces valeurs (paramètre, entité, appel d'action) reste au consommateur. Pas encore de consommateur réel : le formulaire de publication de MQTTToolbox (ROADMAP tranche 2) est antérieur à `<dagda-form>` et assemble ses cinq champs à la main : l'écran de paramètres système et la matrice de permissions (tranche 3) seront les premiers à en dépendre |
 | **NEW** — ↳ S'appuie sur les types du modèle, énumérations comprises | | | c'est le libellé porté par les énumérations déclaratives (§2) qui rend le rendu d'une liste de choix automatique |
+| **NEW** — ↳ **Un type d'éditeur par type de champ**, avec un éditeur par défaut pour chaque type de base | | ✅ | `FieldEditorRegistry` (`packages/client/src/forms/editors.ts`) : recherche à deux niveaux, même idiome que `EntitiesModel`/`SettingsModel` résolvant un type — le type nommé (ex. `"MARKDOWN"`) prime s'il a un éditeur enregistré (`registerForType`), sinon retombe sur l'éditeur par défaut de son `rawType` (`registerDefault`). Une énumération n'est pas un `rawType` de plus : quel que soit l'éditeur résolu, il est configuré via `setEnumeration()`. Éditeurs par défaut fournis (`defaultFieldEditors`, activés par `registerDefaultFieldEditors()`) : `dagda-field-text`, `dagda-field-number`, `dagda-field-boolean`, `dagda-field-enum` (menu déroulant construit depuis `EnumDefinition.getEntries()`) |
 
 > **Brique à mutualiser** : trois besoins déjà identifiés convergent ici — l'écran
 > d'édition des paramètres système (§11.5), le formulaire de paramètres d'un script
@@ -310,10 +311,10 @@ Une liste de champs typés en entrée, un formulaire rendu et validé en sortie.
 
 | Fonctionnalité | v1 | v2 | Notes |
 |---|:--:|:--:|---|
-| **NEW** — **Collection d'actions typée**, déclarée comme l'est `APICollection` (§5) | | | même idiome que les APIs : un type TypeScript partagé, d'où découlent l'autocomplétion et la vérification dans l'éditeur. À ajouter aux `BaseAppTypes` |
-| **NEW** — ↳ Signature imposée : **le premier paramètre est toujours la transaction** | | | rend les actions composables — plusieurs actions dans une même transaction. Depuis la console, l'appelant ouvre donc une transaction avant d'agir |
-| **NEW** — ↳ Les tests portent sur les actions, pas sur les clics | | | bénéfice collatéral important vu l'objectif de couverture |
-| **NEW** — ↳ `.d.ts` des actions embarqué comme ressource pour l'éditeur | | | **pas de génération à écrire** : `tsc` les émet déjà dans `.tsc-build/`. Il suffit que le build les embarque sous forme de chaîne, pour que Monaco les charge en bibliothèque supplémentaire |
+| **NEW** — **Collection d'actions typée**, déclarée comme l'est `APICollection` (§5) | | ✅ | même idiome que les APIs, sous son propre namespace `/actions/` (jamais confondu avec `/api`, dont la console ne doit rien montrer). `ActionsCollection` dans `BaseAppTypes["actions"]`, plus `DagdaActions` : les actions du framework lui-même (gestion des comptes, §11.4), toujours disponibles en plus de celles de l'application |
+| **NEW** — ↳ **Deux natures d'action, décidées** | | ✅ | (1) modification directe d'entités — composée côté client dans la transaction optimiste existante (`EntitiesHandler.withTransaction`), rien de neuf à construire ; (2) déclenchement d'un processus serveur — appel RPC (`actionRegister`/`actionCall`), le process peut lui-même ouvrir sa propre transaction SQL pour journaliser (ex. `publishMessage` de MQTTToolbox). La signature « premier paramètre = la transaction », telle qu'imaginée au départ, ne s'appliquait qu'au premier cas ; le second reçoit le compte appelant, pas une transaction imposée |
+| **NEW** — ↳ Les tests portent sur les actions, pas sur les clics | | ✅ | `users.spec.ts` (invitation), `ingest.spec.ts` (publication) |
+| **NEW** — ↳ `.d.ts` des actions embarqué comme ressource pour l'éditeur | | | attend l'éditeur de scripts (tranche 5 bis) |
 
 **Où placer la frontière** — l'API n'a pas vocation à tout absorber. Le critère
 retenu, du plus contraignant au plus souple :
@@ -337,8 +338,8 @@ Autrement dit : **le séquencement peut vivre dans l'écran, jamais l'invariant.
 
 | Fonctionnalité | v1 | v2 | Notes |
 |---|:--:|:--:|---|
-| **NEW** — Variable globale `dagda` exposant services, entités et actions | | | précédent : `window.MQTT` dans MQTTToolbox v1 |
-| **NEW** — ↳ Chargement de données depuis la console (`fetch` par contexte) | | | |
+| **NEW** — Variable globale `dagda` exposant services, entités et actions | | ✅ | précédent : `window.MQTT` dans MQTTToolbox v1. `dagda.get(name)`, `dagda.entities`, `dagda.actions.*` (Proxy typé) |
+| **NEW** — ↳ Chargement de données depuis la console (`fetch` par contexte) | | ✅ | `dagda.entities.fetch({type: …})`, `.getItems(table)`, `.getById(…)` — l'API que les composants utilisent déjà, atteignable à la main |
 | **NEW** — ⚠️ **Masquer un bouton n'est plus un contrôle d'accès** | | | toute autorisation doit être vérifiée **côté serveur** sur les permissions résolues (§7.1). Ce n'est pas une régression (c'était déjà vrai), mais la console rend le contournement trivial |
 | **NEW** — ⚠️ L'API console devient un **contrat public** | | | renommer une action casse les scripts des utilisateurs : versionnement à assumer |
 
