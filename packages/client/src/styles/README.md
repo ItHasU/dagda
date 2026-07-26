@@ -19,14 +19,6 @@ puis les polices, puis les icônes, puis les règles.
 <i class="ph ph-paper-plane-tilt" aria-hidden="true"></i>
 ```
 
-> **Bootstrap est encore chargé.** `packages/client/src/app/index.ts` et
-> `packages/client/src/pages/handler.ts` importent Bootstrap et
-> bootstrap-icons, et les composants existants s'appuient sur ses classes.
-> `index.css` n'est donc **pas** importé automatiquement : le faire
-> appliquerait sur Bootstrap la remise à zéro de Nocturne (`body`, `*`, les
-> titres) et changerait l'aspect des écrans en place. La bascule est un
-> chantier à part entière — cf. la fin de ce fichier.
-
 ## Les fichiers
 
 | Fichier | Rôle |
@@ -159,17 +151,11 @@ Les feuilles de style sont gardées par la revue — la règle est que
 `dagda-ui.css` ne contient aucune valeur littérale, et que le seul endroit où
 un littéral a sa place est `themes.css`.
 
-## Ce qu'il reste à faire
+## État
 
-- **Sortir Bootstrap.** Les imports vivent dans
-  `packages/client/src/app/index.ts` et `packages/client/src/pages/handler.ts`.
-  Les composants du framework (`navbar`, `container`, `login`, `status`) et
-  leurs gabarits emploient les classes Bootstrap ; il faut les retraduire vers
-  le vocabulaire ci-dessus, puis remplacer les deux imports par `index.css` et
-  retirer `bootstrap` et `bootstrap-icons` des dépendances de
-  `packages/client/package.json`.
-- **`login.component.ts`** peint un avatar sur un canvas avec deux gris en dur :
-  il ignore le thème. C'est la seule exception au lint d'adhérence
-  (`.oxlintrc.json`), à lever en lisant les jetons via `getComputedStyle`.
-- **Second thème** (tranche 4), de polarité opposée : c'est lui qui dira quels
-  jetons manquent.
+Bootstrap est sorti (`index.css` est l'unique import, dans
+`packages/client/src/app/index.ts`) ; l'avatar de connexion est du texte dans
+un badge thémé, plus un canvas à couleurs en dur ; deux thèmes existent
+(Nocturne, Aurore — ROADMAP tranche 4), Aurore ayant justement servi à
+débusquer les jetons que le découpage de la tranche 1 avait oubliés
+(`--shadow-*`, `--image-blend`, la direction de la rampe `--color-neutral-*`).

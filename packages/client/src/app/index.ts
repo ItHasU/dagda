@@ -1,3 +1,8 @@
+// First import, deliberately: applies the remembered theme before anything
+// else runs, including the stylesheet import below (ROADMAP tranche 4 — see
+// the file for why the ordering, not an inline <script>, is what makes this
+// flash-free).
+import "../themes/boot";
 import { EntitiesAPI } from "@dagda/shared/src/api/impl/entities.api";
 import { SystemAPI, SystemInfo } from "@dagda/shared/src/api/impl/system.api";
 import { BaseAppTypes } from "@dagda/shared/src/app/types";
@@ -24,6 +29,7 @@ import { PreferencesDirectory } from "../preferences/directory";
 import { BasePageTypes, PageHandler, PageInfo } from "../pages/handler";
 import { SectionInfo } from "../pages/menu";
 import { Router } from "../pages/router";
+import { DAGDA_THEMES, ThemeInfo, ThemeRegistry } from "../themes/service";
 import { BrandInfo } from "./brand";
 import { installConsoleGlobal } from "./console";
 import headerTemplate from "./index.header.html";
@@ -61,6 +67,22 @@ export interface ClientStartParams<AppTypes extends BaseClientAppTypes, PageType
     title?: string;
     /** Services of the application, registered next to the framework's */
     services?: Record<string, unknown>;
+    /**
+     * Themes the shell may switch to (ROADMAP tranche 4), replacing the
+     * framework's own `DAGDA_THEMES` — "la liste déclarée dans le code
+     * (celle du framework, sur-définie par l'application si besoin)". Every
+     * id here must have a matching `[data-theme="…"]` block in `themes.css`
+     * (an application extending the file, not just this list).
+     */
+    themes?: ThemeInfo[];
+    /**
+     * The preference key the theme choice is stored under, declared by the
+     * application's own `PreferencesModel` (FEATURES §11.6) — Dagda cannot
+     * hardcode one that does not exist until the app declares it. Absent,
+     * `Dagda.get<ThemeService>("themes")` still switches the theme and
+     * remembers it locally, it just never round-trips to the server.
+     */
+    themePreferenceKey?: string;
 }
 
 /**
@@ -143,6 +165,11 @@ export class DagdaClient {
             (key, value) => actionCall<DagdaActions, "setPreference">("setPreference", { key, value })
         );
 
+        // Themes (ROADMAP tranche 4): built here, after `preferences` exists
+        // (it reads/writes through it) and before Dagda.init() registers it.
+        // `reconcile()` runs later, once preferences.load() has resolved.
+        const themes = new ThemeRegistry(params.themes ?? DAGDA_THEMES, preferences, params.themePreferenceKey);
+
         Dagda.init({
             ...buildBaseServices<AppTypes["entities"], AppTypes["contexts"], AppTypes["events"]>({
                 model: params.model,
@@ -158,6 +185,7 @@ export class DagdaClient {
             users,
             auth,
             preferences,
+            themes,
             brand: params.brand ?? { label: params.title ?? "Dagda" },
             ...(params.services ?? {})
         });
@@ -178,6 +206,10 @@ export class DagdaClient {
             users.load(),
             preferences.load()
         ]);
+
+        // -- Reconcile the pre-paint theme mirror against the real preference --
+        // Only meaningful once preferences.load() above has resolved.
+        themes.reconcile();
 
         // -- Apply the URL, or fall back to the default page --
         // After canAccess/currentUser are answerable (a deep link to a page

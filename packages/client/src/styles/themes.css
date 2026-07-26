@@ -278,3 +278,263 @@
        which page you are on. Read alongside the underline, never alone. */
     --font-weight-strong: 600;
 }
+
+/* --------------------------------------------------------------------------
+   Aurore — light. Same accent family as Nocturne (blurple), tuned for a
+   light ground instead of a dark one (ROADMAP tranche 4: "un second thème de
+   polarité opposée — c'est lui qui révèle les jetons oubliés").
+
+   The one thing this file's own convention doesn't spell out in bare token
+   names: `dagda-ui.css` consumes `--color-neutral-*`/`--color-accent-*`
+   *positionally* ("700-900 pour les remplissages teintés... 100-300 pour le
+   texte sur ces teintes"), and Nocturne's ramp runs lightest (100) to
+   darkest (900) because that is what "100-300 as text, 700-900 as tinted
+   fill" means on a dark ground. On a light ground the same sentence means
+   the opposite physical direction — so this ramp runs **darkest (100) to
+   lightest (900)** on purpose. Get this backwards and every tinted fill,
+   hover and subtle border comes out inverted while looking plausible in
+   isolation — the trap the ROADMAP predicted this theme would reveal.
+   -------------------------------------------------------------------------- */
+[data-theme="aurore"] {
+    color-scheme: light;
+
+    /* -- Colour roles ---------------------------------------------------- */
+    --color-bg: #f2f2f8;
+    --color-surface: #ffffff;
+    --color-text: #1c1e2a;
+    --color-accent: #5b4fc4;
+    --color-accent-2: #6d61ce;
+    --color-divider: color-mix(in srgb, var(--color-text) 12%, transparent);
+    --color-danger: #b3303f;
+    --color-danger-tint: color-mix(in srgb, var(--color-danger) 14%, transparent);
+
+    /* -- Tonal ramps --------------------------------------------------------
+       Same OKLCH lightness scale as Nocturne, walked in the other direction:
+       100-300 darkest (text on a tinted fill, pressed states), 700-900
+       lightest (the tinted fills and hovers themselves) — see the note
+       above for why. */
+    --color-neutral-100: #1a1c26;
+    --color-neutral-200: #2c2e3b;
+    --color-neutral-300: #424453;
+    --color-neutral-400: #5a5c6d;
+    --color-neutral-500: #757789;
+    --color-neutral-600: #9698a8;
+    --color-neutral-700: #bcbecb;
+    --color-neutral-800: #dcdde6;
+    --color-neutral-900: #eef0f7;
+
+    --color-accent-100: #241f5c;
+    --color-accent-200: #362e7c;
+    --color-accent-300: #493f9c;
+    --color-accent-400: #5d50bc;
+    --color-accent-500: #8377d6;
+    --color-accent-600: #a49bea;
+    --color-accent-700: #c3bcf1;
+    --color-accent-800: #e0dcf8;
+    --color-accent-900: #f2f0fc;
+
+    --color-accent-2-100: #241f5c;
+    --color-accent-2-200: #362e7c;
+    --color-accent-2-300: #493f9c;
+    --color-accent-2-400: #6a5db0;
+    --color-accent-2-500: #8d81c7;
+    --color-accent-2-600: #ada3d9;
+    --color-accent-2-700: #cac2e8;
+    --color-accent-2-800: #e4e0f3;
+    --color-accent-2-900: #f2f0fc;
+
+    /* Saturated grounds, at presentation scale only — never interface fills. */
+    --color-section: #ded7fa;
+    --color-section-glow: #c8bcf6;
+    --color-section-ghost: #a595ee;
+
+    /* -- Derived text colours ----------------------------------------------
+       Same mix percentages as Nocturne: mixed relative to --color-text,
+       these adapt to the ground for free — no colour choice of their own. */
+    --color-text-muted: color-mix(in srgb, var(--color-text) 55%, transparent);
+    --color-text-label: color-mix(in srgb, var(--color-text) 70%, transparent);
+    --color-text-meta: color-mix(in srgb, var(--color-text) 50%, transparent);
+    --color-text-table-head: color-mix(in srgb, var(--color-text) 60%, transparent);
+    --color-selection: color-mix(in srgb, var(--color-accent) 30%, transparent);
+
+    /* -- Typography --------------------------------------------------------
+       Structural, not a colour decision — identical to Nocturne. Redeclared
+       in full regardless: this file's own rule is no partial override. */
+    --font-heading: "Inter", system-ui, sans-serif;
+    --font-body: "Inter", system-ui, sans-serif;
+    --font-icon: "Phosphor";
+    --font-heading-weight: 500;
+    --font-body-weight: 400;
+
+    --font-size-base: 15px;
+    --font-size-h1: 42px;
+    --font-size-h2: 32px;
+    --font-size-h3: 25px;
+    --font-size-h4: 20px;
+    --font-size-h5: 16px;
+    --font-size-h6: 13px;
+    --font-size-control: 14px;
+    --font-size-sm: 13px;
+    --font-size-label: 12px;
+    --font-size-xs: 11px;
+    --font-size-xxs: 10px;
+    --font-size-card-title: 17px;
+    --font-size-nav-brand: 18px;
+    --font-size-dialog-title: 20px;
+
+    --line-height-base: 1.55;
+    --line-height-heading: 1.12;
+    --line-height-tight: 1.2;
+
+    --tracking-heading: -0.015em;
+    --tracking-caps: 0.08em;
+    --tracking-caps-wide: 0.1em;
+    --tracking-tag: 0.02em;
+
+    /* -- Density and spacing -------------------------------------------------
+       Same density as Nocturne: this is a colour-polarity exercise, not a
+       second density to keep in step. */
+    --density: 0.7;
+    --space-1: calc(4px * var(--density) * 1);
+    --space-2: calc(4px * var(--density) * 2);
+    --space-3: calc(4px * var(--density) * 3);
+    --space-4: calc(4px * var(--density) * 4);
+    --space-6: calc(4px * var(--density) * 6);
+    --space-8: calc(4px * var(--density) * 8);
+
+    /* -- Radii --------------------------------------------------------------- */
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 14px;
+    --radius-tag: calc(var(--radius-md) * 0.75);
+    --radius-round: 50%;
+
+    /* -- Lines ---------------------------------------------------------------- */
+    --hairline: 1px;
+    --rule-fade: 48px;
+
+    /* -- Elevation ------------------------------------------------------------
+       Tuned to THIS ground, not copied from Nocturne's: a light surface
+       needs a real ink shadow to read as raised, where Nocturne's hairline
+       edge plus ambient darkness was the trick for a dark one — the exact
+       token nocturne's own comment warned would need re-tuning, not just
+       re-pointing at a ramp step. */
+    --shadow-sm: 0 1px 2px rgba(28, 30, 42, 0.08);
+    --shadow-md: 0 1px 2px rgba(28, 30, 42, 0.06), 0 6px 18px rgba(28, 30, 42, 0.12);
+    --shadow-lg: 0 2px 6px rgba(28, 30, 42, 0.08), 0 16px 40px rgba(28, 30, 42, 0.18);
+
+    /* -- Focus ------------------------------------------------------------ */
+    --focus-ring-width: 2px;
+    --focus-ring-offset: 2px;
+    --focus-ring-color: var(--color-accent);
+
+    /* -- Control metrics --------------------------------------------------- */
+    --control-size: 36px;
+    --control-gap: 6px;
+    --disabled-opacity: 0.45;
+    --link-underline-offset: 3px;
+
+    --btn-padding-y: var(--space-2);
+    --btn-padding-x: calc(var(--space-3) * 1.2);
+
+    --input-padding-y: 6px;
+    --input-padding-x: 10px;
+    --input-label-gap: 5px;
+    --textarea-min-height: 90px;
+
+    --radio-size: 16px;
+    --radio-gap: 8px;
+    --radio-border-width: 1.5px;
+    --radio-dot-inset: 4px;
+
+    --seg-padding-y: 7px;
+    --seg-padding-x: 12px;
+
+    --tag-padding-y: 3px;
+    --tag-padding-x: 10px;
+
+    --card-body-opacity: 0.8;
+
+    --dialog-width: 440px;
+    --dialog-body-opacity: 0.85;
+
+    /* -- Buttons -------------------------------------------------------------
+       Same filled posture as Nocturne (§ decided when Nocturne moved off the
+       bundle's original outline style) — a toggle (`.seg`, `.radio`) stays
+       outlined, an action stays filled, in both themes. */
+    --btn-fg: var(--color-text);
+    --btn-bg: transparent;
+    --btn-border: transparent;
+
+    --btn-primary-fg: var(--color-bg);
+    --btn-primary-bg: var(--color-accent);
+    --btn-primary-border: transparent;
+    --btn-primary-bg-hover: color-mix(in srgb, var(--color-accent) 88%, black);
+    --btn-primary-bg-active: color-mix(in srgb, var(--color-accent) 76%, black);
+
+    --btn-secondary-fg: var(--color-text);
+    --btn-secondary-bg: var(--color-neutral-800);
+    --btn-secondary-border: transparent;
+    --btn-secondary-bg-hover: var(--color-neutral-700);
+    --btn-secondary-bg-active: var(--color-neutral-600);
+
+    --btn-ghost-fg: var(--color-accent);
+    --btn-ghost-bg-hover: color-mix(in srgb, var(--color-accent) 10%, transparent);
+    --btn-ghost-bg-active: color-mix(in srgb, var(--color-accent) 18%, transparent);
+
+    /* -- Surfaces and interactive tints ------------------------------------ */
+    --card-bg: var(--color-surface);
+
+    --input-bg: var(--color-surface);
+    --input-fg: var(--color-text);
+    --input-border: var(--color-divider);
+    --input-border-hover: color-mix(in srgb, var(--color-text) 45%, transparent);
+    --input-border-focus: var(--color-accent);
+    --input-caret: var(--color-accent);
+
+    --seg-border: var(--color-divider);
+    --seg-selected-fg: var(--color-accent);
+    --seg-selected-border: var(--color-accent);
+    --seg-bg-hover: color-mix(in srgb, var(--color-text) 7%, transparent);
+
+    --nav-link-active-fg: var(--color-accent);
+
+    --table-rule: color-mix(in srgb, var(--color-text) 8%, transparent);
+    --table-row-hover: color-mix(in srgb, var(--color-text) 4%, transparent);
+
+    --dialog-bg: var(--color-surface);
+    /* The darkest step of the ramp, same as Nocturne's own `-900` — a dialog
+       backdrop dims the page regardless of theme, so this is the one place
+       the ramp's inversion has to be read correctly, not just carried over
+       positionally. */
+    --dialog-backdrop: color-mix(in srgb, var(--color-neutral-100) 50%, transparent);
+
+    /* -- Tags ---------------------------------------------------------------- */
+    --tag-accent-bg: var(--color-accent-800);
+    --tag-accent-fg: var(--color-accent-100);
+    --tag-accent-2-bg: var(--color-accent-2-800);
+    --tag-accent-2-fg: var(--color-accent-2-100);
+    --tag-neutral-bg: var(--color-neutral-800);
+    --tag-neutral-fg: var(--color-neutral-100);
+    --tag-outline-border: var(--color-accent);
+    --tag-outline-fg: var(--color-accent);
+
+    /* -- Imagery --------------------------------------------------------------
+       The other token the ROADMAP's "reveals the forgotten tokens" line was
+       about: Nocturne's `lighten` makes a black photo background disappear
+       into a dark page. On a light one the background to hide is white, and
+       `lighten` would do the opposite of hide it — `darken` is what a light
+       theme needs here, not a copy of Nocturne's value. */
+    --image-blend: darken;
+
+    /* -- Motion --------------------------------------------------------------- */
+    --dur-md: 160ms;
+    --ease-out: cubic-bezier(0.2, 0, 0, 1);
+
+    /* -- SPA shell -------------------------------------------------------------
+       Structural sizing, identical to Nocturne. */
+    --nav-badge-size: 32px;
+    --nav-width: 240px;
+    --nav-width-collapsed: calc(var(--nav-badge-size) + var(--space-3) * 2 + var(--space-2) * 2);
+    --font-weight-strong: 600;
+}
