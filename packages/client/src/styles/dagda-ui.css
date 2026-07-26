@@ -48,6 +48,17 @@ h6 {
     margin: 0 0 var(--space-2);
 }
 
+/* A heading starting a new section needs air before it, unless it opens the
+   page: the very first element has nothing to separate itself from. */
+h1:not(:first-child),
+h2:not(:first-child),
+h3:not(:first-child),
+h4:not(:first-child),
+h5:not(:first-child),
+h6:not(:first-child) {
+    margin-top: var(--space-6);
+}
+
 h1 { font-size: var(--font-size-h1); }
 h2 { font-size: var(--font-size-h2); }
 h3 { font-size: var(--font-size-h3); }
@@ -191,6 +202,10 @@ figcaption {
 
 /* — forms —
    Native elements, no script. */
+.field {
+    margin-bottom: var(--space-4);
+}
+
 .field > label {
     display: block;
     font-size: var(--font-size-label);
@@ -261,6 +276,37 @@ textarea.input {
 }
 
 .radio input:focus-visible + .dot {
+    outline: var(--focus-ring-width) solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
+}
+
+.checkbox {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--radio-gap);
+    cursor: pointer;
+    font-size: var(--font-size-control);
+}
+.checkbox input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+.checkbox .box {
+    width: var(--radio-size);
+    height: var(--radio-size);
+    flex: none;
+    border-radius: var(--radius-sm);
+    border: var(--radio-border-width) solid var(--input-border);
+}
+.checkbox:hover .box { border-color: var(--color-accent); }
+.checkbox input:checked + .box {
+    border-color: var(--color-accent);
+    background: var(--color-accent);
+}
+.checkbox input:focus-visible + .box {
     outline: var(--focus-ring-width) solid var(--focus-ring-color);
     outline-offset: var(--focus-ring-offset);
 }
