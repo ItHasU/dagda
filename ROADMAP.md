@@ -347,11 +347,19 @@ pendant une publication est visible et rattrapable.
     paramètres). Un choix explicite à faire ici, réglage par réglage : ce qui
     est amorçage reste en `.env` / variable d'environnement, ce qui peut
     attendre le premier accès en base bascule vers les paramètres système.
-- **Routes client → serveur protégées par permission** (FEATURES §5) : le
+- ✅ **Routes client → serveur protégées par permission** (FEATURES §5) : le
   mécanisme est posé ici, en même temps que les permissions qu'il vérifie —
   aucun écran de cette tranche ne l'exige encore, mais le construire plus tard
   reviendrait à le greffer sur des permissions déjà figées. Premier usage réel
   en tranche 6 (déclenchement manuel d'un automatisme).
+  `apiRegister`/`registerAPI` prennent un quatrième paramètre optionnel
+  `RegisterAPIOptions` (`{ permission?: string }`, `packages/server/src/api/index.ts`) :
+  déclaré, il est vérifié via `hasPermission` juste après l'authentification
+  et avant l'appel du callback, en levant une erreur dans le même bloc `catch`
+  que le reste de la route — un refus obtient donc exactement la même forme
+  de réponse (`500`, `{error: "Error: Missing permission: <permission>"}`)
+  qu'un refus manuel `requirePermission` côté `actionRegister`. Non déclaré,
+  aucun changement de comportement.
 - ✅ Identité de l'utilisateur courant accessible côté serveur pendant les
   écritures (nécessaire pour tracer la source `manuel` des messages, MQTT §2) :
   `AbstractServerApp._submit()` prend désormais un second paramètre

@@ -132,7 +132,7 @@ Décisions structurantes qui expliquent plusieurs choix ci-dessous :
 |---|:--:|:--:|---|
 | Déclaration d'API par un simple type TS (`APICollection`) | ✅ | ✅ | signature partagée entre client et serveur |
 | **NEW** — **Routes** client → serveur déclenchant une action serveur | | | |
-| **NEW** — ↳ Protection de chaque route par les permissions de l'appelant | | | fonction de contrôle déclarée avec la route, évaluée sur les permissions résolues (§7.1) |
+| **NEW** — ↳ Protection de chaque route par les permissions de l'appelant | | ✅ | permission déclarée avec la route (`RegisterAPIOptions.permission`, `apiRegister`/`registerAPI`), évaluée sur les permissions résolues avant l'appel du callback (§7.1) |
 | **NEW** — **API externes** déclarées à part des routes internes | | | ce qu'on expose à `curl` n'est pas ce qu'on expose à son propre client |
 | `apiCall()` côté client / `apiRegister()` côté serveur | ✅ | ✅ | typage des arguments et du retour |
 | API système intégrée (`getSystemInfo`, `triggerError`) | ✅ | ✅ | uptime, liste des erreurs non capturées |

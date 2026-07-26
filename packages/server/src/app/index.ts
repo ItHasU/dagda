@@ -15,7 +15,7 @@ import { DagdaActions } from "@dagda/shared/src/auth/actions";
 import { hasPermission } from "@dagda/shared/src/auth/permissions";
 import { UserInfo } from "@dagda/shared/src/auth/types";
 import { actionRegister, ActionCallback } from "../actions";
-import { apiRegister, RequestCallback, RequestOptions } from "../api";
+import { apiRegister, RegisterAPIOptions, RequestCallback, RequestOptions } from "../api";
 import { submit } from "../api/impl/entities.api";
 import { getSystemInfo, triggerError } from "../api/impl/system.api";
 import { AuthHandler } from "../auth";
@@ -285,9 +285,9 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
     }
 
     /** Register an api on the server */
-    public registerAPI<Name extends keyof AppTypes["apis"]>(name: Name, callback: RequestCallback<AppTypes["apis"], Name>): void {
+    public registerAPI<Name extends keyof AppTypes["apis"]>(name: Name, callback: RequestCallback<AppTypes["apis"], Name>, options?: RegisterAPIOptions): void {
         // Register the route with the server
-        apiRegister(this._app, name, callback);
+        apiRegister(this._app, name, callback, options);
     }
 
     /** Register an action on the server (FEATURES §11.1) */
