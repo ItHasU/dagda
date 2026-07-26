@@ -88,9 +88,11 @@ export class EntitiesStatusComponent extends AbstractWebComponent {
         if (this._connected === false) {
             return { icon: "ph-wifi-slash", label: "Hors ligne", alert: true };
         }
-        if (this._state.dirty) {
+        if (this._state.dirty && !Dagda.get<PageService>("pages").isCurrentPageAutoRefresh()) {
             // The cache was invalidated and not reloaded: what is on screen may
-            // not be what is stored.
+            // not be what is stored. Unless the page declared `autoRefresh` —
+            // then it is already catching up, and there is nothing left here
+            // for the user to act on.
             return { icon: "ph-warning", label: "À rafraîchir", alert: true };
         }
         if (this._state.uploading > 0) {

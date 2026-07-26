@@ -348,6 +348,7 @@ export class EntitiesHandler<Tables extends EntitiesTypes, Contexts> implements 
         } catch (e) {
             console.error(e);
             this.markCacheDirty();
+            EventHandlerImpl.fire<EntitiesEvents, "writeFailed">(this._eventHandlerData, "writeFailed", { error: e });
             throw e;
         } finally {
             this._fireStateChanged({ uploading: this._state.uploading - 1 });

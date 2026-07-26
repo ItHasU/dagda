@@ -1,0 +1,46 @@
+/* ==========================================================================
+   toast.css — transient failure notifications (ROADMAP tranche 2).
+
+   Independent of the shell: it floats above the nav column and the content
+   area alike, so it stays visible whichever is collapsed or scrolled.
+
+   Same hard constraint as the rest of the framework's own CSS: no literal
+   value, only var() from themes.css.
+   ========================================================================== */
+
+.dagda-toast-list {
+    position: fixed;
+    z-index: 100;
+    bottom: var(--space-4);
+    right: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-width: 24rem;
+}
+
+.dagda-toast {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--color-danger-tint);
+    color: var(--color-danger);
+    box-shadow: var(--shadow-lg);
+    font-family: var(--font-body);
+    font-size: var(--font-size-control);
+}
+
+.dagda-toast > i {
+    flex: 0 0 auto;
+    font-size: var(--font-size-h5);
+    line-height: 1;
+}
+
+.dagda-toast > span {
+    flex: 1 1 auto;
+}

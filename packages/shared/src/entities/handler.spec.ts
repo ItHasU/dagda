@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { POST_KIND, PUBLICATION_STATUS, TEST_MODEL } from "./_data";
+import { Event } from "../tools/events";
 import { EntitiesHandler } from "./handler";
 import { TestContext, TestContextAdapter, TestPersistanceAdapter } from "./impl/test.adapters";
+import { PersistenceAdapter } from "./tools/adapters";
 import { asNamed } from "./tools/named";
 
 describe("EntitiesHandler", () => {
@@ -123,6 +125,54 @@ describe("EntitiesHandler", () => {
         expect(users.length, "There should be one users as we only fetched one").toBe(1);
         const posts = handler.getCache("posts").getItems();
         expect(posts.length, "There should be no post since we reassigned the author").toBe(0);
+    });
+
+    describe("write failures (ROADMAP tranche 2)", () => {
+
+        /** A persistence adapter whose submit() always rejects, network-error style */
+        class FailingAdapter implements PersistenceAdapter<TablesFields, TestContext<keyof TablesFields>> {
+            public fetch(): Promise<any> { return Promise.resolve({}); }
+            public submit(): Promise<any> { return Promise.reject(new Error("the server is unreachable")); }
+        }
+
+        it("fires writeFailed with the error, rather than only logging it", async () => {
+            const comparator = new TestContextAdapter();
+            const handler = new EntitiesHandler<TablesFields, TestContext<keyof TablesFields>>(TEST_MODEL, comparator, new FailingAdapter());
+
+            const failures: unknown[] = [];
+            handler.on("writeFailed", (event: Event<{ error: unknown }>) => {
+                failures.push(event.data.error);
+            });
+
+            await handler.withTransaction((tr) => {
+                tr.insert("users", { id: asNamed(0), name: asNamed("John"), surname: asNamed("Doe"), age: null, size: null });
+            });
+            // withTransaction does not await the submit itself (ROADMAP tranche 2:
+            // "le client ne bloque jamais sur la confirmation serveur").
+            await handler.waitForSubmit();
+
+            expect(failures).toHaveLength(1);
+            expect((failures[0] as Error).message).toBe("the server is unreachable");
+        });
+
+        it("still marks the cache dirty on failure, same as before", async () => {
+            const comparator = new TestContextAdapter();
+            const handler = new EntitiesHandler<TablesFields, TestContext<keyof TablesFields>>(TEST_MODEL, comparator, new FailingAdapter());
+            // Dirty only means something for a context the handler actually
+            // holds — load one, so the failure below has something to mark.
+            await handler.fetch({ table: "users" });
+
+            const states: boolean[] = [];
+            handler.on("state", (event) => states.push(event.data.dirty));
+
+            await handler.withTransaction((tr) => {
+                tr.insert("users", { id: asNamed(0), name: asNamed("John"), surname: asNamed("Doe"), age: null, size: null });
+            });
+            await handler.waitForSubmit();
+
+            expect(states).toContain(true);
+        });
+
     });
 
 });
