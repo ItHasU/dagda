@@ -1,6 +1,7 @@
 import { EntitiesModel } from "@dagda/shared/src/entities/model";
 import { EnumDefinition } from "@dagda/shared/src/entities/tools/enums";
 import { JSTypes } from "@dagda/shared/src/entities/tools/javascript.types";
+import { USERS_TABLE } from "../auth/users";
 
 /**
  * Derives PostgreSQL DDL from the entities model.
@@ -49,8 +50,9 @@ export function getFieldSqlType(model: EntitiesModel<any, any>, table: string, f
         return "SERIAL";
     }
 
-    // A foreign key stores what SERIAL produces, which is an integer.
-    if (model.isFieldForeign(table, field)) {
+    // A foreign key stores what SERIAL produces, which is an integer — true
+    // whether it points at another table of the model or at system_users.
+    if (model.isFieldForeign(table, field) || model.getFieldReferencesUsers(table, field)) {
         return "INTEGER";
     }
 
@@ -103,6 +105,11 @@ export function getCreateTableStatement<Model extends EntitiesModel<any, any>>(
             const foreignTable = model.getFieldForeignTableName(table, name);
             if (foreignTable != null) {
                 parts.push(`REFERENCES ${qi(model.getTableSqlName(foreignTable))}(${qi("id")})`);
+            } else if (model.getFieldReferencesUsers(table, name)) {
+                // ON DELETE SET NULL, like system_users.roleId -> system_roles.id:
+                // a deleted account must not leave an orphaned or broken row, it
+                // should just make the reference lose its attribution.
+                parts.push(`REFERENCES ${qi(USERS_TABLE)}(${qi("id")}) ON DELETE SET NULL`);
             }
         }
         columns.push(parts.join(" "));

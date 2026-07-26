@@ -51,6 +51,15 @@ export type FieldDefinition<Types, Tables> = {
     identity?: boolean;
     optional?: true;
     foreignTable?: Tables;
+    /**
+     * References the framework's accounts table as a real SQL foreign key,
+     * distinct from foreignTable: system_users is owned by the framework, not
+     * by any EntitiesModel (§11.4), so it cannot be named as one of Tables.
+     * Kept table-name-free on purpose — the physical name is a server-side
+     * concern (packages/server/src/auth/users.ts), and this type is shared
+     * with the client.
+     */
+    referencesUsers?: true;
     fromVersion?: number;
     toVersion?: number;
 }
@@ -232,6 +241,11 @@ export class EntitiesModel<
 
     public getFieldForeignTableName<T extends keyof TablesFields, F extends keyof TablesFields[T]>(tableName: T, fieldName: F): keyof TablesFields | null {
         return this._tables[tableName][fieldName]["foreignTable"] ?? null;
+    }
+
+    /** @returns whether the field is a real SQL foreign key to the framework's accounts table */
+    public getFieldReferencesUsers<T extends keyof TablesFields, F extends keyof TablesFields[T]>(tableName: T, fieldName: F): boolean {
+        return this._tables[tableName][fieldName]["referencesUsers"] === true;
     }
 
     public getTableForeignKeys<T extends keyof TablesFields>(table: T): { [K in keyof TablesFields[T]]: (keyof TablesFields) | null } {

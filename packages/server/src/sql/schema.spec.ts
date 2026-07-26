@@ -1,6 +1,31 @@
 import { TEST_MODEL } from "@dagda/shared/src/entities/_data";
-import { describe, expect, it } from "vitest";
+import { EntitiesModel } from "@dagda/shared/src/entities/model";
+import { JSTypes } from "@dagda/shared/src/entities/tools/javascript.types";
+import { afterEach, beforeEach, describe, expect, inject, it } from "vitest";
+import { USERS_TABLE } from "../auth/users";
+import { createTestDatabase, TestDatabase } from "../test/pg.fixture";
+import { FRAMEWORK_MIGRATIONS } from "./framework.migrations";
+import { applyMigrations } from "./migrations";
 import { getCreateTableStatement, getFieldSqlType, getTableCreationOrder, qi } from "./schema";
+
+const available = inject("databaseAvailable");
+
+/**
+ * A tiny model of its own, kept apart from TEST_MODEL: TEST_MODEL is shared
+ * with suites that create its tables without the framework migrations (its
+ * "posts" -> "users" foreign key never needs system_users to exist), and a
+ * referencesUsers column would make those fail on a missing relation.
+ */
+const REFERENCES_USERS_MODEL = new EntitiesModel({
+    "ID": { rawType: JSTypes.number },
+    "TEXT": { rawType: JSTypes.string }
+}, {
+    "notes": {
+        id: { type: "ID", identity: true },
+        authorId: { type: "ID", referencesUsers: true, optional: true },
+        body: { type: "TEXT" }
+    }
+});
 
 describe("qi", () => {
 
@@ -79,6 +104,46 @@ describe("getCreateTableStatement", () => {
     it("leaves out the fields removed by a version", () => {
         // `size` carries toVersion, so it belongs to the past, not to the schema.
         expect(getCreateTableStatement(TEST_MODEL, "users")).not.toContain(`"size"`);
+    });
+
+    it("points a field declared referencesUsers at the framework's accounts table", () => {
+        expect(getCreateTableStatement(REFERENCES_USERS_MODEL, "notes"))
+            .toContain(`"authorId" INTEGER REFERENCES "system_users"("id") ON DELETE SET NULL`);
+    });
+
+});
+
+describe.runIf(available)("getCreateTableStatement, against a real database", () => {
+
+    let db: TestDatabase;
+
+    beforeEach(async () => {
+        db = await createTestDatabase("schema-references-users");
+        await applyMigrations(db.runner, REFERENCES_USERS_MODEL, FRAMEWORK_MIGRATIONS, "framework");
+        await db.runner.run(getCreateTableStatement(REFERENCES_USERS_MODEL, "notes"));
+    });
+
+    afterEach(async () => {
+        await db?.dispose();
+    });
+
+    it("clears the column rather than failing when the referenced account is deleted", async () => {
+        const user = await db.runner.get<{ id: number }>(
+            `INSERT INTO ${qi(USERS_TABLE)} (${qi("login")}, ${qi("displayName")}, ${qi("password")}, ${qi("isSuperAdmin")})
+             VALUES ($1, $2, $3, FALSE) RETURNING ${qi("id")}`,
+            "alice", "Alice", "irrelevant"
+        );
+        const note = await db.runner.get<{ id: number }>(
+            `INSERT INTO "data_notes" (${qi("authorId")}, ${qi("body")}) VALUES ($1, $2) RETURNING ${qi("id")}`,
+            user!.id, "hello"
+        );
+
+        await db.runner.run(`DELETE FROM ${qi(USERS_TABLE)} WHERE ${qi("id")} = $1`, user!.id);
+
+        const row = await db.runner.get<{ authorId: number | null }>(
+            `SELECT ${qi("authorId")} FROM "data_notes" WHERE ${qi("id")} = $1`, note!.id
+        );
+        expect(row?.authorId).toBeNull();
     });
 
 });
