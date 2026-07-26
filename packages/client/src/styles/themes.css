@@ -20,6 +20,10 @@
    Nocturne — dark. Derived from the Claude Design bundle of the same name
    (its `theme.json`: hue 230, mono scheme, density 0.70, radius 8,
    button style "outline", Inter, Phosphor icons).
+
+   Button style since moved from the bundle's original "outline" to filled: an
+   outlined `.btn-primary` sitting next to a `.seg` toggle (also outlined) read
+   as two of the same control, with nothing telling the eye which one submits.
    -------------------------------------------------------------------------- */
 :root,
 [data-theme="nocturne"] {
@@ -195,24 +199,24 @@
 
     /* -- Buttons ----------------------------------------------------------
        These tokens are what makes a theme's buttons outlined or flat.
-       Nocturne is outlined: an accent border on nothing, never a fill. A flat
-       theme sets `--btn-primary-bg` to the accent, `--btn-primary-fg` to the
-       colour that reads on it, and `--btn-primary-border` to transparent. */
+       Nocturne is flat: primary and secondary carry a solid fill, so a
+       button never reads as a toggle (`.seg`, `.radio`), which stays outlined
+       on purpose to look like a choice rather than an action. */
     --btn-fg: var(--color-text);
     --btn-bg: transparent;
     --btn-border: transparent;
 
-    --btn-primary-fg: var(--color-accent);
-    --btn-primary-bg: transparent;
-    --btn-primary-border: var(--color-accent);
-    --btn-primary-bg-hover: color-mix(in srgb, var(--color-accent) 12%, transparent);
-    --btn-primary-bg-active: color-mix(in srgb, var(--color-accent) 22%, transparent);
+    --btn-primary-fg: var(--color-bg);
+    --btn-primary-bg: var(--color-accent);
+    --btn-primary-border: transparent;
+    --btn-primary-bg-hover: color-mix(in srgb, var(--color-accent) 88%, black);
+    --btn-primary-bg-active: color-mix(in srgb, var(--color-accent) 76%, black);
 
     --btn-secondary-fg: var(--color-text);
-    --btn-secondary-bg: transparent;
-    --btn-secondary-border: var(--color-divider);
-    --btn-secondary-bg-hover: color-mix(in srgb, var(--color-text) 7%, transparent);
-    --btn-secondary-bg-active: color-mix(in srgb, var(--color-text) 14%, transparent);
+    --btn-secondary-bg: var(--color-neutral-800);
+    --btn-secondary-border: transparent;
+    --btn-secondary-bg-hover: var(--color-neutral-700);
+    --btn-secondary-bg-active: var(--color-neutral-600);
 
     --btn-ghost-fg: var(--color-accent);
     --btn-ghost-bg-hover: color-mix(in srgb, var(--color-accent) 10%, transparent);

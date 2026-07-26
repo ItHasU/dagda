@@ -70,9 +70,11 @@ tranche 4, et c'est lui qui révélera les jetons oubliés.
 - **Le style de bouton.** Nocturne cuisait le contour dans la règle
   (`.btn-primary` = texte et bordure accent sur transparent). Le dessin passe
   par `--btn-primary-fg` / `-bg` / `-border` et leurs variantes `-hover` /
-  `-active`. Un thème « aplat » met l'accent dans `--btn-primary-bg`, la
-  couleur lisible dessus dans `--btn-primary-fg`, et `transparent` dans
-  `--btn-primary-border` — sans toucher `dagda-ui.css`.
+  `-active` — sans toucher `dagda-ui.css`. Nocturne est elle-même passée en
+  aplat depuis (l'accent dans `--btn-primary-bg`, une couleur lisible dessus
+  dans `--btn-primary-fg`, `transparent` dans `--btn-primary-border`) : un
+  bouton contouré à côté d'un `.seg` — lui aussi contouré — se lisait comme
+  deux boutons-poussoirs plutôt qu'une action et un choix.
 - **Le reste des valeurs cuites** : échelle typographique, hauteurs de
   contrôle, épaisseurs de trait, longueur du dégradé de fin de filet, opacités
   d'état. C'est ce qui fait que le jeu de jetons est plus long que les
