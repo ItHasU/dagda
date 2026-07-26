@@ -55,4 +55,16 @@ export type DagdaActions = {
      * permissions or enabled state, unlike `listUsers()`.
      */
     listUserNames(): UserName[];
+
+    /**
+     * Every preference declared by the application, current value for the
+     * calling user (FEATURES §11.6). Not gated by a permission: the calling
+     * user's own id, resolved server-side from the session, is the whole of
+     * the security boundary — there is no `userId` parameter here or on
+     * `setPreference` below. A key never set already reads back as its
+     * declared default, no special case needed on either side.
+     */
+    getPreferences(): Record<string, unknown>;
+    /** Sets one preference for the calling user. @throws if `value` does not match the declared type */
+    setPreference(params: { key: string, value: unknown }): void;
 };

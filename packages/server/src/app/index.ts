@@ -6,7 +6,9 @@ import { EntitiesService } from "@dagda/shared/src/entities/service";
 import { EntitiesModel } from "@dagda/shared/src/entities/model";
 import { ContextAdapter, Data } from "@dagda/shared/src/entities/tools/adapters";
 import { initBaseServices } from "@dagda/shared/src/services";
+import { PreferencesDeclaration, PreferencesModel } from "@dagda/shared/src/preferences/model";
 import { SettingsDeclaration, SettingsModel } from "@dagda/shared/src/settings/model";
+import { PreferencesStore } from "../preferences/store";
 import { SettingsStore } from "../settings/store";
 import { SQLTransactionData, SQLTransactionResult } from "@dagda/shared/src/sql/transaction";
 import express from "express";
@@ -77,7 +79,7 @@ export interface EnvConfig {
  * Base server app.
  * This gather all the logic of the server app.
  */
-export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings extends SettingsDeclaration<Settings> = {}> {
+export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings extends SettingsDeclaration<Settings> = {}, Preferences extends PreferencesDeclaration<Preferences> = {}> {
 
     protected _config: EnvConfig;
     protected _app: express.Express;
@@ -85,6 +87,7 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
     protected _db: PGRunner;
     protected _notification: ServerNotificationImpl<AppTypes["events"]>;
     protected _settings: SettingsStore<Settings>;
+    protected _preferences: PreferencesStore<Preferences>;
     protected _roles: RoleStore;
     protected _users: UserStore;
 
@@ -97,7 +100,13 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
          * Omitted, the store is still there with nothing in it, so the framework
          * can rely on it unconditionally.
          */
-        protected _settingsModel: SettingsModel<Settings> = new SettingsModel({} as Settings)
+        protected _settingsModel: SettingsModel<Settings> = new SettingsModel({} as Settings),
+        /**
+         * The preferences the application declares (FEATURES §11.6).
+         * Omitted, the store is still there with nothing in it, same posture as
+         * `_settingsModel` above.
+         */
+        protected _preferencesModel: PreferencesModel<Preferences> = new PreferencesModel({} as Preferences)
     ) {
         console.log("Reading config for environment variables...");
         // Read the config from env variables
@@ -178,6 +187,7 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
         // (ROADMAP tranche 3), so isSuperAdmin is the whole of the check.
         console.log("Registering standard actions...");
         this._registerAccountActions();
+        this._registerPreferencesActions();
 
         // -- Register the standard services --
         // Until this landed, the server never called Dagda.init() at all: every
@@ -194,6 +204,7 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
             runner: this._db,
             encryptionKey: this._config.secretKey
         });
+        this._preferences = new PreferencesStore<Preferences>(this._preferencesModel, this._db);
         initBaseServices<AppTypes["entities"], AppTypes["contexts"], AppTypes["events"]>({
             model: this._model,
             contextAdapter: this._contextAdapter,
@@ -268,6 +279,16 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
      */
     public get settings(): SettingsStore<Settings> {
         return this._settings;
+    }
+
+    /**
+     * The preferences of the application (FEATURES §11.6).
+     *
+     * Unlike `settings`, every read and write here needs a user id — there is
+     * no process-wide value to read without one.
+     */
+    public get preferences(): PreferencesStore<Preferences> {
+        return this._preferences;
     }
 
     /** Listen */
@@ -363,6 +384,27 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
         actionRegister<DagdaActions, "listUserNames">(this._app, "listUserNames", async () => {
             const users = await this._users.list();
             return users.map(user => ({ id: user.id, displayName: user.displayName }));
+        });
+    }
+
+    /**
+     * Preferences actions (FEATURES §11.6), kept apart from
+     * `_registerAccountActions()` for the same reason `listUserNames()` is
+     * its own method above, taken one step further: these two aren't gated
+     * by a *permission* at all, they're inherently scoped to the calling
+     * user's own id — resolved from `UserInfo`, never from a client-supplied
+     * one, so there is nothing to check beyond having a session.
+     */
+    protected _registerPreferencesActions(): void {
+        actionRegister<DagdaActions, "getPreferences">(this._app, "getPreferences", async (user) => {
+            return this._preferences.getAll(user.id);
+        });
+        actionRegister<DagdaActions, "setPreference">(this._app, "setPreference", async (user, params) => {
+            // The value is unknown until `set()` validates it against the
+            // declared type of `params.key` (§11.6) — same cast the caller of
+            // a dynamically-keyed write always needs, `validateValue` is what
+            // actually rejects a mismatched value.
+            await this._preferences.set(user.id, params.key as keyof Preferences, params.value as never);
         });
     }
 

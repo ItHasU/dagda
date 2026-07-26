@@ -1,5 +1,6 @@
 import { ROLES_TABLE } from "../auth/roles";
 import { USERS_TABLE } from "../auth/users";
+import { PREFERENCES_TABLE } from "../preferences/store";
 import { SETTINGS_TABLE } from "../settings/store";
 import { Migration } from "./migrations";
 import { qi } from "./schema";
@@ -103,6 +104,23 @@ export const FRAMEWORK_MIGRATIONS: Migration[] = [
             await tools.run(
                 `ALTER TABLE ${qi(USERS_TABLE)}
                  ADD COLUMN ${qi("roleId")} INTEGER REFERENCES ${qi(ROLES_TABLE)}(${qi("id")}) ON DELETE SET NULL`
+            );
+        }
+    },
+    {
+        id: "0005-preferences",
+        up: async (tools) => {
+            // ON DELETE CASCADE, not SET NULL like roleId above: a preference
+            // genuinely has no meaning once its owner is gone, unlike a role
+            // assignment or a message's attribution — there is no "orphaned
+            // preference" state worth keeping around.
+            await tools.run(
+                `CREATE TABLE ${qi(PREFERENCES_TABLE)} (
+                    ${qi("userId")} INTEGER NOT NULL REFERENCES ${qi(USERS_TABLE)}(${qi("id")}) ON DELETE CASCADE,
+                    ${qi("key")} TEXT NOT NULL,
+                    ${qi("value")} TEXT NOT NULL,
+                    PRIMARY KEY (${qi("userId")}, ${qi("key")})
+                )`
             );
         }
     }

@@ -20,6 +20,7 @@ import { AbstractWebComponent } from "../components/abstract.webcomponent";
 import { AuthServiceImpl } from "../auth/auth.service";
 import { UsersDirectory } from "../auth/directory";
 import { ClientNotificationImpl } from "../notification/notification.impl";
+import { PreferencesDirectory } from "../preferences/directory";
 import { BasePageTypes, PageHandler, PageInfo } from "../pages/handler";
 import { SectionInfo } from "../pages/menu";
 import { BrandInfo } from "./brand";
@@ -126,6 +127,14 @@ export class DagdaClient {
         // refreshSystemInfo() below.
         const auth = new AuthServiceImpl();
 
+        // The preferences (ROADMAP tranche 3, FEATURES §11.6): reachable via
+        // Dagda.get("preferences") from the first render, same placement as
+        // `users`/`auth` above, loaded below alongside them.
+        const preferences = new PreferencesDirectory(
+            () => actionCall<DagdaActions, "getPreferences">("getPreferences"),
+            (key, value) => actionCall<DagdaActions, "setPreference">("setPreference", { key, value })
+        );
+
         Dagda.init({
             ...buildBaseServices<AppTypes["entities"], AppTypes["contexts"], AppTypes["events"]>({
                 model: params.model,
@@ -139,6 +148,7 @@ export class DagdaClient {
             pages: pageHandler,
             users,
             auth,
+            preferences,
             brand: params.brand ?? { label: params.title ?? "Dagda" },
             ...(params.services ?? {})
         });
@@ -156,7 +166,8 @@ export class DagdaClient {
         // swallowed internally (e.g. no session yet), so this never rejects.
         await Promise.all([
             this.refreshSystemInfo(),
-            users.load()
+            users.load(),
+            preferences.load()
         ]);
 
         // -- Draw the shell --
