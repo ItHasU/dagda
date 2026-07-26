@@ -7,6 +7,7 @@ import { AbstractWebComponent } from "../abstract.webcomponent";
 // (`specs/navigation.md` §6.1). Every application used to repeat these four
 // lines, for no reason of its own.
 import "../container/container.component";
+import "../dialog/dialog.component";
 import "../login/login.component";
 import "../navbar/navbar.component";
 import "../status/status.component";
@@ -32,7 +33,7 @@ export class DagdaApp extends AbstractWebComponent {
     protected _container: PageContainer | null = null;
 
     constructor() {
-        super({ template: "<dagda-page-container ref=\"container\"></dagda-page-container><dagda-toast-host></dagda-toast-host>" });
+        super({ template: "<dagda-page-container ref=\"container\"></dagda-page-container><dagda-toast-host></dagda-toast-host><dagda-dialog-host></dagda-dialog-host>" });
     }
 
     protected override async _refresh(): Promise<void> {

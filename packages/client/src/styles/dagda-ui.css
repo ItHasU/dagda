@@ -508,6 +508,14 @@ textarea.input {
     background: var(--dialog-backdrop);
 }
 
+/* The class's own `display: grid` otherwise beats the UA stylesheet's
+   `[hidden] { display: none }` — same specificity, and this rule loads
+   after it — leaving a "hidden" backdrop still painted and still
+   intercepting clicks underneath it. */
+.dialog-backdrop[hidden] {
+    display: none;
+}
+
 .dialog {
     width: min(var(--dialog-width), 100%);
     display: flex;
