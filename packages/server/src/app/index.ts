@@ -11,6 +11,9 @@ import { SettingsStore } from "../settings/store";
 import { SQLTransactionData, SQLTransactionResult } from "@dagda/shared/src/sql/transaction";
 import express from "express";
 import { resolve } from "path";
+import { DagdaActions } from "@dagda/shared/src/auth/actions";
+import { UserInfo } from "@dagda/shared/src/auth/types";
+import { actionRegister, ActionCallback } from "../actions";
 import { apiRegister, RequestCallback, RequestOptions } from "../api";
 import { submit } from "../api/impl/entities.api";
 import { getSystemInfo, triggerError } from "../api/impl/system.api";
@@ -164,6 +167,14 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
             return this._submit(transactionData);
         });
 
+        // -- Register standard actions --
+        // Account management (FEATURES §11.4): every Dagda application gets
+        // these, the same way every one gets accounts — not declared per
+        // application, unlike AppTypes["actions"]. No role matrix yet
+        // (ROADMAP tranche 3), so isSuperAdmin is the whole of the check.
+        console.log("Registering standard actions...");
+        this._registerAccountActions();
+
         // -- Register the standard services --
         // Until this landed, the server never called Dagda.init() at all: every
         // Dagda.get() answered undefined there, so an entities handler built on
@@ -273,6 +284,44 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
     public registerAPI<Name extends keyof AppTypes["apis"]>(name: Name, callback: RequestCallback<AppTypes["apis"], Name>): void {
         // Register the route with the server
         apiRegister(this._app, name, callback);
+    }
+
+    /** Register an action on the server (FEATURES §11.1) */
+    public registerAction<Name extends keyof AppTypes["actions"]>(name: Name, callback: ActionCallback<AppTypes["actions"], Name>): void {
+        actionRegister(this._app, name, callback);
+    }
+
+    /** Account management actions, the same for every application (FEATURES §11.4) */
+    protected _registerAccountActions(): void {
+        const requireSuperAdmin = (user: UserInfo): void => {
+            if (!user.isSuperAdmin) {
+                // The gate that matters: hiding a screen is not access
+                // control (§11.2), and this is reachable from any console.
+                throw new Error("Reserved to administrators");
+            }
+        };
+        const toInvitationResult = (invitation: { user: UserInfo, token: string, expiresAt: number }) => ({
+            user: invitation.user,
+            url: `${this._config.baseURL.replace(/\/$/, "")}/invite/${invitation.token}`,
+            expiresAt: invitation.expiresAt
+        });
+
+        actionRegister<DagdaActions, "listUsers">(this._app, "listUsers", async (user) => {
+            requireSuperAdmin(user);
+            return this._users.list();
+        });
+        actionRegister<DagdaActions, "inviteUser">(this._app, "inviteUser", async (user, params) => {
+            requireSuperAdmin(user);
+            return toInvitationResult(await this._users.invite(params));
+        });
+        actionRegister<DagdaActions, "reinviteUser">(this._app, "reinviteUser", async (user, params) => {
+            requireSuperAdmin(user);
+            return toInvitationResult(await this._users.reinvite(params.id));
+        });
+        actionRegister<DagdaActions, "setUserEnabled">(this._app, "setUserEnabled", async (user, params) => {
+            requireSuperAdmin(user);
+            await this._users.setEnabled(params.id, params.enabled);
+        });
     }
 
     public broadcast<NotificationKind extends keyof AppTypes["events"]>(kind: NotificationKind, data: AppTypes["events"][NotificationKind]): void {

@@ -1,3 +1,4 @@
+import { ActionsCollection } from "../actions/types";
 import { APICollection } from "../api/types";
 import { EntitiesTypes } from "../entities/types";
 import { DagdaEvents } from "../notification/events";
@@ -15,6 +16,8 @@ export interface BaseAppTypes {
     contexts: unknown;
     /** Collection of APIs */
     apis: APICollection;
+    /** Collection of actions (FEATURES §11.1), the console's curated vocabulary */
+    actions: ActionsCollection;
     /** Notification events (key is the name of the notification, value type is the data in the event) */
     events: DagdaEvents & Record<string, unknown>;
 }

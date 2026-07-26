@@ -19,6 +19,7 @@ import { ClientNotificationImpl } from "../notification/notification.impl";
 import { BasePageTypes, PageHandler, PageInfo } from "../pages/handler";
 import { SectionInfo } from "../pages/menu";
 import { BrandInfo } from "./brand";
+import { installConsoleGlobal } from "./console";
 import headerTemplate from "./index.header.html";
 // The framework stylesheet, replacing Bootstrap: tokens, faces, vocabulary and
 // shell, in that order (FEATURES §8).
@@ -120,6 +121,9 @@ export class DagdaClient {
             brand: params.brand ?? { label: params.title ?? "Dagda" },
             ...(params.services ?? {})
         });
+
+        // -- Console global (FEATURES §11.2) --
+        installConsoleGlobal<AppTypes["actions"]>();
 
         // -- Inject headers in the app --
         this._injectHeaders(params.title);
