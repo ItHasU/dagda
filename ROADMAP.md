@@ -366,7 +366,26 @@ pendant une publication est visible et rattrapable.
   `request: RequestOptions`, au même titre que `_fetch()` côté lecture — les
   deux points d'appel du constructeur (route `submit` côté client, appel
   interne côté `initBaseServices`) le lui transmettent au lieu de le jeter.
-- Service `auth` côté client.
+- ✅ Service `auth` côté client (`Dagda.get<AuthService>("auth")`,
+  `packages/client/src/auth/auth.service.ts`) : `currentUser` et `logout()`,
+  même emplacement et même schéma que `UsersDirectory`/`users`. Thin accessor,
+  pas une deuxième source de vérité — `DagdaClient` reste le détenteur réel du
+  compte (`_systemInfo`, cycle de `refreshSystemInfo()`) ; le service se
+  contente de le relayer, ce qui laisse fonctionner tel quel le code
+  framework qui appelle encore `DagdaClient.currentUser` directement. Pas de
+  `login()` : la connexion reste une page rendue par le serveur (`/login`),
+  volontairement hors périmètre. Corrige au passage l'événement
+  `userInfoChanged` (`AuthEvents`) : jusqu'ici jamais émis (mort côté envoi,
+  malgré l'écoute de `login.component.ts`) ; `DagdaClient.refreshSystemInfo()`
+  le déclenche désormais dès que le compte est connu — **via la nouvelle
+  méthode `notifyLocal()`** (`AbstractNotificationHandler`), pas `broadcast()` :
+  `broadcast()` n'a pas encore de filtrage par destinataire (§6), l'utiliser
+  ici aurait fait fuiter l'identité de la session vers tous les autres
+  navigateurs connectés, quel que soit leur propre compte. `notifyLocal()`
+  reste strictement local au processus, exactement le rôle qui manquait. Le
+  "ask, then listen" du badge de connexion reste nécessaire malgré tout : le
+  compte se résout une fois pendant le montage de la coquille, et un
+  composant qui s'abonne après coup n'entend rien.
 - Préférences par utilisateur — premier usage : mémoriser le thème choisi
   (tranche 4).
 - **Comptes, préférences et scripts sont internes à Dagda**, hors modèle

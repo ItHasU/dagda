@@ -154,7 +154,7 @@ Décisions structurantes qui expliquent plusieurs choix ci-dessous :
 | Notifications navigateur (Web Notification API) | ✅ | ⚠️ | dans EurekAI en v1, à remonter dans le framework |
 | **NEW** — **Filtrage des notifications par utilisateur et par permissions** | | | aujourd'hui uniquement du broadcast global : tout client reçoit tout. Le filtre doit être appliqué **côté serveur** — filtrer à l'arrivée laisserait la donnée passer sur le fil |
 | **NEW** — **Le serveur relaie tel quel ce qu'un client envoie** | ⚠️ | ⚠️ | constaté en tranche 1. `ServerNotificationImpl` réémet tout message reçu vers tous les autres clients **et** le rejoue dans ses propres écouteurs, sans vérifier ni l'émetteur ni le type. C'est le mécanisme dont dépend `contextChanged` pour la synchro multi-fenêtres (§3), donc il ne peut pas être simplement retiré — mais en l'état n'importe quel client injecte n'importe quel événement chez tous les autres. À traiter avec le filtrage ci-dessus |
-| **NEW** — ↳ Corollaire : `broadcast()` **ne notifie rien localement** côté client | | | il écrit dans la socket. Un fait purement local (« voici le compte connecté ») ne passe donc pas par là : c'est ainsi que la pastille de compte est restée vide, et que l'identité du connecté partait vers tous les autres navigateurs |
+| **NEW** — ↳ Corollaire : `broadcast()` **ne notifie rien localement** côté client | | ✅ | il écrit dans la socket. Un fait purement local (« voici le compte connecté ») ne passe donc pas par là : c'est ainsi que la pastille de compte est restée vide, et que l'identité du connecté partait vers tous les autres navigateurs. `AbstractNotificationHandler.notifyLocal()` (tranche 3, service `auth`) comble le manque : il fire l'événement dans ce process seul, sans jamais toucher le réseau — utilisé par `userInfoChanged`. Le filtrage par destinataire de `broadcast()` lui-même (ligne ci-dessus) reste entier |
 
 ## 7. Serveur applicatif & authentification
 
@@ -279,7 +279,7 @@ Une liste de champs typés en entrée, un formulaire rendu et validé en sortie.
 | Services standard : `log`, `notification`, `entities`, `pages` | ❌ | ✅ | |
 | Types applicatifs centralisés (`BaseAppTypes`) | ❌ | ✅ | `entities` / `contexts` / `apis` / `events` en un seul endroit |
 | Registre instanciable (`DagdaRegistry`) derrière la façade statique | ❌ | ✅ | `Dagda.reset()` rend le registre courant et en installe un neuf : un test s'isole sans toucher à l'état de module |
-| **NEW** — Service `auth` (utilisateur courant, connexion, déconnexion) | | | conséquence de §7 |
+| **NEW** — Service `auth` (utilisateur courant, connexion, déconnexion) | | ✅ | conséquence de §7 ; `currentUser` et `logout()` via `Dagda.get<AuthService>("auth")`, la connexion reste une page rendue par le serveur (`/login`), volontairement hors périmètre |
 | **NEW** — Déclaration de services applicatifs custom documentée | | | |
 
 > **`Dagda` ≠ `DagdaClient`.** `Dagda` (paquet partagé) est le registre de
