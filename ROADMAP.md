@@ -386,8 +386,28 @@ pendant une publication est visible et rattrapable.
   "ask, then listen" du badge de connexion reste nécessaire malgré tout : le
   compte se résout une fois pendant le montage de la coquille, et un
   composant qui s'abonne après coup n'entend rien.
-- Préférences par utilisateur — premier usage : mémoriser le thème choisi
-  (tranche 4).
+- ✅ Préférences par utilisateur (FEATURES §11.6) : mécanisme générique, même
+  posture que les paramètres système (§11.5) moins ce qui ne s'applique pas à
+  une valeur propre à un compte — pas de niveaux de visibilité (le propriétaire
+  seul lit et écrit la sienne), pas de secret, pas d'amorçage par variable
+  d'environnement. `PreferencesModel<D>`
+  (`packages/shared/src/preferences/model.ts`) reprend `SettingsModel` moins
+  `visibility`/`secret`/`env` ; `PreferencesStore<D>`
+  (`packages/server/src/preferences/store.ts`) lit et écrit directement en
+  base, sans cache mémoire — contrairement aux paramètres, une valeur est
+  propre à un utilisateur, il n'y a pas d'ensemble borné à garder en mémoire
+  pour tout le monde. Table `system_preferences(userId, key, value)`, clé
+  primaire composite, `userId` en `ON DELETE CASCADE` (et non `SET NULL` comme
+  `system_users.roleId` ci-dessus) : une préférence n'a plus de sens une fois
+  son propriétaire disparu. `AbstractServerApp` prend un `_preferencesModel`
+  optionnel, même défaut vide que `_settingsModel`. Exposé via
+  `dagda.actions.getPreferences/setPreference` — aucun `userId` en paramètre,
+  la portée est résolue côté serveur depuis `UserInfo`, c'est elle qui tient
+  lieu de contrôle d'accès. Côté client, `PreferencesDirectory`
+  (`packages/client/src/preferences/directory.ts`), chargé une fois au
+  bootstrap de `DagdaClient.start()`, lu ensuite de façon synchrone, même
+  schéma que `UsersDirectory`. Encore sans préférence déclarée : le premier
+  usage réel, mémoriser le thème choisi, reste celui de la tranche 4.
 - **Comptes, préférences et scripts sont internes à Dagda**, hors modèle
   d'entités (FEATURES §11.4). Trois conséquences à traiter ici :
   - le jeu de migrations propre au framework, distinct de celui de l'application ;

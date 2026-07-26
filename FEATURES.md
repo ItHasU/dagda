@@ -441,9 +441,9 @@ sont globaux à l'instance et ne descendent pas au navigateur.
 
 | Fonctionnalité | v1 | v2 | Notes |
 |---|:--:|:--:|---|
-| **NEW** — Service générique de préférences, propres à chaque utilisateur | | | premier usage : le thème (§8) |
-| **NEW** — ↳ **Toujours une valeur par défaut** | | | une préférence jamais renseignée doit se lire sans cas particulier dans le code appelant |
-| **NEW** — ↳ Stockage côté framework, table `system_` | | | comme les comptes et les paramètres (§11.4) |
+| **NEW** — Service générique de préférences, propres à chaque utilisateur | | ✅ | premier usage : le thème (§8), tranche 4 — le mécanisme lui-même n'en déclare encore aucune |
+| **NEW** — ↳ **Toujours une valeur par défaut** | | ✅ | une préférence jamais renseignée doit se lire sans cas particulier dans le code appelant |
+| **NEW** — ↳ Stockage côté framework, table `system_` | | ✅ | comme les comptes et les paramètres (§11.4) ; `userId` en `ON DELETE CASCADE`, pas `SET NULL` comme `roleId` — une préférence n'a plus de sens sans son propriétaire |
 
 ## 12. Ce qu'une application déclare
 
