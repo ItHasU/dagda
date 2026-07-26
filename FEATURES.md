@@ -179,7 +179,7 @@ Décisions structurantes qui expliquent plusieurs choix ci-dessous :
 | **NEW** — Rôles & permissions | | ✅ | modèle détaillé en §7.1 — super-admin, matrice éditable et permissions résolues côté serveur, tous construits |
 | **NEW** — Notion de propriétaire d'une entité + partage entre utilisateurs | | | besoin remonté par MQTTToolbox 2 (tableaux de bord) — se compose avec les permissions (§7.1), ne les remplace pas |
 | **NEW** — Identité de l'utilisateur courant accessible côté serveur dans les écritures | | ⚠️ | chaque action reçoit le compte qui l'a appelée (§11.1) ; une écriture directe par transaction optimiste (`_submit()`) ne reçoit en revanche pas encore l'utilisateur — non couvert |
-| **NEW** — Écran d'administration des utilisateurs et des rôles | | ⚠️ | matrice rôle × permission construite (écran « Rôles », §7.1) ; l'écran d'administration des **comptes** (inviter, activer/désactiver, attribuer un rôle) n'a pas le sien — mécanisme prêt (`dagda.actions.inviteUser/reinviteUser/listUsers/setUserEnabled/setUserRole`), testé en console en attendant |
+| **NEW** — Écran d'administration des utilisateurs et des rôles | | ✅ | matrice rôle × permission (écran « Rôles », §7.1) et écran « Utilisateurs » (inviter, réinviter/réinitialiser, activer/désactiver, attribuer un rôle depuis une liste déroulante) tous deux construits côté MQTTToolbox. L'invitation et la réinvitation ouvrent un dialogue avec le lien à copier — aucun service d'e-mail (§0), le lien n'a nulle part d'autre où aller |
 | **NEW** — Comptes et préférences **internes au framework**, hors modèle d'entités | | ✅ | cf. §11.4 — exposés par action typée (§11.1), pas par le cache |
 | **ÉCARTÉ** — Mode « sans authentification » (`NO_AUTH`) | ✅ | ⚠️ | présent en v1, à retirer |
 

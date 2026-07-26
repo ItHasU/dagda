@@ -310,9 +310,19 @@ pendant une publication est visible et rattrapable.
   `deleteRole`/`setUserRole` gardées par `roles.manage`. Écran « Rôles » construit
   côté MQTTToolbox (matrice éditable, assemblée à la main depuis les éditeurs
   du générateur de formulaires — un tableau à deux dimensions n'est pas ce que
-  `<dagda-form>` rend). L'écran d'assignation d'un rôle à un compte (l'écran
-  "utilisateurs" plus large de FEATURES §7) reste à construire — `setUserRole`
-  n'est pour l'instant utilisable qu'en console.
+  `<dagda-form>` rend), suivi de l'écran « Utilisateurs » : inviter, réinviter
+  (sert aussi de réinitialisation de mot de passe), activer/désactiver, et
+  attribuer un rôle depuis une liste déroulante construite à partir des rôles
+  chargés. Plus rien en console pour la gestion courante des comptes.
+  - ✅ **Dialogue modal** (`openDialog()`, `<dagda-dialog-host>`), ajouté à
+    cette occasion : premier vrai usage des classes `.dialog`/`.dialog-backdrop`
+    de `dagda-ui.css`, jusque-là posées mais jamais consommées. A révélé un
+    bug réel — `.dialog-backdrop` restait visible et interceptait les clics
+    malgré l'attribut `hidden`, sa propre règle `display: grid` l'emportant
+    sur la feuille de style par défaut du navigateur, corrigé par une règle
+    `.dialog-backdrop[hidden]`. Le contrat `onClick` accepte un retour `false`
+    pour enchaîner un second dialogue sans que le premier ne le referme aussitôt
+    (le dialogue d'invitation → le dialogue du lien à copier, par exemple).
 - **Générateur de formulaires** (FEATURES §8.1), construit ici plutôt qu'à
   l'apparition du premier écran métier : c'est lui qui rend possible, dans la
   même tranche, l'écran de matrice rôle × permission *et* l'écran de paramètres
