@@ -368,6 +368,21 @@ describe.runIf(available)("Accounts", () => {
             expect((await users.getById(alice.id))?.permissions).toEqual(["roles.manage"]);
         });
 
+        it("unassigns a deleted role from every account that carried it", async () => {
+            // The framework migration's ON DELETE SET NULL, not application
+            // code: deleting a role must never leave an account referencing
+            // one that no longer exists.
+            const role = await roles.create({ name: "Support", permissions: ["users.manage"] });
+            const alice = await users.create({ login: "alice", password: "x" });
+            await users.setRole(alice.id, role.id);
+
+            await roles.delete(role.id);
+
+            const updated = await users.getById(alice.id);
+            expect(updated?.roleId).toBeNull();
+            expect(updated?.permissions).toEqual([]);
+        });
+
     });
 
 });
