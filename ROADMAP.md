@@ -295,9 +295,24 @@ pendant une publication est visible et rattrapable.
   usage réel de la couche d'actions (§11.1) côté framework, et premières
   actions gardées par une permission (`isSuperAdmin`, en attendant la matrice
   de rôles ci-dessous).
-- ⚠️ Rôles et matrice de permissions, super-admin intégré — le super-admin
-  existe et protège déjà les actions de comptes ci-dessus ; la **matrice**
-  éditable par rôle reste à construire, avec le générateur de formulaires.
+- ✅ Rôles et matrice de permissions (FEATURES §7.1). La liste des permissions
+  est une constante applicative (`DAGDA_PERMISSIONS`, `packages/shared/src/auth/permissions.ts`) :
+  `users.manage`, `roles.manage`, `settings.manage` pour l'instant — une
+  application ajoute les siennes de la même façon le jour où elle en a besoin.
+  Les rôles, eux, sont une donnée (`RoleStore`, table `system_roles`, `permissions`
+  en JSON — le connecteur SQL n'a pas de type tableau natif) : nom + sous-ensemble
+  de permissions, créés librement par l'administrateur. Un compte porte au plus
+  un rôle (`system_users.roleId`, `ON DELETE SET NULL`) ; `UserInfo.permissions`
+  est résolu côté serveur à chaque requête, vide pour un super-admin — son
+  drapeau `isSuperAdmin` court-circuite `hasPermission()`, rien à énumérer.
+  `listUsers`/`inviteUser`/`reinviteUser`/`setUserEnabled` sont passées de
+  `isSuperAdmin` en dur à `users.manage` ; `listRoles`/`createRole`/`updateRole`/
+  `deleteRole`/`setUserRole` gardées par `roles.manage`. Écran « Rôles » construit
+  côté MQTTToolbox (matrice éditable, assemblée à la main depuis les éditeurs
+  du générateur de formulaires — un tableau à deux dimensions n'est pas ce que
+  `<dagda-form>` rend). L'écran d'assignation d'un rôle à un compte (l'écran
+  "utilisateurs" plus large de FEATURES §7) reste à construire — `setUserRole`
+  n'est pour l'instant utilisable qu'en console.
 - **Générateur de formulaires** (FEATURES §8.1), construit ici plutôt qu'à
   l'apparition du premier écran métier : c'est lui qui rend possible, dans la
   même tranche, l'écran de matrice rôle × permission *et* l'écran de paramètres

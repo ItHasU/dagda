@@ -176,10 +176,10 @@ Décisions structurantes qui expliquent plusieurs choix ci-dessous :
 | **NEW** — ↳ mécanisme d'invitation (lien à usage unique, avec expiration) | | ✅ | `UserStore.invite()` / `acceptInvitation()`, routes `GET`/`POST /invite/:token`. Sept jours de validité |
 | **NEW** — ↳ changement de mot de passe par l'utilisateur | | | `UserStore.changePassword()` existe côté serveur ; pas encore exposé au client (aucun écran « mes préférences ») |
 | **NEW** — ↳ réinitialisation : par le même lien d'invitation, régénéré par l'administrateur | | ✅ | **décidé** : pas de service d'envoi de mail (§0), l'administrateur copie le lien à la main. `UserStore.reinvite()` : le mot de passe courant reste valide tant que le nouveau lien n'a pas été utilisé |
-| **NEW** — Rôles & permissions | | | modèle détaillé en §7.1 — le super-admin existe, la matrice reste à construire |
+| **NEW** — Rôles & permissions | | ✅ | modèle détaillé en §7.1 — super-admin, matrice éditable et permissions résolues côté serveur, tous construits |
 | **NEW** — Notion de propriétaire d'une entité + partage entre utilisateurs | | | besoin remonté par MQTTToolbox 2 (tableaux de bord) — se compose avec les permissions (§7.1), ne les remplace pas |
-| **NEW** — Identité de l'utilisateur courant accessible côté serveur dans les écritures | | ✅ | chaque action reçoit le compte qui l'a appelée (§11.1) |
-| **NEW** — Écran d'administration des utilisateurs et des rôles | | | mécanisme prêt (`dagda.actions.inviteUser/reinviteUser/listUsers/setUserEnabled`), pas d'écran encore — testé en console en attendant |
+| **NEW** — Identité de l'utilisateur courant accessible côté serveur dans les écritures | | ⚠️ | chaque action reçoit le compte qui l'a appelée (§11.1) ; une écriture directe par transaction optimiste (`_submit()`) ne reçoit en revanche pas encore l'utilisateur — non couvert |
+| **NEW** — Écran d'administration des utilisateurs et des rôles | | ⚠️ | matrice rôle × permission construite (écran « Rôles », §7.1) ; l'écran d'administration des **comptes** (inviter, activer/désactiver, attribuer un rôle) n'a pas le sien — mécanisme prêt (`dagda.actions.inviteUser/reinviteUser/listUsers/setUserEnabled/setUserRole`), testé en console en attendant |
 | **NEW** — Comptes et préférences **internes au framework**, hors modèle d'entités | | ✅ | cf. §11.4 — exposés par action typée (§11.1), pas par le cache |
 | **ÉCARTÉ** — Mode « sans authentification » (`NO_AUTH`) | ✅ | ⚠️ | présent en v1, à retirer |
 
@@ -199,14 +199,14 @@ comptes (§11.4) — pas fixés dans le code, à l'inverse des permissions.
 
 | Fonctionnalité | v1 | v2 | Notes |
 |---|:--:|:--:|---|
-| **NEW** — Matrice rôle × permission, éditable par l'administrateur | | | pour chaque rôle créé, cocher les fonctionnalités qui lui sont accessibles |
-| **NEW** — Un utilisateur porte **au plus un rôle** | | | pas de cumul : `permissions(utilisateur)` = permissions de son rôle, ou aucune |
-| **NEW** — Rôle **super-admin** intégré au framework, tous droits implicites | | | dispensé de la matrice — un test dédié court-circuite toute vérification, sans énumérer ses permissions |
-| **NEW** — ↳ Attribué automatiquement au premier utilisateur créé (`admin` / `admin`) | | | bootstrap : avant qu'un compte existe, personne ne peut émettre d'invitation (§7) — ce premier compte échappe donc au parcours normal |
-| **NEW** — Permissions de l'utilisateur résolues côté serveur, exposées en liste d'identifiants texte | | | ex. `["projects.manage", "users.invite"]` — c'est cette liste que lisent les fonctions serveur pour trancher un accès |
+| **NEW** — Matrice rôle × permission, éditable par l'administrateur | | ✅ | pour chaque rôle créé, cocher les fonctionnalités qui lui sont accessibles. `RoleStore` (données) + `DAGDA_PERMISSIONS` (constante applicative, `packages/shared/src/auth/permissions.ts`) + écran « Rôles » côté MQTTToolbox, assemblé à la main depuis les éditeurs du générateur de formulaires (§8.1) — un tableau à deux dimensions n'est pas ce que `<dagda-form>` rend |
+| **NEW** — Un utilisateur porte **au plus un rôle** | | ✅ | pas de cumul : `permissions(utilisateur)` = permissions de son rôle, ou aucune. `system_users.roleId`, nullable, `ON DELETE SET NULL` |
+| **NEW** — Rôle **super-admin** intégré au framework, tous droits implicites | | ✅ | dispensé de la matrice — un test dédié (`hasPermission()`) court-circuite toute vérification, sans énumérer ses permissions : `UserInfo.permissions` reste vide pour un super-admin |
+| **NEW** — ↳ Attribué automatiquement au premier utilisateur créé (`admin` / `admin`) | | ✅ | bootstrap : avant qu'un compte existe, personne ne peut émettre d'invitation (§7) — ce premier compte échappe donc au parcours normal |
+| **NEW** — Permissions de l'utilisateur résolues côté serveur, exposées en liste d'identifiants texte | | ✅ | ex. `["users.manage", "roles.manage"]` — c'est cette liste que lisent les fonctions serveur pour trancher un accès. Résolu à chaque requête (comme le reste du compte, §7), pas mis en cache — un rôle édité ou retiré prend effet immédiatement |
 | **NEW** — Contexte de chargement / appel d'API contraignable par permission | | | généralise l'idée de « filtrage par utilisateur » : la même mécanique porte aussi bien une restriction de table entière qu'un filtre plus fin |
-| **NEW** — Permissions transmises au client | | | pour masquer les parties d'interface inaccessibles — ne dispense jamais la vérification serveur (§11.2) |
-| **NEW** — Jeton d'API : mêmes permissions que son propriétaire | | | cf. §5 — pas de portée réduite pour un appel par jeton |
+| **NEW** — Permissions transmises au client | | ✅ | pour masquer les parties d'interface inaccessibles — ne dispense jamais la vérification serveur (§11.2). `PageHandler.canAccess` vérifie `isSuperAdmin` puis `permissions.includes(...)` |
+| **NEW** — Jeton d'API : mêmes permissions que son propriétaire | | | cf. §5 — pas de portée réduite pour un appel par jeton. Le mécanisme de jeton lui-même n'existe pas encore |
 
 ## 8. Client / UI
 
