@@ -16,7 +16,6 @@ DagdaClient.start<AppTypes, AppPages>({
     title: "Dagda",
     brand: {
         label: "Dagda",
-        compact: "DG",
         icon: "ph-wrench"
     },
     // Two pages under one section, so the boilerplate exercises the nesting

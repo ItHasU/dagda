@@ -57,10 +57,10 @@ distinctes quelle que soit la disposition, pas un sous-menu commun.
 - La colonne se réduit à la largeur des badges seuls ; tous les libellés
   disparaissent, y compris ceux des pages d'une section par ailleurs
   développée en état déployé.
-- La marque se replie sur un rendu compact (pas une troncature du texte
-  complet : un second rendu dédié, ex. sigle sur deux lignes) — implique que
-  le composant Marque expose un mode compact, pas seulement un
-  `overflow: hidden`.
+- La marque se réduit à son icône : le libellé disparaît comme celui de toute
+  autre entrée, sans rendu compact séparé à maintenir en plus du complet. Une
+  application qui ne déclare pas d'icône n'a rien à montrer en rail — même
+  compromis qu'une section ou une page sans icône.
 - Le groupe secondaire suit la même règle : badges seuls, ancrés en bas.
 - La zone de contenu récupère toute la largeur libérée.
 
@@ -115,7 +115,8 @@ distinctes quelle que soit la disposition, pas un sous-menu commun.
   contenu. Interne à `<dagda-app>`.
 - **`Navbar`** — rend le groupe primaire et le groupe secondaire à partir de
   l'arbre de menu, dans les quatre combinaisons ci-dessus. Interne.
-- **Marque** — expose un rendu compact en plus du rendu complet. Interne.
+- **Marque** — icône + libellé, ce dernier caché en rail comme toute autre
+  entrée. Interne.
 
 ### 6.1 `<dagda-app>` : un seul élément dans la page
 
@@ -148,15 +149,15 @@ Conséquences à traiter en même temps :
 
   ```ts
   DagdaClient.start({
-      brand: { label: "MQTT Toolbox", compact: "MQTT", icon: "ph-broadcast" },
+      brand: { label: "MQTT Toolbox", icon: "ph-broadcast" },
       sections: { supervision: { label: "Supervision", icon: "ph-gauge" } },
       pages: { status: { title: "Statut", constructor: StatusPage, menu: { section: "supervision" } } }
   });
   ```
 
-  `compact` est bien **un second rendu** et non une troncature ; il vaut à
-  défaut les deux premières lettres du libellé — correct pour « Dagda », mauvais
-  pour « MQTT Toolbox », d'où le champ.
+  En rail, la marque se réduit à son icône — le libellé disparaît comme celui
+  de toute autre entrée (§3.2). Pas de second champ à tenir en plus du
+  libellé : une application sans icône n'a simplement rien à montrer là.
 - **Le groupe secondaire n'a rien à personnaliser** : il ne contient que des
   éléments du framework (Paramètres, Utilisateur). Une application y place une
   page en la déclarant `menu: { group: "secondary" }` — même arbre, même

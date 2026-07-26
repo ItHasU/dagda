@@ -70,16 +70,16 @@ export class Navbar extends AbstractWebComponent {
     //#region Rendering --------------------------------------------------------
 
     /**
-     * Both renderings of the brand, at once.
+     * The brand: icon then label, same shape as any other entry.
      *
-     * The compact one is a second rendering, never a truncation of the first
-     * (`specs/navigation.md` §3.2): the stylesheet swaps them, so the column
-     * does not reflow through a half-drawn state on the way.
+     * The label is hidden by the stylesheet in the rail (`specs/navigation.md`
+     * §3.2), so an application that names none carries no identity there —
+     * same trade-off as a page or a section with no icon of its own.
      */
     protected _renderBrand(brand: BrandInfo | undefined): void {
         const label = brand?.label ?? "Dagda";
-        const compact = brand?.compact ?? label.slice(0, 2);
         this._brand.replaceChildren();
+        this._brand.title = label;
 
         if (brand?.icon != null) {
             const icon = document.createElement("i");
@@ -90,20 +90,10 @@ export class Navbar extends AbstractWebComponent {
             this._brand.appendChild(icon);
         }
 
-        const full = document.createElement("span");
-        full.className = "shell-brand-full";
-        full.textContent = label;
-        this._brand.appendChild(full);
-
-        const short = document.createElement("span");
-        short.className = "shell-brand-compact";
-        short.textContent = compact;
-        this._brand.appendChild(short);
-
-        // Hidden from assistive technology while collapsed, so the name is
-        // announced once rather than twice.
-        full.setAttribute("aria-hidden", String(this._collapsed));
-        short.setAttribute("aria-hidden", String(!this._collapsed));
+        const text = document.createElement("span");
+        text.className = "shell-brand-label";
+        text.textContent = label;
+        this._brand.appendChild(text);
     }
 
     /** Render one group: its nodes, and the pages under each of them */

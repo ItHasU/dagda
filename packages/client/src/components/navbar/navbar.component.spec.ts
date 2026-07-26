@@ -27,7 +27,7 @@ class StubPage extends AbstractPageElement {
 }
 customElements.define("stub-page", StubPage);
 
-const BRAND: BrandInfo = { label: "MQTT Toolbox", compact: "MQ", icon: "ph-broadcast" };
+const BRAND: BrandInfo = { label: "MQTT Toolbox", icon: "ph-broadcast" };
 
 /** Build a navbar wired to a handler, in the requested state */
 async function mount(options: { canAccess?: PermissionPredicate, collapsed?: boolean, currentPage?: string } = {}): Promise<Navbar> {
@@ -116,7 +116,7 @@ describe("Navbar", () => {
 
         it("spells the brand out in full", async () => {
             const navbar = await mount();
-            expect(navbar.querySelector(".shell-brand-full")?.textContent).toBe("MQTT Toolbox");
+            expect(navbar.querySelector(".shell-brand-label")?.textContent).toBe("MQTT Toolbox");
             expect(navbar.querySelector(".shell-brand-icon")?.className).toContain("ph-broadcast");
         });
 
@@ -138,13 +138,9 @@ describe("Navbar", () => {
             expect(names).toContain("Supervision");
         });
 
-        it("offers the compact brand as a second rendering, not a truncation", async () => {
+        it("names the brand for a hover or a screen reader, since the label is hidden", async () => {
             const navbar = await mount({ collapsed: true });
-            const compact = navbar.querySelector(".shell-brand-compact");
-            expect(compact?.textContent).toBe("MQ");
-            // The full name is still in the DOM — the stylesheet hides it — but
-            // it must not be announced twice.
-            expect(navbar.querySelector(".shell-brand-full")?.getAttribute("aria-hidden")).toBe("true");
+            expect(navbar.querySelector(".shell-brand")?.getAttribute("title")).toBe("MQTT Toolbox");
         });
 
         it("points a section badge at the first page of the section", async () => {

@@ -60,8 +60,9 @@
 }
 
 /* — brand —
-   Two renderings, not one truncated. A sigil is legible at rail width; the
-   first letters of a name clipped mid-word are not (`specs/navigation.md` §3.2). */
+   Icon then label, the same shape as any other entry: the label disappears
+   in the rail and the icon carries the identity alone (`specs/navigation.md`
+   §3.2) — no separate compact rendering to keep in step with the full one. */
 .shell-brand {
     display: flex;
     align-items: center;
@@ -81,20 +82,8 @@
     line-height: 1;
 }
 
-.shell-brand-compact {
+.shell[data-nav="collapsed"] .shell-brand-label {
     display: none;
-}
-
-.shell[data-nav="collapsed"] .shell-brand-full {
-    display: none;
-}
-
-.shell[data-nav="collapsed"] .shell-brand-compact {
-    display: block;
-    font-size: var(--font-size-label);
-    letter-spacing: var(--tracking-caps);
-    text-transform: uppercase;
-    text-align: center;
 }
 
 /* — groups —
