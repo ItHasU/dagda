@@ -15,11 +15,12 @@ import express from "express";
 import { resolve } from "path";
 import { DagdaActions } from "@dagda/shared/src/auth/actions";
 import { hasPermission } from "@dagda/shared/src/auth/permissions";
-import { UserInfo } from "@dagda/shared/src/auth/types";
+import { UserId, UserInfo } from "@dagda/shared/src/auth/types";
 import { actionRegister, ActionCallback } from "../actions";
 import { apiRegister, RegisterAPIOptions, RequestCallback, RequestOptions } from "../api";
 import { submit } from "../api/impl/entities.api";
 import { getSystemInfo, triggerError } from "../api/impl/system.api";
+import { AuditLogKind, AuditLogStore } from "../audit/store";
 import { AuthHandler } from "../auth";
 import { RoleStore } from "../auth/roles";
 import { UserStore } from "../auth/users";
@@ -90,6 +91,7 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
     protected _preferences: PreferencesStore<Preferences>;
     protected _roles: RoleStore;
     protected _users: UserStore;
+    protected _audit: AuditLogStore;
 
     constructor(
         protected _params: ServerParams,
@@ -125,6 +127,7 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
         this._db = new PGRunner(this._config.dbURL);
         this._roles = new RoleStore(this._db);
         this._users = new UserStore(this._db, this._roles);
+        this._audit = new AuditLogStore(this._db);
 
         // -- Create the authentication handler --
         console.log("Initializing authentication handler...");
@@ -312,9 +315,59 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
         apiRegister(this._app, name, callback, options);
     }
 
-    /** Register an action on the server (FEATURES §11.1) */
+    /**
+     * Register an action on the server (FEATURES §11.1).
+     *
+     * Every successful call is recorded to the audit log (ROADMAP tranche 3)
+     * — a rejected one (a thrown permission check, or any other failure)
+     * never reaches `_recordAudit()`, since it sits strictly after `callback`
+     * resolves.
+     */
     public registerAction<Name extends keyof AppTypes["actions"]>(name: Name, callback: ActionCallback<AppTypes["actions"], Name>): void {
-        actionRegister(this._app, name, callback);
+        const wrapped: ActionCallback<AppTypes["actions"], Name> = async (user, ...args): Promise<Awaited<ReturnType<AppTypes["actions"][Name]>>> => {
+            const result = await callback(user, ...args);
+            await this._recordAudit(user.id, "action", String(name), args);
+            return result;
+        };
+        actionRegister<AppTypes["actions"], Name>(this._app, name, wrapped);
+    }
+
+    /**
+     * Registers one of the framework's own standard actions (the ~14 calls
+     * across `_registerAccountActions()` and friends below) — the
+     * counterpart of `registerAction()` above for `DagdaActions` rather than
+     * an application's own vocabulary, so both paths get audited from the
+     * same two places instead of at each of those call sites individually.
+     *
+     * `redact`, when given, rewrites what gets stored for `details` — the
+     * only user of this today is `setSetting()`, whose `value` argument must
+     * never land in the log in clear for a secret setting (FEATURES §11.5:
+     * written, never read back in clear — the log is no exception).
+     */
+    protected _registerFrameworkAction<Name extends keyof DagdaActions>(
+        name: Name,
+        callback: ActionCallback<DagdaActions, Name>,
+        redact?: (args: Parameters<DagdaActions[Name]>) => unknown
+    ): void {
+        const wrapped: ActionCallback<DagdaActions, Name> = async (user, ...args): Promise<Awaited<ReturnType<DagdaActions[Name]>>> => {
+            const result = await callback(user, ...args);
+            await this._recordAudit(user.id, "action", String(name), redact ? redact(args) : args);
+            return result;
+        };
+        actionRegister<DagdaActions, Name>(this._app, name, wrapped);
+    }
+
+    /**
+     * Writes one row to the audit log, swallowing its own failure: a broken
+     * audit write must never turn an otherwise-successful action or
+     * transaction into an error response for the caller.
+     */
+    protected async _recordAudit(userId: UserId | null, kind: AuditLogKind, name: string | null, details: unknown): Promise<void> {
+        try {
+            await this._audit.record(userId, kind, name, details);
+        } catch (err) {
+            console.error(`Failed to record an audit log entry (kind=${kind}, name=${name}):`, err);
+        }
     }
 
     /**
@@ -337,40 +390,40 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
             expiresAt: invitation.expiresAt
         });
 
-        actionRegister<DagdaActions, "listUsers">(this._app, "listUsers", async (user) => {
+        this._registerFrameworkAction<"listUsers">("listUsers", async (user) => {
             this._requirePermission(user, "users.manage");
             return this._users.list();
         });
-        actionRegister<DagdaActions, "inviteUser">(this._app, "inviteUser", async (user, params) => {
+        this._registerFrameworkAction<"inviteUser">("inviteUser", async (user, params) => {
             this._requirePermission(user, "users.manage");
             return toInvitationResult(await this._users.invite(params));
         });
-        actionRegister<DagdaActions, "reinviteUser">(this._app, "reinviteUser", async (user, params) => {
+        this._registerFrameworkAction<"reinviteUser">("reinviteUser", async (user, params) => {
             this._requirePermission(user, "users.manage");
             return toInvitationResult(await this._users.reinvite(params.id));
         });
-        actionRegister<DagdaActions, "setUserEnabled">(this._app, "setUserEnabled", async (user, params) => {
+        this._registerFrameworkAction<"setUserEnabled">("setUserEnabled", async (user, params) => {
             this._requirePermission(user, "users.manage");
             await this._users.setEnabled(params.id, params.enabled);
         });
-        actionRegister<DagdaActions, "setUserRole">(this._app, "setUserRole", async (user, params) => {
+        this._registerFrameworkAction<"setUserRole">("setUserRole", async (user, params) => {
             this._requirePermission(user, "users.manage");
             await this._users.setRole(params.id, params.roleId);
         });
 
-        actionRegister<DagdaActions, "listRoles">(this._app, "listRoles", async (user) => {
+        this._registerFrameworkAction<"listRoles">("listRoles", async (user) => {
             this._requirePermission(user, "roles.manage");
             return this._roles.list();
         });
-        actionRegister<DagdaActions, "createRole">(this._app, "createRole", async (user, params) => {
+        this._registerFrameworkAction<"createRole">("createRole", async (user, params) => {
             this._requirePermission(user, "roles.manage");
             return this._roles.create(params);
         });
-        actionRegister<DagdaActions, "updateRole">(this._app, "updateRole", async (user, params) => {
+        this._registerFrameworkAction<"updateRole">("updateRole", async (user, params) => {
             this._requirePermission(user, "roles.manage");
             return this._roles.update(params.id, params);
         });
-        actionRegister<DagdaActions, "deleteRole">(this._app, "deleteRole", async (user, params) => {
+        this._registerFrameworkAction<"deleteRole">("deleteRole", async (user, params) => {
             this._requirePermission(user, "roles.manage");
             await this._roles.delete(params.id);
         });
@@ -387,7 +440,7 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
      * is the whole of the check.
      */
     protected _registerUserDirectoryAction(): void {
-        actionRegister<DagdaActions, "listUserNames">(this._app, "listUserNames", async () => {
+        this._registerFrameworkAction<"listUserNames">("listUserNames", async () => {
             const users = await this._users.list();
             return users.map(user => ({ id: user.id, displayName: user.displayName }));
         });
@@ -402,10 +455,10 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
      * one, so there is nothing to check beyond having a session.
      */
     protected _registerPreferencesActions(): void {
-        actionRegister<DagdaActions, "getPreferences">(this._app, "getPreferences", async (user) => {
+        this._registerFrameworkAction<"getPreferences">("getPreferences", async (user) => {
             return this._preferences.getAll(user.id);
         });
-        actionRegister<DagdaActions, "setPreference">(this._app, "setPreference", async (user, params) => {
+        this._registerFrameworkAction<"setPreference">("setPreference", async (user, params) => {
             // The value is unknown until `set()` validates it against the
             // declared type of `params.key` (§11.6) — same cast the caller of
             // a dynamically-keyed write always needs, `validateValue` is what
@@ -419,7 +472,7 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
      * `settings.manage` — an administrator concern, unlike preferences above.
      */
     protected _registerSettingsActions(): void {
-        actionRegister<DagdaActions, "getSettingsValues">(this._app, "getSettingsValues", async (user) => {
+        this._registerFrameworkAction<"getSettingsValues">("getSettingsValues", async (user) => {
             this._requirePermission(user, "settings.manage");
             // Not `getValuesFor(SettingVisibility.client)`: that filters by
             // who may read a setting at runtime, which would hide most
@@ -436,12 +489,17 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
             }
             return result;
         });
-        actionRegister<DagdaActions, "setSetting">(this._app, "setSetting", async (user, params) => {
+        this._registerFrameworkAction<"setSetting">("setSetting", async (user, params) => {
             this._requirePermission(user, "settings.manage");
             // Same idiom as setPreference() above: set() validates the value
             // against the declared type of params.key, and throws usefully
             // if the key is not declared at all.
             await this._settings.set(params.key as keyof Settings, params.value as never);
+        }, ([params]) => {
+            // Never the value in clear for a secret setting (§11.5) — the
+            // audit trail is not an exception to "written, never read back".
+            const isSecret = this._settingsModel.isDeclared(params.key) && this._settingsModel.isSecret(params.key);
+            return [{ key: params.key, value: isSecret ? "[redacted]" : params.value }];
         });
     }
 
@@ -508,9 +566,17 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
      * for a write made by the server itself (an action, a migration, ...),
      * where there is no request to speak of. An override can use `user` to
      * stamp who wrote a row, or to reject a write outright.
+     *
+     * Every transaction that reaches the `return` below has already
+     * succeeded — `submit()` throws on failure, which propagates out before
+     * the audit write, so a rejected transaction never produces a log row
+     * (ROADMAP tranche 3), same rule as `registerAction()` above.
      */
-    protected _submit(transactionData: SQLTransactionData<AppTypes["entities"], AppTypes["contexts"]>, request: RequestOptions): Promise<SQLTransactionResult> {
-        return submit(this._db, this._model, transactionData);
+    protected async _submit(transactionData: SQLTransactionData<AppTypes["entities"], AppTypes["contexts"]>, request: RequestOptions): Promise<SQLTransactionResult> {
+        const result = await submit(this._db, this._model, transactionData);
+        const userId = request.type === "client" ? request.user.id : null;
+        await this._recordAudit(userId, "submit", null, transactionData);
+        return result;
     }
 
     //#endregion

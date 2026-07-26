@@ -445,6 +445,21 @@ sont globaux à l'instance et ne descendent pas au navigateur.
 | **NEW** — ↳ **Toujours une valeur par défaut** | | ✅ | une préférence jamais renseignée doit se lire sans cas particulier dans le code appelant |
 | **NEW** — ↳ Stockage côté framework, table `system_` | | ✅ | comme les comptes et les paramètres (§11.4) ; `userId` en `ON DELETE CASCADE`, pas `SET NULL` comme `roleId` — une préférence n'a plus de sens sans son propriétaire |
 
+### 11.7 Journal d'audit — **décidé**
+
+**Toute action ou transaction acceptée est enregistrée ; une action refusée par
+une permission ne l'est jamais.** Pas d'écran de consultation : c'est une trace
+écrite pour qui interroge la base directement, pas une fonctionnalité avec une
+interface propre.
+
+| Fonctionnalité | v1 | v2 | Notes |
+|---|:--:|:--:|---|
+| **NEW** — Table `system_audit_log` (`userId`, `kind`, `name`, `details`, `createdAt`) | | ✅ | `details` en JSON-texte, même convention que `RoleStore.permissions`. `userId` en `ON DELETE SET NULL` — une trace est une preuve de ce qui s'est passé, pas un état appartenant au compte, elle doit lui survivre |
+| **NEW** — ↳ Une action réussie (§11.1), qu'elle soit déclarée par l'application (`registerAction()`) ou l'une des ~14 actions standard du framework | | ✅ | un seul point d'écriture des deux côtés : `registerAction()` et `_registerFrameworkAction()` (nouveau, remplace les appels directs à `actionRegister` dans chaque `_registerXActions()`) enveloppent tous deux le callback fourni et n'écrivent qu'après son succès |
+| **NEW** — ↳ Une transaction réussie (`_submit()`) | | ✅ | même garde : l'écriture du journal suit l'appel à `submit()`, qui lève sur échec avant de l'atteindre |
+| **NEW** — ↳ Une action refusée par permission n'écrit **jamais** en base | | ✅ | ni un refus de permission ni aucune autre erreur ne peut produire de ligne, par construction : le point d'écriture est placé strictement après la résolution du callback, jamais dans son `catch` — au plus une trace console (déjà le comportement existant d'`actionRegister`) |
+| **NEW** — ↳ Une valeur **secrète** (§11.5) n'apparaît jamais en clair dans le journal | | ✅ | `setSetting` fournit une fonction de rédaction à `_registerFrameworkAction()` qui remplace la valeur par `"[redacted]"` quand la clé est déclarée secrète — le journal n'est pas une exception à « écrit, jamais relu en clair » |
+
 ## 12. Ce qu'une application déclare
 
 Récapitulatif du contrat côté développeur — l'ensemble est typé, d'où découlent

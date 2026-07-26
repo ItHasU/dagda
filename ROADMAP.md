@@ -432,6 +432,21 @@ pendant une publication est visible et rattrapable.
   bootstrap de `DagdaClient.start()`, lu ensuite de façon synchrone, même
   schéma que `UsersDirectory`. Encore sans préférence déclarée : le premier
   usage réel, mémoriser le thème choisi, reste celui de la tranche 4.
+- ✅ Journal d'audit (FEATURES §11.7) : table `system_audit_log`, une ligne par
+  action ou transaction **réussie**, jamais pour un refus de permission (au
+  plus une trace console, comme c'était déjà le cas). Pas d'écran de
+  consultation — une trace pour qui interroge la base, pas une fonctionnalité
+  côté client. Un seul point d'écriture des deux côtés : `registerAction()`
+  (actions déclarées par l'application) et la nouvelle
+  `_registerFrameworkAction()` (les ~14 actions standard du framework,
+  jusqu'ici enregistrées par un appel direct à `actionRegister` dans chaque
+  `_registerXActions()`) enveloppent le callback fourni et n'écrivent qu'après
+  sa résolution — un refus de permission lève avant d'y arriver, donc ne
+  produit jamais de ligne, par construction plutôt que par discipline. Même
+  garde côté `_submit()` : l'écriture suit l'appel à `submit()`, qui lève sur
+  échec. `setSetting` fournit une fonction de rédaction qui remplace la valeur
+  par `"[redacted]"` pour une clé secrète (§11.5) — le journal n'est pas une
+  exception à « écrit, jamais relu en clair ».
 - **Comptes, préférences et scripts sont internes à Dagda**, hors modèle
   d'entités (FEATURES §11.4). Trois conséquences à traiter ici :
   - le jeu de migrations propre au framework, distinct de celui de l'application ;
@@ -716,6 +731,7 @@ un signal à traiter, pas à ignorer.
 | 11.4 Données natives du framework | 3 (comptes, USER_ID, annuaire), 5 bis (scripts) |
 | 11.5 Paramètres système | 1 (mécanisme + config broker), 3 (écran d'édition) |
 | 11.6 Préférences utilisateur | 3 |
+| 11.7 Journal d'audit | 3 |
 | 12. Ce qu'une application déclare | contrat vérifié à chaque tranche, formalisé en 5 |
 
 ## Décisions prises

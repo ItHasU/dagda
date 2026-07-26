@@ -1,3 +1,4 @@
+import { AUDIT_LOG_TABLE } from "../audit/store";
 import { ROLES_TABLE } from "../auth/roles";
 import { USERS_TABLE } from "../auth/users";
 import { PREFERENCES_TABLE } from "../preferences/store";
@@ -121,6 +122,30 @@ export const FRAMEWORK_MIGRATIONS: Migration[] = [
                     ${qi("value")} TEXT NOT NULL,
                     PRIMARY KEY (${qi("userId")}, ${qi("key")})
                 )`
+            );
+        }
+    },
+    {
+        id: "0006-audit-log",
+        up: async (tools) => {
+            // ON DELETE SET NULL, not CASCADE like preferences: a log entry
+            // is evidence of what happened, not state belonging to the
+            // account — it must outlive the account being deleted, same
+            // reasoning as `roleId` above.
+            await tools.run(
+                `CREATE TABLE ${qi(AUDIT_LOG_TABLE)} (
+                    ${qi("id")} SERIAL PRIMARY KEY,
+                    ${qi("userId")} INTEGER REFERENCES ${qi(USERS_TABLE)}(${qi("id")}) ON DELETE SET NULL,
+                    ${qi("kind")} TEXT NOT NULL,
+                    ${qi("name")} TEXT,
+                    ${qi("details")} TEXT,
+                    ${qi("createdAt")} TIMESTAMPTZ NOT NULL DEFAULT now()
+                )`
+            );
+            // The whole point of the table: "what did this user do" is the
+            // query it exists to answer.
+            await tools.run(
+                `CREATE INDEX ${qi(`${AUDIT_LOG_TABLE}_user`)} ON ${qi(AUDIT_LOG_TABLE)} (${qi("userId")})`
             );
         }
     }
