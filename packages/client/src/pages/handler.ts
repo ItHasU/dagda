@@ -1,3 +1,5 @@
+import { Dagda } from "@dagda/shared/src/dagda";
+import { EntitiesService } from "@dagda/shared/src/entities/service";
 import { EventHandlerData, EventHandlerImpl, EventListener } from "@dagda/shared/src/tools/events";
 import { AbstractPageElement } from "./abstract.page.element";
 import { ALLOW_ALL, buildMenu, MenuGroup, MenuNode, MenuPlacement, PermissionPredicate, SectionInfo } from "./menu";
@@ -38,6 +40,17 @@ export interface PageInfo<Page extends AbstractPageElement> {
     menu?: MenuPlacement;
     /** Permission required to see and open the page (FEATURES §7.1) */
     permission?: string;
+    /**
+     * Refresh the page itself when a websocket message makes its data stale,
+     * instead of leaving that to the "à rafraîchir" indicator.
+     *
+     * A page opts in because only it knows whether re-rendering on every
+     * change is cheap enough — the status page (a handful of rows) is; a page
+     * mid-edit is not. While a page declares this, the indicator never shows
+     * its dirty state: the page is already catching up, so there is nothing
+     * left for the user to act on.
+     */
+    autoRefresh?: boolean;
 }
 
 /**
@@ -67,6 +80,38 @@ export class PageHandler<PageTypes extends BasePageTypes> {
      * super-admin flag.
      */
     public canAccess: PermissionPredicate = ALLOW_ALL;
+
+    /** Last seen value of the entities cache's dirty flag, to catch the false→true edge */
+    private _wasDirty = false;
+
+    constructor() {
+        // Optional on purpose: an application without an entities service has
+        // nothing to go dirty, and the subscription simply never fires.
+        Dagda.loaded.then(() => {
+            try {
+                Dagda.get<EntitiesService<any, any>>("entities").getHandler().on("state", (event) => {
+                    const dirty = event.data.dirty;
+                    if (dirty && !this._wasDirty && this.isCurrentPageAutoRefresh()) {
+                        // The page, not the indicator, is what re-fetches — it
+                        // is what clears the flag this reacted to in the
+                        // first place (FEATURES §8).
+                        this.refresh().catch(err => console.error("Error while auto-refreshing the current page", err));
+                    }
+                    this._wasDirty = dirty;
+                });
+            } catch (err) {
+                console.error("Error while subscribing to entities state for page auto-refresh", err);
+            }
+        });
+    }
+
+    /** Whether the current page declared `autoRefresh`, which the status indicator relies on to stay quiet */
+    public isCurrentPageAutoRefresh(): boolean {
+        if (this._currentPageUID == null) {
+            return false;
+        }
+        return this._registeredPages[this._currentPageUID]?.autoRefresh === true;
+    }
 
     //#region Events
 
@@ -127,9 +172,19 @@ export class PageHandler<PageTypes extends BasePageTypes> {
         return this._currentPageUID;
     }
 
-    /** Set and display a page */
+    /**
+     * Set and display a page.
+     *
+     * @param params Handed to the page as HTML attributes, read back with
+     * `@Attribute()` — the mechanism the framework already has for a typed,
+     * observable value on a custom element, rather than a second one just for
+     * navigation. Reserved for what a page needs to open (e.g. which topic),
+     * not application state: attributes are strings, and the page is free to
+     * fetch whatever richer data that string identifies.
+     */
     public async setPage<PageName extends keyof PageTypes>(
-        name: PageName
+        name: PageName,
+        params?: Record<string, string>
     ): Promise<PageTypes[PageName]> {
         // Dispose the current page if it exists
         if (this._currentPage) {
@@ -160,6 +215,12 @@ export class PageHandler<PageTypes extends BasePageTypes> {
         // Create and initialize the new page
         try {
             const newPage = new pageInfo.constructor();
+            for (const [attribute, value] of Object.entries(params ?? {})) {
+                // Set directly rather than through the page's own typed
+                // setter: the page is not built yet from the caller's point of
+                // view, and this is the one place allowed to reach past that.
+                newPage.setAttribute(attribute, value);
+            }
             this._currentPage = newPage;
             this._currentPageUID = name as string;
 
