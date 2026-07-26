@@ -53,5 +53,27 @@ export const FRAMEWORK_MIGRATIONS: Migration[] = [
                 `CREATE UNIQUE INDEX ${qi(`${USERS_TABLE}_login`)} ON ${qi(USERS_TABLE)} (lower(${qi("login")}))`
             );
         }
+    },
+    {
+        id: "0003-users-invitation",
+        up: async (tools) => {
+            // Nullable: only a pending invitation or an in-progress reset
+            // carries one. The same token serves both (FEATURES §7) — an
+            // account created by invite() and a password reset via
+            // reinvite() are the same mechanism at two different ages.
+            //
+            // BIGINT, not TIMESTAMPTZ: UserStore compares it against
+            // Date.now() in JS, the same convention the entities model uses
+            // for its own TIMESTAMP fields — a TIMESTAMPTZ column expects a
+            // date, not raw epoch milliseconds.
+            await tools.run(
+                `ALTER TABLE ${qi(USERS_TABLE)}
+                 ADD COLUMN ${qi("invitationToken")} TEXT,
+                 ADD COLUMN ${qi("invitationExpiresAt")} BIGINT`
+            );
+            await tools.run(
+                `CREATE UNIQUE INDEX ${qi(`${USERS_TABLE}_invitation_token`)} ON ${qi(USERS_TABLE)} (${qi("invitationToken")})`
+            );
+        }
     }
 ];

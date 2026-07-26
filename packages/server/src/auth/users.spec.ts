@@ -202,6 +202,100 @@ describe.runIf(available)("Accounts", () => {
 
     });
 
+    describe("Invitations", () => {
+
+        describe("Inviting", () => {
+
+            it("creates a disabled account nobody can log into yet", async () => {
+                const { user } = await users.invite({ login: "alice" });
+                expect(user.enabled).toBe(false);
+                // Not even by guessing there is no password: the row still
+                // needs one, so it is filled with something unusable.
+                expect(await users.authenticate("alice", "")).toBeNull();
+            });
+
+            it("returns a token that resolves back to the account", async () => {
+                const { user, token } = await users.invite({ login: "alice" });
+                const found = await users.getByInvitationToken(token);
+                expect(found?.id).toBe(user.id);
+            });
+
+            it("sets an expiry in the future", async () => {
+                const before = Date.now();
+                const { expiresAt } = await users.invite({ login: "alice" });
+                expect(expiresAt).toBeGreaterThan(before);
+            });
+
+            it("carries the same optional fields as create()", async () => {
+                const { user } = await users.invite({ login: "alice", displayName: "Alice L.", isSuperAdmin: true });
+                expect(user.displayName).toBe("Alice L.");
+                expect(user.isSuperAdmin).toBe(true);
+            });
+
+        });
+
+        describe("Accepting", () => {
+
+            it("sets the password, enables the account, and lets it log in", async () => {
+                const { token } = await users.invite({ login: "alice" });
+                const accepted = await users.acceptInvitation(token, "hunter2");
+                expect(accepted?.enabled).toBe(true);
+                expect(await users.authenticate("alice", "hunter2")).not.toBeNull();
+            });
+
+            it("burns the token, so the link cannot be replayed", async () => {
+                const { token } = await users.invite({ login: "alice" });
+                await users.acceptInvitation(token, "hunter2");
+                expect(await users.acceptInvitation(token, "again")).toBeNull();
+            });
+
+            it("returns null for a token that never existed", async () => {
+                expect(await users.acceptInvitation("nonsense", "hunter2")).toBeNull();
+            });
+
+            it("refuses an empty password", async () => {
+                const { token } = await users.invite({ login: "alice" });
+                await expect(users.acceptInvitation(token, "")).rejects.toThrow(/cannot be empty/);
+            });
+
+        });
+
+        describe("Reinviting (password reset, FEATURES §7)", () => {
+
+            it("issues a fresh token for an existing, already-enabled account", async () => {
+                const alice = await users.create({ login: "alice", password: "hunter2" });
+                const { token } = await users.reinvite(alice.id);
+                expect(await users.getByInvitationToken(token)).not.toBeNull();
+            });
+
+            it("leaves the old password working until the link is used", async () => {
+                const alice = await users.create({ login: "alice", password: "hunter2" });
+                await users.reinvite(alice.id);
+                // Deliberate (FEATURES §7): this only adds a second way in,
+                // it never removes the first — no mail service confirms the
+                // link was even received.
+                expect(await users.authenticate("alice", "hunter2")).not.toBeNull();
+            });
+
+            it("replaces the old password once the new link is used", async () => {
+                const alice = await users.create({ login: "alice", password: "hunter2" });
+                const { token } = await users.reinvite(alice.id);
+                await users.acceptInvitation(token, "newpass");
+                expect(await users.authenticate("alice", "hunter2")).toBeNull();
+                expect(await users.authenticate("alice", "newpass")).not.toBeNull();
+            });
+
+            it("invalidates a previous, unused link", async () => {
+                const alice = await users.create({ login: "alice", password: "hunter2" });
+                const first = await users.reinvite(alice.id);
+                await users.reinvite(alice.id);
+                expect(await users.getByInvitationToken(first.token)).toBeNull();
+            });
+
+        });
+
+    });
+
     describe("Reading", () => {
 
         it("lists the accounts by login, disabled ones included", async () => {

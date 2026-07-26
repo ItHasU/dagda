@@ -2,6 +2,7 @@ import { UserId, UserInfo } from "@dagda/shared/src/auth/types";
 import { Express, NextFunction, Request, Response, Router } from "express";
 import * as session from "express-session";
 import { createHash, randomBytes } from "node:crypto";
+import { renderInvitationPage } from "./invitation.page";
 import { renderLoginPage } from "./login.page";
 import { UserStore } from "./users";
 
@@ -106,7 +107,7 @@ export class AuthHandler {
         app.use((req: Request, res: Response, next: NextFunction) => {
             if (req.user != null) {
                 next();
-            } else if (req.path.startsWith("/login") || req.path === "/logout") {
+            } else if (req.path.startsWith("/login") || req.path === "/logout" || req.path.startsWith("/invite/")) {
                 next();
             } else {
                 res.redirect("/login");
@@ -157,6 +158,64 @@ export class AuthHandler {
             req.session.destroy(() => {
                 res.redirect("/login");
             });
+        });
+
+        // -- Invitation / password reset (FEATURES §7) --
+        // Same link for both: a fresh invite and a reset are the same token
+        // at two different ages, so one pair of routes covers both.
+        this._router.get("/invite/:token", async (req: Request, res: Response, next: NextFunction) => {
+            try {
+                const pending = await this._users.getByInvitationToken(req.params["token"]!);
+                res.type("html").send(renderInvitationPage({ valid: pending != null, login: pending?.login }));
+            } catch (err) {
+                next(err);
+            }
+        });
+
+        this._router.post("/invite/:token", async (req: Request, res: Response, next: NextFunction) => {
+            const body = req.body as { password?: string, confirm?: string } | undefined;
+            const password = String(body?.password ?? "");
+            const confirm = String(body?.confirm ?? "");
+            let pendingLogin: string | undefined;
+
+            try {
+                const pending = await this._users.getByInvitationToken(req.params["token"]!);
+                pendingLogin = pending?.login;
+                if (pending == null) {
+                    res.status(400).type("html").send(renderInvitationPage({ valid: false }));
+                    return;
+                }
+                if (password !== confirm) {
+                    res.status(400).type("html").send(renderInvitationPage({
+                        valid: true, login: pending.login, error: "Les deux mots de passe ne correspondent pas."
+                    }));
+                    return;
+                }
+
+                const user = await this._users.acceptInvitation(req.params["token"]!, password);
+                if (user == null) {
+                    // Expired between the GET and this POST.
+                    res.status(400).type("html").send(renderInvitationPage({ valid: false }));
+                    return;
+                }
+
+                // Logged in immediately: holding the link is what the account
+                // creation / reset already trusted, same as a normal login
+                // trusts the password it was just given.
+                req.session.regenerate((error) => {
+                    if (error != null) {
+                        next(error);
+                        return;
+                    }
+                    req.session.userId = user.id;
+                    res.redirect("/");
+                });
+            } catch (err) {
+                const message = err instanceof Error ? err.message : String(err);
+                res.status(400).type("html").send(renderInvitationPage({
+                    valid: true, login: pendingLogin, error: message
+                }));
+            }
         });
     }
 }

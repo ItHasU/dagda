@@ -43,7 +43,8 @@
       // `var(--token, #fallback)`, ready to become a link tag the day that
       // proposal is made.
       "files": [
-        "packages/server/src/auth/login.page.ts"
+        "packages/server/src/auth/login.page.ts",
+        "packages/server/src/auth/invitation.page.ts"
       ],
       "rules": {
         "adherence/design-system": "off"

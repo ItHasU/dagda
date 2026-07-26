@@ -1,5 +1,6 @@
 import { SYSTEM_TABLE_PREFIX } from "@dagda/shared/src/entities/model";
 import { UserId, UserInfo } from "@dagda/shared/src/auth/types";
+import { randomBytes } from "node:crypto";
 import { AbstractSQLRunner } from "../sql/runner";
 import { qi } from "../sql/schema";
 import { hashPassword, verifyPassword } from "./passwords";
@@ -12,6 +13,9 @@ export const BOOTSTRAP_LOGIN = "admin";
 /** Its password, which the first thing anyone should do is change */
 export const BOOTSTRAP_PASSWORD = "admin";
 
+/** How long an invitation link works, from the moment it is issued or reissued */
+const INVITATION_TTL_MS = 1000 * 60 * 60 * 24 * 7;
+
 /** A row of the users table */
 interface UserRow {
     id: number;
@@ -20,6 +24,15 @@ interface UserRow {
     password: string;
     isSuperAdmin: boolean;
     enabled: boolean;
+    invitationToken: string | null;
+    invitationExpiresAt: string | null;
+}
+
+/** What issuing or reissuing an invitation hands back, for the admin to pass along */
+export interface Invitation {
+    user: UserInfo;
+    token: string;
+    expiresAt: number;
 }
 
 /** What the rest of the framework sees of a user */
@@ -154,6 +167,102 @@ export class UserStore {
     /** Enable or disable an account. Disabling is how an account is retired (§11.4) */
     public async setEnabled(id: UserId, enabled: boolean): Promise<void> {
         await this._db.run(`UPDATE ${qi(USERS_TABLE)} SET ${qi("enabled")} = $1 WHERE ${qi("id")} = $2`, enabled, id);
+    }
+
+    //#endregion
+
+    //#region Invitations -------------------------------------------------------
+
+    /**
+     * Create an account **on invitation** — the only way in besides the
+     * bootstrap admin (FEATURES §7): no public sign-up form exists anywhere.
+     *
+     * Disabled and with an unguessable, unusable password until the link is
+     * used: an invited account must not be reachable by any means before that.
+     *
+     * @returns the invitation to hand to the new user, out of band — no mail
+     * service is involved (FEATURES §0, §7): the administrator copies the link.
+     */
+    public async invite(params: { login: string, displayName?: string, isSuperAdmin?: boolean }): Promise<Invitation> {
+        const login = params.login.trim();
+        if (login === "") {
+            throw new Error("A login cannot be empty");
+        }
+
+        const token = randomBytes(32).toString("base64url");
+        const expiresAt = Date.now() + INVITATION_TTL_MS;
+        const row = await this._db.get<UserRow>(
+            `INSERT INTO ${qi(USERS_TABLE)}
+                (${qi("login")}, ${qi("displayName")}, ${qi("password")}, ${qi("isSuperAdmin")}, ${qi("enabled")}, ${qi("invitationToken")}, ${qi("invitationExpiresAt")})
+             VALUES ($1, $2, $3, $4, FALSE, $5, $6) RETURNING *`,
+            login, params.displayName ?? login, await hashPassword(randomBytes(32).toString("hex")),
+            params.isSuperAdmin === true, token, expiresAt
+        );
+        if (row == null) {
+            throw new Error(`Could not create the account "${login}"`);
+        }
+        return { user: toUserInfo(row), token, expiresAt };
+    }
+
+    /**
+     * Reissue an invitation link for an existing account — the password reset
+     * of FEATURES §7: "par le même lien d'invitation, régénéré par
+     * l'administrateur". The current password keeps working until the link is
+     * used; this only ever adds a second way in, it never removes the first.
+     */
+    public async reinvite(id: UserId): Promise<Invitation> {
+        const token = randomBytes(32).toString("base64url");
+        const expiresAt = Date.now() + INVITATION_TTL_MS;
+        const row = await this._db.get<UserRow>(
+            `UPDATE ${qi(USERS_TABLE)} SET ${qi("invitationToken")} = $1, ${qi("invitationExpiresAt")} = $2
+             WHERE ${qi("id")} = $3 RETURNING *`,
+            token, expiresAt, id
+        );
+        if (row == null) {
+            throw new Error(`No account with id ${id}`);
+        }
+        return { user: toUserInfo(row), token, expiresAt };
+    }
+
+    /**
+     * @returns the account an invitation token belongs to, or null if the
+     * token does not exist or has expired — the two the accept page cannot
+     * tell apart without leaking whether a token ever existed.
+     */
+    public async getByInvitationToken(token: string): Promise<UserInfo | null> {
+        const row = await this._db.get<UserRow>(
+            `SELECT * FROM ${qi(USERS_TABLE)} WHERE ${qi("invitationToken")} = $1`, token
+        );
+        if (row == null || row.invitationExpiresAt == null || Number(row.invitationExpiresAt) < Date.now()) {
+            return null;
+        }
+        return toUserInfo(row);
+    }
+
+    /**
+     * Accept an invitation: set the chosen password, enable the account (a
+     * fresh invite starts disabled; a reset on an already-enabled one is a
+     * no-op here), and burn the token — single use, as FEATURES §7 asks.
+     *
+     * @returns the account, or null if the token is invalid or expired —
+     * checked again here, not only by the page that showed the form, since
+     * nothing stops this from being called directly.
+     */
+    public async acceptInvitation(token: string, password: string): Promise<UserInfo | null> {
+        if (password === "") {
+            throw new Error("A password cannot be empty");
+        }
+        const user = await this.getByInvitationToken(token);
+        if (user == null) {
+            return null;
+        }
+        const row = await this._db.get<UserRow>(
+            `UPDATE ${qi(USERS_TABLE)}
+             SET ${qi("password")} = $1, ${qi("enabled")} = TRUE, ${qi("invitationToken")} = NULL, ${qi("invitationExpiresAt")} = NULL
+             WHERE ${qi("id")} = $2 RETURNING *`,
+            await hashPassword(password), user.id
+        );
+        return row == null ? null : toUserInfo(row);
     }
 
     //#endregion
