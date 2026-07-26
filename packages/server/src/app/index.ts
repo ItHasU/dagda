@@ -16,6 +16,7 @@ import { resolve } from "path";
 import { DagdaActions } from "@dagda/shared/src/auth/actions";
 import { hasPermission } from "@dagda/shared/src/auth/permissions";
 import { UserId, UserInfo } from "@dagda/shared/src/auth/types";
+import { NotificationRecipientFilter } from "@dagda/shared/src/notification/abstract.notification.handler";
 import { actionRegister, ActionCallback } from "../actions";
 import { apiRegister, RegisterAPIOptions, RequestCallback, RequestOptions } from "../api";
 import { submit } from "../api/impl/entities.api";
@@ -302,7 +303,10 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
             const server = this._app.listen(this._config.port, () => resolve());
             // The notification service already exists and is registered; it only
             // needs the HTTP server, which does not exist before this point.
-            this._notification.attach(server);
+            // The session parser is handed over so a websocket upgrade can be
+            // resolved to the same account an HTTP request would (ROADMAP
+            // tranche 4) — an upgrade never goes through Express's own chain.
+            this._notification.attach(server, { sessionParser: this._auth.sessionParser, users: this._users });
         }).then(() => {
             console.log(`Server listening on port ${this._config.port}`);
             console.log(`Base URL: ${this._config.baseURL}`);
@@ -503,8 +507,13 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
         });
     }
 
-    public broadcast<NotificationKind extends keyof AppTypes["events"]>(kind: NotificationKind, data: AppTypes["events"][NotificationKind]): void {
-        this._notification.broadcast(kind, data);
+    public broadcast<NotificationKind extends keyof AppTypes["events"]>(
+        kind: NotificationKind,
+        data: AppTypes["events"][NotificationKind],
+        recipients?: NotificationRecipientFilter,
+        excludeSessionId?: string
+    ): void {
+        this._notification.broadcast(kind, data, recipients, excludeSessionId);
     }
 
     //#endregion
@@ -571,12 +580,48 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
      * succeeded — `submit()` throws on failure, which propagates out before
      * the audit write, so a rejected transaction never produces a log row
      * (ROADMAP tranche 3), same rule as `registerAction()` above.
+     *
+     * `contextChanged` is authored here too (ROADMAP tranche 4), not by the
+     * browser any more: `_notificationRecipients()` is resolved *before* the
+     * write (a DELETE's rows are still readable then) so an override can
+     * compute who may see the result — an owned/shared entity is filtered,
+     * everything else keeps today's open-broadcast behaviour by default. The
+     * writer's own session is excluded, or a write would immediately mark
+     * its own just-written context dirty.
      */
     protected async _submit(transactionData: SQLTransactionData<AppTypes["entities"], AppTypes["contexts"]>, request: RequestOptions): Promise<SQLTransactionResult> {
+        const recipients = await this._notificationRecipients(transactionData, request);
         const result = await submit(this._db, this._model, transactionData);
         const userId = request.type === "client" ? request.user.id : null;
         await this._recordAudit(userId, "submit", null, transactionData);
+        const excludeSessionId = request.type === "client" ? request.request.sessionID : undefined;
+        // `AppTypes["events"]` is only known here as `BaseAppTypes["events"]`
+        // (`DagdaEvents & Record<string, unknown>`), which does not, at this
+        // generic level, guarantee a `contextChanged` key — every real app
+        // does declare one via `DagdaAppEvents<Contexts>` (see
+        // `@dagda/shared/src/notification/events.ts`), so this is a real
+        // contract, just one `AbstractServerApp`'s own generic can't state.
+        this.broadcast("contextChanged" as any, transactionData.contexts as any, recipients, excludeSessionId);
         return result;
+    }
+
+    /**
+     * Who may hear about a transaction, resolved *before* it runs.
+     *
+     * `undefined` (the default) means everyone — today's behaviour, and the
+     * right default for every table that isn't owned or shared: tightening
+     * this is the app's contract to write, not something the framework can
+     * infer from the model. Override for an owned/shared entity (ROADMAP
+     * tranche 4) — read `transactionData.operations` for which rows changed,
+     * not `transactionData.contexts` alone, which cannot tell you which
+     * dashboard changed on a `{type:"dashboard", options:{dashboardId}}`-less
+     * context such as `{type:"dashboards"}`.
+     */
+    protected async _notificationRecipients(
+        _transactionData: SQLTransactionData<AppTypes["entities"], AppTypes["contexts"]>,
+        _request: RequestOptions
+    ): Promise<NotificationRecipientFilter | undefined> {
+        return undefined;
     }
 
     //#endregion

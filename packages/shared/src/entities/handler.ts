@@ -310,8 +310,12 @@ export class EntitiesHandler<Tables extends EntitiesTypes, Contexts> implements 
                     operations: transaction.operations,
                     contexts: transaction.contexts
                 });
-                // Trigger context changed event to notify other clients
-                this._notification()?.broadcast("contextChanged", transaction.contexts);
+                // "contextChanged" is no longer authored here (ROADMAP tranche
+                // 4): the server broadcasts it after `_submit()` succeeds,
+                // filtered by who may actually see the write — a browser
+                // announcing its own write, unfiltered, to every other
+                // connected session regardless of ownership was the actual
+                // leak channel a shared/owned entity needed closed.
                 // -- Store updated ids --
                 // This needs to be done before updating the items
                 for (const originalId in result.updatedIds) {

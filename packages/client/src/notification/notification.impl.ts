@@ -40,9 +40,18 @@ export class ClientNotificationImpl<Notifications extends DagdaEvents & Record<s
         }
     }
 
-    /** @inheritdoc */
-    public override broadcast<NotificationKind extends keyof Notifications>(kind: NotificationKind, data: Notifications[NotificationKind]): void {
-        this._socket?.send(JSON.stringify({ kind: kind, data: data }));
+    /**
+     * @inheritdoc
+     * A browser cannot author a broadcast (ROADMAP tranche 4): the server no
+     * longer relays an inbound client message to other sockets — that relay
+     * was both an unfiltered leak channel for owned/shared data and an
+     * unauthenticated forgery hole (any logged-in browser could send any
+     * notification kind). Every real broadcast is authored server-side now
+     * (`AbstractServerApp._submit()`, the MQTT ingest path, …). Use
+     * `notifyLocal()` for a fact that's only ever true in this process.
+     */
+    public override broadcast<NotificationKind extends keyof Notifications>(_kind: NotificationKind, _data: Notifications[NotificationKind]): never {
+        throw new Error("A browser cannot author a broadcast — see AbstractNotificationHandler.broadcast()'s doc comment.");
     }
 
 }

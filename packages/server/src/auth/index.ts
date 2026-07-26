@@ -1,5 +1,5 @@
 import { UserId, UserInfo } from "@dagda/shared/src/auth/types";
-import { Express, NextFunction, Request, Response, Router } from "express";
+import { Express, NextFunction, Request, RequestHandler, Response, Router } from "express";
 import * as session from "express-session";
 import { createHash, randomBytes } from "node:crypto";
 import { renderInvitationPage } from "./invitation.page";
@@ -55,6 +55,7 @@ export class AuthHandler {
     protected readonly _router: Router = Router();
     protected readonly _users: UserStore;
     protected readonly _log: (message: string) => void;
+    protected _sessionParser!: RequestHandler;
 
     public constructor(params: AuthHandlerParams) {
         this._users = params.users;
@@ -62,8 +63,18 @@ export class AuthHandler {
         this._initialize(params.app, params.secretKey);
     }
 
+    /**
+     * The session middleware, so a websocket upgrade can resolve the same
+     * session a normal HTTP request would (ROADMAP tranche 4) — there is no
+     * other way to learn which account a socket belongs to, since the
+     * upgrade request never goes through Express's own middleware chain.
+     */
+    public get sessionParser(): RequestHandler {
+        return this._sessionParser;
+    }
+
     protected _initialize(app: Express, secretKey: string | undefined): void {
-        app.use(session.default({
+        this._sessionParser = session.default({
             store: new session.MemoryStore(),
             secret: deriveSessionSecret(secretKey),
             resave: false,
@@ -75,7 +86,8 @@ export class AuthHandler {
                 httpOnly: true,
                 sameSite: "lax"
             }
-        }));
+        });
+        app.use(this._sessionParser);
 
         // The form posts to /login, so it has to be parsed before the routes.
         app.use(this._router);

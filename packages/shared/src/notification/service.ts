@@ -1,5 +1,5 @@
 import { EventListener } from "../tools/events";
-import { AbstractNotificationHandler } from "./abstract.notification.handler";
+import { AbstractNotificationHandler, NotificationRecipientFilter } from "./abstract.notification.handler";
 
 type BaseNotifications = Record<string, unknown>;
 
@@ -7,8 +7,8 @@ export interface NotificationService<Notifications extends BaseNotifications> {
     notification: {
         /** Register a notification listener */
         on: <NotificationKind extends keyof Notifications>(kind: NotificationKind, listener: EventListener<Notifications[NotificationKind]>) => void;
-        /** Broadcast a notification */
-        broadcast: <NotificationKind extends keyof Notifications>(kind: NotificationKind, data: Notifications[NotificationKind]) => void;
+        /** Broadcast a notification, optionally filtered by recipient (see `AbstractNotificationHandler.broadcast`) */
+        broadcast: <NotificationKind extends keyof Notifications>(kind: NotificationKind, data: Notifications[NotificationKind], recipients?: NotificationRecipientFilter, excludeSessionId?: string) => void;
         /** Fire a notification within this process only — see `AbstractNotificationHandler.notifyLocal` */
         notifyLocal: <NotificationKind extends keyof Notifications>(kind: NotificationKind, data: Notifications[NotificationKind]) => void;
     }
