@@ -360,11 +360,33 @@ pendant une publication est visible et rattrapable.
 - **Comptes, préférences et scripts sont internes à Dagda**, hors modèle
   d'entités (FEATURES §11.4). Trois conséquences à traiter ici :
   - le jeu de migrations propre au framework, distinct de celui de l'application ;
-  - le type `USER_ID` exposé au modèle métier, avec la clé étrangère SQL qui va
-    vers la table utilisateurs du framework ;
-  - l'**annuaire des utilisateurs côté client**, chargé une fois et consultable de
-    façon synchrone. Sans lui, aucun écran ne pourra afficher un nom d'auteur
-    pendant le rendu — et MQTTToolbox en a besoin dès la tranche 4.
+  - ✅ le type `USER_ID` exposé au modèle métier, avec la clé étrangère SQL qui va
+    vers la table utilisateurs du framework : `FieldDefinition.referencesUsers`
+    (`packages/shared/src/entities/model.ts`), distinct de `foreignTable` qui
+    reste interne au modèle d'une application — `system_users` n'appartient à
+    aucun `EntitiesModel` (§11.4). Lu par `EntitiesModel.getFieldReferencesUsers()`,
+    consommé par `getCreateTableStatement` (`packages/server/src/sql/schema.ts`,
+    qui importe `USERS_TABLE` depuis `auth/users.ts`) pour émettre
+    `REFERENCES system_users(id) ON DELETE SET NULL` — même convention que
+    `system_users.roleId → system_roles.id` (ci-dessus) : un compte supprimé
+    ne doit pas casser la ligne qui le référence, seulement lui faire perdre
+    son attribution. Première application : MQTTToolbox2, `messages.sourceUserId`,
+    migration `0004-source-user-fk` (`server/src/migrations.ts`) pour les bases
+    déjà existantes ;
+  - ✅ l'**annuaire des utilisateurs côté client**, chargé une fois et consultable
+    de façon synchrone. Sans lui, aucun écran ne pourra afficher un nom d'auteur
+    pendant le rendu — et MQTTToolbox en a besoin dès la tranche 4. Nouvelle
+    action `listUserNames()` (`DagdaActions`), délibérément **sans permission**
+    contrairement à `listUsers()` : n'importe quel compte authentifié doit
+    pouvoir résoudre un id en nom pendant le rendu, pas seulement un
+    administrateur — elle ne renvoie que `{ id, displayName }`, rien de
+    sensible. Enregistrée à part (`_registerUserDirectoryAction()`) pour rester
+    visuellement distincte des actions gardées par permission. Côté client,
+    `UsersDirectory` (`packages/client/src/auth/`) est chargée pendant le
+    bootstrap de `DagdaClient.start()`, en parallèle de `refreshSystemInfo()`,
+    et exposée via `Dagda.get("users").getDisplayName(id)` — `null` avant la
+    fin du chargement ou pour un id inconnu, même convention que
+    `DagdaClient.currentUser`.
 
 **Tests** — le point le plus sensible à la régression :
 
