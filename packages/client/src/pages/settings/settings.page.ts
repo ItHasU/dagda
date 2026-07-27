@@ -128,7 +128,7 @@ export class SettingsPage extends AbstractPageElement {
             }
             await actionCall<DagdaActions, "setSetting">("setSetting", { key, value });
         }
-        showToast("Paramètres enregistrés.");
+        showToast("Paramètres enregistrés.", "success");
     }
 
 }

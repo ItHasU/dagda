@@ -230,7 +230,7 @@ export class UsersPage extends AbstractPageElement {
                 onClick: () => {
                     link.select();
                     navigator.clipboard?.writeText(result.url)
-                        .then(() => showToast("Lien copié."))
+                        .then(() => showToast("Lien copié.", "success"))
                         .catch(() => { /* still selected, for a manual copy */ });
                     return false; // stays open — closing on copy would rush the admin past it
                 }
