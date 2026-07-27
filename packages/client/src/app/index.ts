@@ -27,6 +27,7 @@ import { UsersDirectory } from "../auth/directory";
 import { ClientNotificationImpl } from "../notification/notification.impl";
 import { PreferencesDirectory } from "../preferences/directory";
 import { BasePageTypes, PageHandler, PageInfo } from "../pages/handler";
+import { buildDefaultPages, DefaultPageTypes } from "../pages/defaults";
 import { SectionInfo } from "../pages/menu";
 import { Router } from "../pages/router";
 import { DAGDA_THEMES, ThemeInfo, ThemeRegistry } from "../themes/service";
@@ -49,8 +50,17 @@ export interface ClientStartParams<AppTypes extends BaseClientAppTypes, PageType
     model: EntitiesModel<any, any>;
     /** How two contexts compare */
     contextAdapter: ContextAdapter<AppTypes["contexts"]>;
-    /** The pages of the application, the only thing the framework cannot know */
-    pages: { [Name in keyof PageTypes]: PageInfo<PageTypes[Name]> };
+    /**
+     * The pages of the application, the only thing the framework cannot know
+     * — plus, optionally, an override for one of the framework's own default
+     * pages (`preferences`/`users`/`roles`/`settings`, see
+     * `pages/defaults.ts`): they are registered automatically, an entry here
+     * under the same key replaces the default rather than erroring, the same
+     * relationship `themes` already has with `DAGDA_THEMES`.
+     */
+    pages:
+        { [Name in keyof PageTypes]: PageInfo<PageTypes[Name]> }
+        & Partial<{ [Name in keyof DefaultPageTypes]: PageInfo<DefaultPageTypes[Name]> }>;
     /**
      * Menu sections the pages hang from, keyed by the name pages refer to.
      *
@@ -140,8 +150,15 @@ export class DagdaClient {
         // Everything goes in a single Dagda.init(): registering resolves
         // Dagda.loaded, which every component waits on, so no service may be
         // missing by the time the first one wakes up.
-        const pageHandler = new PageHandler<PageTypes>();
-        for (const [name, info] of Object.entries(params.pages)) {
+        const pageHandler = new PageHandler<PageTypes & DefaultPageTypes>();
+        // Defaults first, the application's own `pages` spread on top: an
+        // app that declares its own `preferences`/`users`/`roles`/`settings`
+        // entry overrides the default for that key instead of colliding
+        // with it (`Object.entries` on the merged object only ever sees one
+        // winner per key, same override relationship `themes` already has
+        // with `DAGDA_THEMES`).
+        const allPages = { ...buildDefaultPages(params.settings), ...params.pages };
+        for (const [name, info] of Object.entries(allPages)) {
             pageHandler.registerPage(name, info as PageInfo<any>);
         }
         pageHandler.registerSections(params.sections ?? {});
@@ -161,7 +178,7 @@ export class DagdaClient {
         // every page is registered and the account is known (canAccess must
         // already answer correctly, or a deep link to a page the account
         // cannot see would silently open it before the permission is loaded).
-        const router = new Router<PageTypes>(pageHandler);
+        const router = new Router<PageTypes & DefaultPageTypes>(pageHandler);
 
         // The user directory (ROADMAP tranche 3): built here so it is
         // reachable via Dagda.get("users") from the first render, loaded
