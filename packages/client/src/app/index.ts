@@ -30,8 +30,11 @@ import { BasePageTypes, PageHandler, PageInfo } from "../pages/handler";
 import { SectionInfo } from "../pages/menu";
 import { Router } from "../pages/router";
 import { DAGDA_THEMES, ThemeInfo, ThemeRegistry } from "../themes/service";
+import { SettingsModel } from "@dagda/shared/src/settings/model";
 import { BrandInfo } from "./brand";
 import { installConsoleGlobal } from "./console";
+import { EntityActionsCollection } from "./entity-actions";
+import { SQLTransaction } from "@dagda/shared/src/sql/transaction";
 import headerTemplate from "./index.header.html";
 // The framework stylesheet, replacing Bootstrap: tokens, faces, vocabulary and
 // shell, in that order (FEATURES §8).
@@ -83,6 +86,21 @@ export interface ClientStartParams<AppTypes extends BaseClientAppTypes, PageType
      * remembers it locally, it just never round-trips to the server.
      */
     themePreferenceKey?: string;
+    /**
+     * The application's declared system settings (Dagda FEATURES §11.5),
+     * consumed by the framework's `SettingsPage` (`Dagda.get<SettingsService>
+     * ("settingsModel")`) — optional since not every application registers
+     * that page. Same "app supplies a config value the framework's own page
+     * reads" shape as `themePreferenceKey` above.
+     */
+    settings?: SettingsModel<any>;
+    /**
+     * Named client-side entity-transaction composers (Dagda FEATURES §11.2),
+     * reachable from the console as `dagda.actions.xxx(...)` — a distinct
+     * concept from the RPC processes exposed on `dagda.routes` (see
+     * `EntityActionsCollection`'s own doc comment for the difference).
+     */
+    actions?: EntityActionsCollection<SQLTransaction<AppTypes["entities"], AppTypes["contexts"]>>;
 }
 
 /**
@@ -187,11 +205,17 @@ export class DagdaClient {
             preferences,
             themes,
             brand: params.brand ?? { label: params.title ?? "Dagda" },
+            ...(params.settings != null ? { settingsModel: params.settings } : {}),
             ...(params.services ?? {})
         });
 
         // -- Console global (FEATURES §11.2) --
-        installConsoleGlobal<AppTypes["actions"]>();
+        // getRoutes reads the manifest lazily: it only arrives once
+        // refreshSystemInfo() resolves below, after this call returns.
+        installConsoleGlobal<AppTypes["actions"], NonNullable<typeof params.actions>>({
+            getRoutes: () => this._systemInfo?.routes ?? [],
+            entityActions: params.actions
+        });
 
         // -- Inject headers in the app --
         this._injectHeaders(params.title);
