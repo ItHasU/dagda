@@ -50,7 +50,7 @@ describe("AuthServiceImpl", () => {
         Dagda.init<{ notification: NotificationService<AuthEvents>["notification"] }>({
             notification: { on: vi.fn(), broadcast: vi.fn(), notifyLocal: vi.fn() }
         });
-        vi.mocked(apiCall).mockResolvedValueOnce({ startTimeMilliseconds: 0, errors: [], user: ALICE });
+        vi.mocked(apiCall).mockResolvedValueOnce({ startTimeMilliseconds: 0, errors: [], user: ALICE, routes: [] });
 
         await DagdaClient.refreshSystemInfo();
 
@@ -87,7 +87,7 @@ describe("AuthServiceImpl", () => {
         Dagda.init<{ notification: NotificationService<AuthEvents>["notification"] }>({
             notification: { on: vi.fn(), broadcast: vi.fn(), notifyLocal }
         });
-        vi.mocked(apiCall).mockResolvedValueOnce({ startTimeMilliseconds: 0, errors: [], user: ALICE });
+        vi.mocked(apiCall).mockResolvedValueOnce({ startTimeMilliseconds: 0, errors: [], user: ALICE, routes: [] });
 
         await DagdaClient.refreshSystemInfo();
 
@@ -99,7 +99,7 @@ describe("AuthServiceImpl", () => {
         Dagda.init<{ notification: NotificationService<AuthEvents>["notification"] }>({
             notification: { on: vi.fn(), broadcast, notifyLocal: vi.fn() }
         });
-        vi.mocked(apiCall).mockResolvedValueOnce({ startTimeMilliseconds: 0, errors: [], user: ALICE });
+        vi.mocked(apiCall).mockResolvedValueOnce({ startTimeMilliseconds: 0, errors: [], user: ALICE, routes: [] });
 
         await DagdaClient.refreshSystemInfo();
 

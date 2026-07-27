@@ -1,6 +1,7 @@
 import { ActionsCollection } from "@dagda/shared/src/actions/types";
 import { UserInfo } from "@dagda/shared/src/auth/types";
 import { IRouter, Request } from "express";
+import { registerManifestEntry } from "../api/manifest";
 
 /**
  * Handler of a registered action.
@@ -24,9 +25,15 @@ export type ActionCallback<Collection extends ActionsCollection, Name extends ke
  * confused, since the console global (§11.2) walks the actions collection
  * alone and must never accidentally surface `fetch` or `submit`.
  */
+export type RegisterActionOptions = {
+    /** Free-text explanation surfaced by `dagda.help()` (FEATURES §11.2) */
+    description?: string;
+};
+
 export function actionRegister<Collection extends ActionsCollection, Name extends keyof Collection>(
-    router: IRouter, name: Name, callback: ActionCallback<Collection, Name>
+    router: IRouter, name: Name, callback: ActionCallback<Collection, Name>, options?: RegisterActionOptions
 ): void {
+    registerManifestEntry({ name: name.toString(), kind: "action", description: options?.description });
     router.post(`/actions/${name.toString()}`, async (req: Request, res) => {
         // Same gate as an API route: hiding a button is not access control.
         const user = req.user;

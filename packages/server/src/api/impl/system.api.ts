@@ -1,11 +1,13 @@
 import { SystemAPI, SystemInfo } from "@dagda/shared/src/api/impl/system.api";
 import { RequestCallback, RequestOptionsFromClient } from "..";
+import { getManifest } from "../manifest";
 
 export const getSystemInfo: RequestCallback<SystemAPI, "getSystemInfo"> = async function (options: RequestOptionsFromClient): Promise<SystemInfo> {
     return {
         startTimeMilliseconds: Date.now(),
         errors: [],
-        user: options.user
+        user: options.user,
+        routes: getManifest()
     };
 }
 

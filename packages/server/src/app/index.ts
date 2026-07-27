@@ -17,7 +17,7 @@ import { DagdaActions } from "@dagda/shared/src/auth/actions";
 import { DAGDA_PERMISSIONS, hasPermission, PermissionsDeclaration } from "@dagda/shared/src/auth/permissions";
 import { UserId, UserInfo } from "@dagda/shared/src/auth/types";
 import { NotificationRecipientFilter } from "@dagda/shared/src/notification/abstract.notification.handler";
-import { actionRegister, ActionCallback } from "../actions";
+import { actionRegister, ActionCallback, RegisterActionOptions } from "../actions";
 import { apiRegister, RegisterAPIOptions, RequestCallback, RequestOptions } from "../api";
 import { submit } from "../api/impl/entities.api";
 import { getSystemInfo, triggerError } from "../api/impl/system.api";
@@ -333,13 +333,13 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
      * never reaches `_recordAudit()`, since it sits strictly after `callback`
      * resolves.
      */
-    public registerAction<Name extends keyof AppTypes["actions"]>(name: Name, callback: ActionCallback<AppTypes["actions"], Name>): void {
+    public registerAction<Name extends keyof AppTypes["actions"]>(name: Name, callback: ActionCallback<AppTypes["actions"], Name>, options?: RegisterActionOptions): void {
         const wrapped: ActionCallback<AppTypes["actions"], Name> = async (user, ...args): Promise<Awaited<ReturnType<AppTypes["actions"][Name]>>> => {
             const result = await callback(user, ...args);
             await this._recordAudit(user.id, "action", String(name), args);
             return result;
         };
-        actionRegister<AppTypes["actions"], Name>(this._app, name, wrapped);
+        actionRegister<AppTypes["actions"], Name>(this._app, name, wrapped, options);
     }
 
     /**
@@ -357,14 +357,15 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
     protected _registerFrameworkAction<Name extends keyof DagdaActions>(
         name: Name,
         callback: ActionCallback<DagdaActions, Name>,
-        redact?: (args: Parameters<DagdaActions[Name]>) => unknown
+        redact?: (args: Parameters<DagdaActions[Name]>) => unknown,
+        options?: RegisterActionOptions
     ): void {
         const wrapped: ActionCallback<DagdaActions, Name> = async (user, ...args): Promise<Awaited<ReturnType<DagdaActions[Name]>>> => {
             const result = await callback(user, ...args);
             await this._recordAudit(user.id, "action", String(name), redact ? redact(args) : args);
             return result;
         };
-        actionRegister<DagdaActions, Name>(this._app, name, wrapped);
+        actionRegister<DagdaActions, Name>(this._app, name, wrapped, options);
     }
 
     /**

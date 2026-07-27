@@ -2,6 +2,7 @@ import { UserInfo } from "@dagda/shared/src/auth/types";
 import { hasPermission } from "@dagda/shared/src/auth/permissions";
 import { APICollection } from "@dagda/shared/src/api/types";
 import { IRouter, Request } from "express";
+import { registerManifestEntry } from "./manifest";
 
 export type RequestOptionsFromClient = {
     type: "client";
@@ -36,10 +37,13 @@ export type RegisterAPIOptions = {
      * every route, unchanged.
      */
     permission?: string;
+    /** Free-text explanation surfaced by `dagda.help()` (FEATURES §11.2) */
+    description?: string;
 };
 
 export function apiRegister<Collection extends APICollection, Name extends keyof Collection>(
     router: IRouter, name: Name, callback: RequestCallback<Collection, Name>, options?: RegisterAPIOptions): void {
+    registerManifestEntry({ name: name.toString(), kind: "route", permission: options?.permission, description: options?.description });
     // Register the route with the server
     router.post(`/${name.toString()}`, async (req: Request, res) => {
         // Hiding a screen is not access control: the check holds on the route
