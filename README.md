@@ -15,7 +15,7 @@ Prérequis : Node 24 ou plus récent, et Docker pour la base de données.
 
 ```bash
 npm install
-cp .env.example .env      # PORT, BASE_URL, DB_URL
+cp .env.example .env      # APP_PORT, APP_BASE_URL, APP_DATABASE_URL
 npm run dev               # base + compilation continue + serveur qui redémarre
 ```
 

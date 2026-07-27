@@ -34,25 +34,29 @@ import { getEnvNumber, getEnvString, getEnvStringOptional } from "../tools/confi
 
 /** Parameters */
 export interface ServerParams {
-    /** 
+    /**
      * Path to the static app folder (where your HTML files are)
      * Must be relative to the server root.
      */
     staticFolder: string;
-    /** Prefix for environment variables */
-    envPrefix?: string;
 }
 
 export const DEFAULT_SERVER_PARAMS = {
     staticFolder: "../client/dist",
-    envPrefix: "",
 } satisfies Partial<ServerParams>;
 
 
 /** Values read from the env variables */
 export interface EnvConfig {
     // -- HTTP server --
-    /** Port to listen to */
+    /**
+     * Port to listen to.
+     *
+     * Kept apart from `baseURL`: the two often differ in practice — behind a
+     * reverse proxy or a Docker port mapping, the process listens on one
+     * port while the public URL exposes another (or none at all, e.g.
+     * `https://example.com`).
+     */
     port: number;
     /** Base URL */
     baseURL: string;
@@ -542,17 +546,23 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
 
     //#region Config ----------------------------------------------------------
 
-    /** Reads the config from env variables */
+    /**
+     * Reads the config from env variables.
+     *
+     * Fixed names, not a configurable prefix: database access and the
+     * session/settings secret are the only things a process needs to start —
+     * everything else is a system setting (§11.5), so every application gets
+     * this for free instead of wiring its own prefix.
+     */
     protected _readConfigFromEnv(): EnvConfig {
-        const prefix = this._params.envPrefix ?? "";
         return {
             // -- HTTP server --
-            port: getEnvNumber(`${prefix}PORT`),
-            baseURL: getEnvString(`${prefix}BASE_URL`),
+            port: getEnvNumber("APP_PORT"),
+            baseURL: getEnvString("APP_BASE_URL"),
             // -- Database --
-            dbURL: getEnvString(`${prefix}DB_URL`),
+            dbURL: getEnvString("APP_DATABASE_URL"),
             // -- Settings --
-            secretKey: getEnvStringOptional(`${prefix}SECRET_KEY`),
+            secretKey: getEnvStringOptional("APP_SECRET"),
         } satisfies EnvConfig;
     }
 

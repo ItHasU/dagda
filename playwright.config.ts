@@ -41,9 +41,9 @@ export default defineConfig({
         reuseExistingServer: !process.env["CI"],
         timeout: 60_000,
         env: {
-            PORT: String(PORT),
-            BASE_URL,
-            DB_URL: process.env["DAGDA_TEST_DB_URL"] ?? "postgresql://dagda:dagda@localhost:5432/dagda",
+            APP_PORT: String(PORT),
+            APP_BASE_URL: BASE_URL,
+            APP_DATABASE_URL: process.env["DAGDA_TEST_DB_URL"] ?? "postgresql://dagda:dagda@localhost:5432/dagda",
             // Local accounts are the only mode (FEATURES §7). On an empty
             // database the framework creates admin/admin, which is what the
             // journeys sign in with.

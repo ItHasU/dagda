@@ -162,7 +162,7 @@ Décisions structurantes qui expliquent plusieurs choix ci-dessous :
 |---|:--:|:--:|---|
 | Serveur Express préconfiguré | ✅ | ✅ | v2 : classe `AbstractServerApp` qui assemble tout |
 | Service de fichiers statiques (le client buildé) | ✅ | ✅ | |
-| Lecture de la config depuis les variables d'environnement | ✅ | ✅ | `getEnvString` / `getEnvNumber` / `...Optional`, préfixe configurable. **Réservé à l'amorçage** (port, URL de base, connexion à la base) : le reste passe par les paramètres système (§11.5) |
+| Lecture de la config depuis les variables d'environnement | ✅ | ✅ | `getEnvString` / `getEnvNumber` / `...Optional`, noms fixes (`APP_PORT`, `APP_BASE_URL`, `APP_DATABASE_URL`, `APP_SECRET`) — pas de préfixe configurable, aucune application n'a besoin de surdéfinir. **Réservé à l'amorçage** (port et URL de base distincts : un reverse proxy ou un mapping Docker les fait souvent diverger ; connexion à la base ; secret) : le reste passe par les paramètres système (§11.5) |
 | Session serveur | ✅ | ✅ | |
 | Validation applicative de l'utilisateur (`_isUserValid`) | ✅ | ✅ | permet la liste blanche d'utilisateurs |
 | **NEW** — **Comptes locaux, seul mode d'authentification** (compte + mot de passe) | | ✅ | plus de dépendance à un fournisseur externe |
