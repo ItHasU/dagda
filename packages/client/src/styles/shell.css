@@ -239,14 +239,13 @@ dagda-login {
    (`specs/navigation.md`, decisions). `order: 1`: it is the *first* child of
    `<dagda-navbar>` in markup (portrait needs it at the far left of the bar,
    ahead of the brand — see below), so landscape has to push it back after
-   everything else itself, rather than relying on DOM order as it used to. */
+   everything else itself, rather than relying on DOM order as it used to.
+   `align-self: flex-start` in every landscape state (collapsed or expanded)
+   deliberately, not just the default: the button must not visibly jump
+   sideways the moment the column's width changes underneath it. */
 .shell-toggle {
     order: 1;
-    align-self: flex-end;
-}
-
-.shell[data-nav="collapsed"] .shell-toggle {
-    align-self: center;
+    align-self: flex-start;
 }
 
 /* ==========================================================================

@@ -53,4 +53,12 @@ describe("EnumFieldEditorComponent", () => {
         expect(editor.getValueError()).toBeNull();
     });
 
+    it("skips the leading blank option when a default is coming (hasDefault=true) — it would otherwise be a selectable, meaningless entry", () => {
+        const editor = new EnumFieldEditorComponent();
+        editor.setEnumeration(PUBLICATION_STATUS, true);
+
+        const select = editor.querySelector("select")!;
+        expect(Array.from(select.options).map(o => o.textContent)).toEqual(["Draft", "Published"]);
+    });
+
 });

@@ -5,12 +5,20 @@ export interface ThemeInfo {
     id: string;
     /** Displayed in the theme picker */
     label: string;
+    /**
+     * Whether this theme has a dark ground — lets a consumer that needs to
+     * match a light/dark choice of its own (e.g. Monaco's built-in `vs`/
+     * `vs-dark` themes, `editor.component.ts`) ask this instead of comparing
+     * against a hardcoded theme id, which would break for an application
+     * declaring its own custom theme list via `ClientStartParams.themes`.
+     */
+    dark?: boolean;
 }
 
 /** The framework's own themes, both declared in `styles/themes.css` (FEATURES §8, ROADMAP tranche 4) */
 export const DAGDA_THEMES: ThemeInfo[] = [
-    { id: "nocturne", label: "Nocturne" },
-    { id: "aurore", label: "Aurore" }
+    { id: "nocturne", label: "Nocturne", dark: true },
+    { id: "aurore", label: "Aurore", dark: false }
 ];
 
 /**
@@ -44,9 +52,22 @@ export class ThemeRegistry {
         protected readonly _preferenceKey?: string
     ) { }
 
+    protected readonly _listeners = new Set<() => void>();
+
     /** Every theme the app may switch to */
     public list(): ThemeInfo[] {
         return this._available;
+    }
+
+    /** The full declaration of the theme currently applied, `dark` included — falls back the same way `current` does for an id matching no declaration */
+    public get currentInfo(): ThemeInfo {
+        return this._available.find((theme) => theme.id === this.current) ?? this._available[0] ?? { id: "nocturne", label: "Nocturne", dark: true };
+    }
+
+    /** Called after every successful `set()`/`reconcile()` — returns the unsubscribe function */
+    public onChange(listener: () => void): () => void {
+        this._listeners.add(listener);
+        return () => this._listeners.delete(listener);
     }
 
     /**
@@ -103,6 +124,9 @@ export class ThemeRegistry {
             // Storage can be denied outright (private browsing, blocked
             // cookies). A theme that forgets beats a theme that fails to
             // switch — same posture as NAV_COLLAPSED_KEY.
+        }
+        for (const listener of this._listeners) {
+            listener();
         }
     }
 

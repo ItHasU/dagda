@@ -6,6 +6,15 @@ import template from "./toast.component.html";
 /** How long a toast stays before it dismisses itself */
 const AUTO_DISMISS_MS = 6000;
 
+/** Visual/semantic category of a toast — distinguishes a failure from a positive confirmation or a plain heads-up */
+export type ToastVariant = "success" | "danger" | "info";
+
+const VARIANT_ICON: Record<ToastVariant, string> = {
+    success: "ph-check-circle",
+    danger: "ph-warning",
+    info: "ph-info"
+};
+
 /**
  * Surfaces a write failure to the user (ROADMAP tranche 2).
  *
@@ -32,7 +41,7 @@ export class ToastHost extends AbstractWebComponent {
         // call showToast() itself; this is the floor, not the ceiling.
         try {
             Dagda.get<EntitiesService<any, any>>("entities").getHandler().on("writeFailed", (event) => {
-                this.show(`Échec de l'enregistrement : ${this._describe(event.data.error)}`);
+                this.show(`Échec de l'enregistrement : ${this._describe(event.data.error)}`, "danger");
             });
         } catch {
             // No entities service: nothing to listen to.
@@ -45,14 +54,21 @@ export class ToastHost extends AbstractWebComponent {
         return error instanceof Error ? error.message : String(error);
     }
 
-    /** Show one message. Several calls stack, each dismissing on its own timer */
-    public show(message: string): void {
+    /**
+     * Show one message. Several calls stack, each dismissing on its own timer.
+     *
+     * `variant` defaults to `"danger"` — every call site untouched by this
+     * (FEATURES §8) keeps showing exactly the red failure toast it always
+     * did; only a caller that explicitly knows its message is a success or a
+     * plain heads-up passes something else.
+     */
+    public show(message: string, variant: ToastVariant = "danger"): void {
         const item = document.createElement("li");
         item.className = "dagda-toast";
-        item.setAttribute("data-state", "error");
+        item.setAttribute("data-state", variant);
 
         const icon = document.createElement("i");
-        icon.className = "ph ph-warning";
+        icon.className = `ph ${VARIANT_ICON[variant]}`;
         icon.setAttribute("aria-hidden", "true");
         item.appendChild(icon);
 
@@ -83,11 +99,13 @@ customElements.define("dagda-toast-host", ToastHost);
 let _current: ToastHost | null = null;
 
 /**
- * Surface a write failure to the user.
+ * Surface a message to the user — a write failure by default (`variant`
+ * defaults to `"danger"`), or a success/info notice when the caller passes
+ * one explicitly.
  *
  * A no-op before the host has connected — which only happens before the
  * shell itself has rendered, i.e. before there is a screen to show it on.
  */
-export function showToast(message: string): void {
-    _current?.show(message);
+export function showToast(message: string, variant?: ToastVariant): void {
+    _current?.show(message, variant);
 }

@@ -46,6 +46,9 @@
        of the ramps on purpose — it is a role, not a step on a scale. */
     --color-danger: #e2707a;
     --color-danger-tint: color-mix(in srgb, var(--color-danger) 20%, transparent);
+    /* Toast success variant (FEATURES §8) — same role-not-a-ramp-step reasoning as --color-danger above */
+    --color-success: #6fcf97;
+    --color-success-tint: color-mix(in srgb, var(--color-success) 20%, transparent);
 
     /* -- Tonal ramps ------------------------------------------------------
        Generated in OKLCH on one shared lightness scale, so the same step of
@@ -307,6 +310,8 @@
     --color-divider: color-mix(in srgb, var(--color-text) 12%, transparent);
     --color-danger: #b3303f;
     --color-danger-tint: color-mix(in srgb, var(--color-danger) 14%, transparent);
+    --color-success: #2e7d46;
+    --color-success-tint: color-mix(in srgb, var(--color-success) 14%, transparent);
 
     /* -- Tonal ramps --------------------------------------------------------
        Same OKLCH lightness scale as Nocturne, walked in the other direction:

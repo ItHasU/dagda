@@ -61,6 +61,19 @@ describe("FieldEditorRegistry", () => {
         expect(() => registry.createEditor(PUBLICATION_STATUS)).toThrow(/enumerations/);
     });
 
+    it("passes hasDefault through to setEnumeration, defaulting to false when the caller omits it", () => {
+        const registry = new FieldEditorRegistry();
+        const editor = fakeEnumEditor();
+        const received: (boolean | undefined)[] = [];
+        editor.setEnumeration = (_enumeration, hasDefault) => { received.push(hasDefault); };
+        registry.registerEnumDefault(() => editor);
+
+        registry.createEditor(PUBLICATION_STATUS, "PUBLICATION_STATUS");
+        registry.createEditor(PUBLICATION_STATUS, "PUBLICATION_STATUS", true);
+
+        expect(received).toEqual([false, true]);
+    });
+
     it("configures a named override with the enumeration too, when it supports one", () => {
         const registry = new FieldEditorRegistry();
         const editor = fakeEnumEditor();

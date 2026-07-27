@@ -23,7 +23,8 @@ export interface FieldEditor<T = unknown> extends HTMLElement {
  * class, it comes from the field being edited.
  */
 export interface EnumFieldEditor extends FieldEditor<any> {
-    setEnumeration(enumeration: EnumDefinition<any>): void;
+    /** @param hasDefault when true, skips the blank placeholder option — a defaulted field is never truly unset */
+    setEnumeration(enumeration: EnumDefinition<any>, hasDefault?: boolean): void;
 }
 
 function isEnumFieldEditor(editor: FieldEditor): editor is EnumFieldEditor {
@@ -70,9 +71,11 @@ export class FieldEditorRegistry {
      * Builds the editor for a field.
      * @param typeDefinition what the field's type resolves to: a raw type, or an enumeration
      * @param typeName the field's named type (e.g. `"MARKDOWN"`), when it has one, so a named override can apply
+     * @param hasDefault whether the field declares a default value — an enum editor uses this to skip its blank
+     * placeholder option, since a default means the field is never truly unset
      * @throws if nothing is registered for this type, or if a named override does not support an enumeration it is handed
      */
-    public createEditor(typeDefinition: FieldTypeDefinition<any, any> | EnumDefinition<any>, typeName?: string): FieldEditor {
+    public createEditor(typeDefinition: FieldTypeDefinition<any, any> | EnumDefinition<any>, typeName?: string, hasDefault = false): FieldEditor {
         const override = typeName != null ? this._byTypeName.get(typeName) : undefined;
         const editor = override != null ? override() : this._createDefaultEditor(typeDefinition, typeName);
 
@@ -80,7 +83,7 @@ export class FieldEditorRegistry {
             if (!isEnumFieldEditor(editor)) {
                 throw new Error(`Editor "${editor.tagName.toLowerCase()}" registered for type "${typeName}" does not support enumerations`);
             }
-            editor.setEnumeration(typeDefinition);
+            editor.setEnumeration(typeDefinition, hasDefault);
         }
 
         return editor;

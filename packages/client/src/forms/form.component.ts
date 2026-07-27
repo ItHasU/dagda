@@ -67,8 +67,9 @@ export class DagdaForm extends AbstractWebComponent {
         this._hideError();
 
         for (const declaration of declarations) {
-            const editor = registry.createEditor(declaration.type, declaration.typeName);
-            if (declaration.default !== undefined) {
+            const hasDefault = declaration.default !== undefined;
+            const editor = registry.createEditor(declaration.type, declaration.typeName, hasDefault);
+            if (hasDefault) {
                 editor.value = declaration.default;
             }
             this._editors.set(declaration.key, editor);

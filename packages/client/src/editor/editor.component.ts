@@ -1,4 +1,6 @@
 import type * as Monaco from "monaco-editor/editor/editor.api";
+import { Dagda } from "@dagda/shared/src/dagda";
+import { ThemeService } from "../themes/service";
 import { AbstractWebComponent, Attribute, Ref } from "../components/abstract.webcomponent";
 import { loadExtraLibs, ExtraLib } from "./monaco.service";
 import { loadMonaco } from "./monaco.loader";
@@ -28,6 +30,7 @@ export class CodeEditor extends AbstractWebComponent {
     protected _editor: Monaco.editor.IStandaloneCodeEditor | null = null;
     /** Guards against a change event fired by setValue() itself being reported as a user edit */
     protected _settingValue = false;
+    protected _unsubscribeTheme: (() => void) | null = null;
 
     constructor() {
         super({ template });
@@ -55,6 +58,23 @@ export class CodeEditor extends AbstractWebComponent {
                 bubbles: true
             }));
         });
+        // Cmd/Ctrl+S (FEATURES §8): the host page decides what "save" means
+        // (a dashboard's Ctrl+E overlay, the future script editor, ...) — this
+        // component only needs to stop the browser's own save-page dialog and
+        // hand the intent upward. F1 (command palette) and Cmd/Ctrl+P (quick
+        // command) are untouched: nothing here overrides Monaco's defaults,
+        // which already provide both.
+        this._editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+            this.dispatchEvent(new CustomEvent("dagda-editor-save", { bubbles: true }));
+        });
+        // Follows the app's light/dark choice (ROADMAP tranche 4) rather than
+        // a theme id comparison, which would misfire for an application
+        // declaring its own custom theme list — Monaco has no notion of
+        // those, only its own built-in "vs"/"vs-dark".
+        const themes = Dagda.get<ThemeService>("themes");
+        const applyTheme = (): void => monaco.editor.setTheme(themes.currentInfo.dark ? "vs-dark" : "vs");
+        applyTheme();
+        this._unsubscribeTheme = themes.onChange(applyTheme);
     }
 
     protected override async _refresh(): Promise<void> {
@@ -91,6 +111,8 @@ export class CodeEditor extends AbstractWebComponent {
     public disconnectedCallback(): void {
         this._editor?.dispose();
         this._editor = null;
+        this._unsubscribeTheme?.();
+        this._unsubscribeTheme = null;
     }
 
 }

@@ -22,13 +22,18 @@ export class EnumFieldEditorComponent extends AbstractWebComponent implements En
 
     protected override async _refresh(): Promise<void> { /* options are (re)built by setEnumeration() */ }
 
-    public setEnumeration(enumeration: EnumDefinition<any>): void {
+    public setEnumeration(enumeration: EnumDefinition<any>, hasDefault = false): void {
         this._enumeration = enumeration;
         this._select.textContent = "";
         // A native <select> auto-selects its first option, unlike a text or
         // number input starting empty; without this, the field would read as
-        // its first entry before the user ever touched it.
-        this._select.appendChild(document.createElement("option"));
+        // its first entry before the user ever touched it. Not needed when a
+        // default is coming right behind this call: the field is never truly
+        // unset, so the placeholder would only ever be a confusing, dead
+        // entry the user could select but that means nothing (FEATURES §8).
+        if (!hasDefault) {
+            this._select.appendChild(document.createElement("option"));
+        }
         for (const entry of enumeration.getEntries()) {
             const option = document.createElement("option");
             option.value = String(entry.value);

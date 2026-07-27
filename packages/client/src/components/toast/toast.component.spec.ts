@@ -102,4 +102,49 @@ describe("ToastHost", () => {
         expect(host.querySelector(".dagda-toast")?.textContent).toContain("the server is unreachable");
     });
 
+    it("defaults to the danger variant when none is passed — every untouched call site keeps its red toast", async () => {
+        Dagda.init({});
+        const host = new ToastHost();
+        document.body.appendChild(host);
+        await host.refresh();
+
+        host.show("something broke");
+
+        expect(host.querySelector(".dagda-toast")?.getAttribute("data-state")).toBe("danger");
+    });
+
+    it("shows a success toast when the caller asks for one, through showToast() too", async () => {
+        Dagda.init({});
+        const host = new ToastHost();
+        document.body.appendChild(host);
+        await host.refresh();
+
+        showToast("saved", "success");
+
+        expect(host.querySelector(".dagda-toast")?.getAttribute("data-state")).toBe("success");
+    });
+
+    it("shows an info toast when asked", async () => {
+        Dagda.init({});
+        const host = new ToastHost();
+        document.body.appendChild(host);
+        await host.refresh();
+
+        host.show("heads up", "info");
+
+        expect(host.querySelector(".dagda-toast")?.getAttribute("data-state")).toBe("info");
+    });
+
+    it("a write failure always renders as danger, never affected by whatever variant a caller last used", async () => {
+        const entities = fakeEntities();
+        Dagda.init({ entities: entities.service });
+        const host = new ToastHost();
+        document.body.appendChild(host);
+        await host.refresh();
+
+        entities.fireWriteFailed(new Error("the server is unreachable"));
+
+        expect(host.querySelector(".dagda-toast")?.getAttribute("data-state")).toBe("danger");
+    });
+
 });

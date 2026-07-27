@@ -98,6 +98,42 @@ describe("ThemeRegistry", () => {
         expect(themes.current).toBe("nocturne");
     });
 
+    it("currentInfo resolves the full declaration of the current theme, dark flag included", async () => {
+        const { preferences } = buildPreferences();
+        const themes = new ThemeRegistry(DAGDA_THEMES, preferences);
+
+        expect(themes.currentInfo).toEqual({ id: "nocturne", label: "Nocturne", dark: true });
+        await themes.set("aurore");
+        expect(themes.currentInfo).toEqual({ id: "aurore", label: "Aurore", dark: false });
+    });
+
+    it("onChange() fires after set() and stops firing once unsubscribed", async () => {
+        const { preferences } = buildPreferences();
+        const themes = new ThemeRegistry(DAGDA_THEMES, preferences);
+        const listener = vi.fn();
+        const unsubscribe = themes.onChange(listener);
+
+        await themes.set("aurore");
+        expect(listener).toHaveBeenCalledTimes(1);
+
+        unsubscribe();
+        await themes.set("nocturne");
+        expect(listener).toHaveBeenCalledTimes(1);
+    });
+
+    it("onChange() also fires on reconcile() applying a different preference", async () => {
+        const { preferences } = buildPreferences({ "ui.theme": "aurore" });
+        await preferences.load();
+        document.documentElement.dataset["theme"] = "nocturne";
+        const themes = new ThemeRegistry(DAGDA_THEMES, preferences, "ui.theme");
+        const listener = vi.fn();
+        themes.onChange(listener);
+
+        themes.reconcile();
+
+        expect(listener).toHaveBeenCalledTimes(1);
+    });
+
     it("carries on when storage is denied", async () => {
         const { preferences } = buildPreferences();
         const themes = new ThemeRegistry(DAGDA_THEMES, preferences);
