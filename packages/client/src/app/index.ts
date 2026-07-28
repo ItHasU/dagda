@@ -7,6 +7,7 @@ import { EntitiesAPI } from "@dagda/shared/src/api/impl/entities.api";
 import { SystemAPI, SystemInfo } from "@dagda/shared/src/api/impl/system.api";
 import { BaseAppTypes } from "@dagda/shared/src/app/types";
 import { UserInfo } from "@dagda/shared/src/auth/types";
+import { DagdaPermission, PermissionDeclaration } from "@dagda/shared/src/auth/permissions";
 import { BaseServicesParams } from "@dagda/shared/src/dagda";
 import { EntitiesModel } from "@dagda/shared/src/entities/model";
 import { ContextAdapter } from "@dagda/shared/src/entities/tools/adapters";
@@ -106,6 +107,13 @@ export interface ClientStartParams<AppTypes extends ClientAppTypes> {
      * `dagda.model.xxx(...)`, only this parameter is spelled differently.
      */
     modelFunctions?: AppTypes["model"];
+    /**
+     * The application's own permissions (Dagda FEATURES §7.1), on top of the
+     * framework's — merged into `dagda.permissions`, read by the framework's
+     * `RolesPage` to build its role × permission matrix. Only the app's own
+     * keys: `DAGDA_PERMISSIONS` is added automatically.
+     */
+    permissions?: Record<Exclude<AppTypes["permissions"], DagdaPermission>, PermissionDeclaration>;
     /**
      * Builds the application's `dagda` instance from the framework's base
      * parameters (FEATURES §0). An application that registers its own
@@ -230,7 +238,8 @@ export class DagdaClient {
             themes,
             brand: params.brand ?? { label: params.title ?? "Dagda" },
             settingsModel: params.settings,
-            modelFunctions: params.modelFunctions
+            modelFunctions: params.modelFunctions,
+            permissions: params.permissions
         }));
 
         // -- Console global (FEATURES §11.2) --

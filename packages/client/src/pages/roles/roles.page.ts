@@ -5,13 +5,12 @@ import { showToast } from "@dagda/client/src/components/toast/toast.component";
 import { defaultFieldEditors, FieldEditor } from "@dagda/client/src/forms/editors";
 import { AbstractPageElement } from "@dagda/client/src/pages/abstract.page.element";
 import { DagdaActions } from "@dagda/shared/src/auth/actions";
-import { DAGDA_PERMISSIONS } from "@dagda/shared/src/auth/permissions";
 import { Role } from "@dagda/shared/src/auth/types";
 import { EntitiesModel } from "@dagda/shared/src/entities/model";
 import { JSTypes } from "@dagda/shared/src/entities/tools/javascript.types";
+import { dagda } from "../../app/dagda";
 import template from "./roles.page.html";
 
-const PERMISSION_KEYS = Object.keys(DAGDA_PERMISSIONS) as (keyof typeof DAGDA_PERMISSIONS)[];
 const BOOLEAN_TYPE = EntitiesModel.type({ rawType: JSTypes.boolean });
 const STRING_TYPE = EntitiesModel.type({ rawType: JSTypes.string });
 
@@ -116,12 +115,13 @@ export class RolesPage extends AbstractPageElement {
 
     protected _renderRows(): void {
         this._rows.replaceChildren();
-        for (const key of PERMISSION_KEYS) {
+        const permissionKeys = Object.keys(dagda.permissions) as (keyof typeof dagda.permissions)[];
+        for (const key of permissionKeys) {
             const row = document.createElement("tr");
 
             const label = document.createElement("td");
-            label.textContent = DAGDA_PERMISSIONS[key].label;
-            label.title = DAGDA_PERMISSIONS[key].description ?? "";
+            label.textContent = dagda.permissions[key].label;
+            label.title = dagda.permissions[key].description ?? "";
             row.appendChild(label);
 
             for (const role of this._roles) {
@@ -160,12 +160,12 @@ export class RolesPage extends AbstractPageElement {
         body.appendChild(nameField);
 
         const permissionEditors = new Map<string, FieldEditor<boolean>>();
-        for (const key of PERMISSION_KEYS) {
+        for (const key of Object.keys(dagda.permissions) as (keyof typeof dagda.permissions)[]) {
             const field = document.createElement("div");
             field.className = "field";
             const permissionLabel = document.createElement("span");
             permissionLabel.className = "text-muted";
-            permissionLabel.textContent = DAGDA_PERMISSIONS[key].label;
+            permissionLabel.textContent = dagda.permissions[key].label;
             const editor = booleanEditor(false);
             permissionEditors.set(key, editor);
             field.append(permissionLabel, editor);

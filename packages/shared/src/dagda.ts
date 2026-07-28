@@ -1,4 +1,5 @@
 import { BaseAppTypes } from "./app/types";
+import { DAGDA_PERMISSIONS, DagdaPermission, PermissionDeclaration } from "./auth/permissions";
 import { EntitiesHandler } from "./entities/handler";
 import { EntitiesModel } from "./entities/model";
 import { EntitiesService } from "./entities/service";
@@ -49,6 +50,12 @@ export interface BaseServicesParams<AppTypes extends BaseAppTypes> {
     handlerPerCall?: boolean;
     /** Replaces the default console logger */
     log?: LogService["log"];
+    /**
+     * The application's own permissions (FEATURES §7.1), on top of the
+     * framework's — merged into `dagda.permissions`. Only the app's own
+     * keys: the framework's (`DAGDA_PERMISSIONS`) are added automatically.
+     */
+    permissions?: Record<Exclude<AppTypes["permissions"], DagdaPermission>, PermissionDeclaration>;
 }
 
 /**
@@ -82,6 +89,7 @@ export class Dagda<AppTypes extends BaseAppTypes = BaseAppTypes> {
     public readonly log: LogService["log"];
     public readonly entities: EntitiesService<AppTypes["entities"], AppTypes["contexts"]>["entities"];
     public readonly notification: NotificationService<AppTypes["events"]>["notification"];
+    public readonly permissions: Record<AppTypes["permissions"], PermissionDeclaration>;
 
     constructor(params: BaseServicesParams<AppTypes>) {
         this.log = params.log ?? buildConsoleLogService();
@@ -92,6 +100,7 @@ export class Dagda<AppTypes extends BaseAppTypes = BaseAppTypes> {
             { handlerPerCall: params.handlerPerCall, notification: params.notification as any }
         );
         this.notification = params.notification;
+        this.permissions = { ...DAGDA_PERMISSIONS, ...(params.permissions ?? {}) } as Record<AppTypes["permissions"], PermissionDeclaration>;
     }
 
 }

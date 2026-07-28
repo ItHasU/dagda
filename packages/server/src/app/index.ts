@@ -230,7 +230,8 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
             // One handler per call: two requests must not share a cache, since
             // what it holds depends on who asked.
             handlerPerCall: true,
-            settings: this._settings.settings
+            settings: this._settings.settings,
+            permissions: this._permissions
         }));
     }
 
