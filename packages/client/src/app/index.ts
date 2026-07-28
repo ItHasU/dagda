@@ -32,8 +32,6 @@ import { SettingsModel } from "@dagda/shared/src/settings/model";
 import { BrandInfo } from "./brand";
 import { installConsoleGlobal } from "./console";
 import { ClientAppTypes, ClientDagda, ClientOwnServicesParams, dagda, _setDagda } from "./dagda";
-import { EntityActionsCollection } from "./entity-actions";
-import { SQLTransaction } from "@dagda/shared/src/sql/transaction";
 import headerTemplate from "./index.header.html";
 // The framework stylesheet, replacing Bootstrap: tokens, faces, vocabulary and
 // shell, in that order (FEATURES §8).
@@ -98,12 +96,16 @@ export interface ClientStartParams<AppTypes extends ClientAppTypes> {
      */
     settings?: SettingsModel<any>;
     /**
-     * Named client-side entity-transaction composers (Dagda FEATURES §11.2),
-     * reachable from the console as `dagda.actions.xxx(...)` — a distinct
-     * concept from the RPC processes exposed on `dagda.system`/`dagda.api` (see
-     * `EntityActionsCollection`'s own doc comment for the difference).
+     * Named functions acting on the data model (Dagda FEATURES §11.2),
+     * reachable typed as `dagda.model.xxx(...)` — a distinct concept from the
+     * RPC processes exposed on `dagda.system`/`dagda.api` (see
+     * `ModelFunctionDeclaration`'s own doc comment for the difference).
+     *
+     * Named `modelFunctions` here, not `model`: `model` above is already the
+     * entities model (`EntitiesModel<any, any>`) — the public name stays
+     * `dagda.model.xxx(...)`, only this parameter is spelled differently.
      */
-    actions?: EntityActionsCollection<SQLTransaction<AppTypes["entities"], AppTypes["contexts"]>>;
+    modelFunctions?: AppTypes["model"];
     /**
      * Builds the application's `dagda` instance from the framework's base
      * parameters (FEATURES §0). An application that registers its own
@@ -227,15 +229,16 @@ export class DagdaClient {
             preferences,
             themes,
             brand: params.brand ?? { label: params.title ?? "Dagda" },
-            settingsModel: params.settings
+            settingsModel: params.settings,
+            modelFunctions: params.modelFunctions
         }));
 
         // -- Console global (FEATURES §11.2) --
         // getRoutes reads the manifest lazily: it only arrives once
         // refreshSystemInfo() resolves below, after this call returns.
-        installConsoleGlobal<AppTypes["actions"], NonNullable<typeof params.actions>>({
+        installConsoleGlobal<AppTypes["actions"]>({
             getRoutes: () => this._systemInfo?.routes ?? [],
-            entityActions: params.actions
+            model: params.modelFunctions
         });
 
         // -- Inject headers in the app --

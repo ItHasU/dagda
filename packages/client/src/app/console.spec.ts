@@ -9,7 +9,8 @@ vi.mock("../actions", () => ({ actionCall: vi.fn().mockResolvedValue("action-res
 // Imported after the mocks so the mocked modules are what console.ts sees.
 import { apiCall } from "../api";
 import { actionCall } from "../actions";
-import { encapsulate, installConsoleGlobal } from "./console";
+import { installConsoleGlobal } from "./console";
+import { buildModelProxy, encapsulate } from "./model";
 import { _setDagda } from "./dagda";
 
 /** A fake entities handler whose withTransaction/waitForSubmit are directly observable */
@@ -95,26 +96,20 @@ describe("console.ts", () => {
         });
     });
 
-    describe("dagda.actions", () => {
-        it("is enumerable and lists both bare-function and {description, fn} entries", () => {
-            installConsoleGlobal<any>({
-                getRoutes: () => [],
-                entityActions: {
-                    bare: () => {},
-                    described: { description: "does a thing", fn: () => {} }
-                }
-            });
-            expect(Object.keys((globalThis as any).dagda.actions).sort()).toEqual(["bare", "described"]);
+    describe("dagda.model", () => {
+        it("is a real, typed field of dagda — set at construction, not by installConsoleGlobal", () => {
+            _setDagda({ model: buildModelProxy({ bare: () => {}, described: { description: "does a thing", fn: () => {} } }) } as any);
+            installConsoleGlobal<any>({ getRoutes: () => [] });
+            expect(Object.keys((globalThis as any).dagda.model).sort()).toEqual(["bare", "described"]);
         });
 
         it("auto-opens and submits its own transaction when called without one", async () => {
             const { entities, submitted } = buildFakeEntities();
-            _setDagda({ entities } as any);
-
             const fn = vi.fn((_tr: SQLTransaction<any, any>, name: string) => `hello ${name}`);
-            installConsoleGlobal<any>({ getRoutes: () => [], entityActions: { greet: fn } });
+            _setDagda({ entities, model: buildModelProxy({ greet: fn }) } as any);
+            installConsoleGlobal<any>({ getRoutes: () => [] });
 
-            const result = await (globalThis as any).dagda.actions.greet("world");
+            const result = await (globalThis as any).dagda.model.greet("world");
 
             expect(result).toBe("hello world");
             expect(submitted).toHaveLength(1);
@@ -123,13 +118,12 @@ describe("console.ts", () => {
 
         it("passes an explicit transaction straight through instead of opening a second one", async () => {
             const { entities, submitted } = buildFakeEntities();
-            _setDagda({ entities } as any);
-
             const fn = vi.fn((_tr: SQLTransaction<any, any>, name: string) => `hi ${name}`);
-            installConsoleGlobal<any>({ getRoutes: () => [], entityActions: { greet: fn } });
+            _setDagda({ entities, model: buildModelProxy({ greet: fn }) } as any);
+            installConsoleGlobal<any>({ getRoutes: () => [] });
 
             const ownTr = new SQLTransaction<any, any>({ getCache: () => ({ insert: () => {} }) } as any, []);
-            const result = await (globalThis as any).dagda.actions.greet(ownTr, "world");
+            const result = await (globalThis as any).dagda.model.greet(ownTr, "world");
 
             expect(result).toBe("hi world");
             // No transaction was opened by the proxy itself — the only one
@@ -138,17 +132,19 @@ describe("console.ts", () => {
             expect(fn).toHaveBeenCalledWith(ownTr, "world");
         });
 
-        it("throws a clear error for an undeclared action name", async () => {
+        it("throws a clear error for an undeclared model function name", async () => {
+            _setDagda({ model: buildModelProxy({}) } as any);
             installConsoleGlobal<any>({ getRoutes: () => [] });
-            await expect((globalThis as any).dagda.actions.doesNotExist()).rejects.toThrow(/Unknown action/);
+            await expect((globalThis as any).dagda.model.doesNotExist()).rejects.toThrow(/Unknown model function/);
         });
     });
 
     describe("dagda.help()", () => {
-        it("runs without throwing against a populated manifest and action registry", () => {
+        it("runs without throwing against a populated manifest and model function registry", () => {
+            _setDagda({ model: buildModelProxy({ greet: { description: "says hello", fn: () => {} } }) } as any);
             installConsoleGlobal<any>({
                 getRoutes: () => [{ name: "getSystemInfo", kind: "route", origin: "system", type: "internal", description: "system info" }],
-                entityActions: { greet: { description: "says hello", fn: () => {} } }
+                model: { greet: { description: "says hello", fn: () => {} } }
             });
             expect(() => (globalThis as any).dagda.help()).not.toThrow();
         });

@@ -8,6 +8,7 @@ import { PreferencesDirectory } from "../preferences/directory";
 import { ThemeRegistry } from "../themes/service";
 import { SettingsModel } from "@dagda/shared/src/settings/model";
 import { BrandInfo } from "./brand";
+import { buildModelProxy, ModelCollection } from "./model";
 
 /**
  * What every Dagda client application declares, on top of `BaseAppTypes`
@@ -16,6 +17,8 @@ import { BrandInfo } from "./brand";
  */
 export interface ClientAppTypes extends BaseAppTypes {
     pages: BasePageTypes;
+    /** Named functions acting on the data model (FEATURES §11.2), reachable typed as `dagda.model.xxx(...)` — empty for an application that declares none. */
+    model: ModelCollection;
 }
 
 /** Parameters needed to build the client's own base services, on top of the shared ones */
@@ -33,6 +36,15 @@ export interface ClientOwnServicesParams<AppTypes extends ClientAppTypes> {
      * application registers that page (`pages/defaults.ts`).
      */
     settingsModel?: SettingsModel<any>;
+    /**
+     * Named functions acting on the data model (FEATURES §11.2) — optional,
+     * defaults to none declared. Named `modelFunctions` here, not `model`:
+     * `model` is already taken, on this very params bag, by the entities
+     * model (`BaseServicesParams.model: EntitiesModel<any, any>`) — the
+     * public name stays `dagda.model.xxx(...)` (`ClientDagda.model` below),
+     * only this constructor parameter needs to be spelled differently.
+     */
+    modelFunctions?: AppTypes["model"];
 }
 
 /**
@@ -53,6 +65,7 @@ export class ClientDagda<AppTypes extends ClientAppTypes = ClientAppTypes> exten
     public readonly themes: ThemeRegistry;
     public readonly brand: BrandInfo;
     public readonly settingsModel?: SettingsModel<any>;
+    public readonly model: { [Name in keyof AppTypes["model"]]: (...args: unknown[]) => Promise<unknown> };
 
     constructor(params: BaseServicesParams<AppTypes> & ClientOwnServicesParams<AppTypes>) {
         super(params);
@@ -64,6 +77,7 @@ export class ClientDagda<AppTypes extends ClientAppTypes = ClientAppTypes> exten
         this.themes = params.themes;
         this.brand = params.brand;
         this.settingsModel = params.settingsModel;
+        this.model = buildModelProxy(params.modelFunctions ?? ({} as AppTypes["model"]));
     }
 
 }

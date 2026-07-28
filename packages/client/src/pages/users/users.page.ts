@@ -32,7 +32,7 @@ function checkboxInput(editor: FieldEditor<boolean>): HTMLInputElement {
 
 /**
  * Account administration and role assignment (Dagda FEATURES §7, §7.1),
- * the screen `dagda.actions.inviteUser/reinviteUser/listUsers/
+ * the screen `dagda.system.inviteUser/reinviteUser/listUsers/
  * setUserEnabled/setUserRole` were, until now, only reachable from.
  *
  * No email service (FEATURES §0): inviting or reinviting hands back a link

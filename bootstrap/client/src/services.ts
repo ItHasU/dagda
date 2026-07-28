@@ -16,4 +16,6 @@ export type AppPages = {
 /** The application's contract, `pages` included (FEATURES §0) */
 export interface ClientAppTypes extends AppTypes {
     pages: AppPages;
+    /** No model functions declared — nothing to act on the data model with yet */
+    model: {};
 }
