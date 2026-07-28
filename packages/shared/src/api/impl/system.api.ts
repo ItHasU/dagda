@@ -1,9 +1,14 @@
 import { UserInfo } from "../../auth/types";
+import { ManifestOrigin, APIType } from "../types";
 
 /** One registered route or action (FEATURES §11.2) — see `server/src/api/manifest.ts` for the server-side registry this mirrors */
 export interface SystemInfoRoute {
     name: string;
     kind: "route" | "action";
+    /** The framework ("system") or the application ("app") — what splits `dagda.system` from `dagda.api` */
+    origin: ManifestOrigin;
+    /** Where it may be called from (FEATURES §5 refactor) */
+    type: APIType;
     permission?: string;
     description?: string;
 }
@@ -24,7 +29,7 @@ export interface SystemInfo {
     user: UserInfo;
     /**
      * Every route/action registered on the server (FEATURES §11.2) — rides
-     * along on this existing boot-time round trip so `dagda.routes`/
+     * along on this existing boot-time round trip so `dagda.system`/`dagda.api`/
      * `dagda.help()` don't need one of their own.
      */
     routes: SystemInfoRoute[];

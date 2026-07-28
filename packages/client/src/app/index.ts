@@ -100,7 +100,7 @@ export interface ClientStartParams<AppTypes extends ClientAppTypes> {
     /**
      * Named client-side entity-transaction composers (Dagda FEATURES §11.2),
      * reachable from the console as `dagda.actions.xxx(...)` — a distinct
-     * concept from the RPC processes exposed on `dagda.routes` (see
+     * concept from the RPC processes exposed on `dagda.system`/`dagda.api` (see
      * `EntityActionsCollection`'s own doc comment for the difference).
      */
     actions?: EntityActionsCollection<SQLTransaction<AppTypes["entities"], AppTypes["contexts"]>>;

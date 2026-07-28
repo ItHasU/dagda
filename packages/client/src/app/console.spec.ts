@@ -55,36 +55,43 @@ describe("console.ts", () => {
         });
     });
 
-    describe("dagda.routes", () => {
+    describe("dagda.system / dagda.api", () => {
         function install(routes: SystemInfoRoute[]): void {
             installConsoleGlobal<any>({ getRoutes: () => routes });
         }
 
-        it("is enumerable — Object.keys() and tab-completion see every registered name", () => {
+        it("splits by origin — dagda.system only lists the framework's own, dagda.api only the application's", () => {
             install([
-                { name: "getSystemInfo", kind: "route" },
-                { name: "publishMessage", kind: "action" }
+                { name: "getSystemInfo", kind: "route", origin: "system", type: "internal" },
+                { name: "publishMessage", kind: "action", origin: "app", type: "internal" }
             ]);
-            expect(Object.keys((globalThis as any).dagda.routes)).toEqual(["getSystemInfo", "publishMessage"]);
+            expect(Object.keys((globalThis as any).dagda.system)).toEqual(["getSystemInfo"]);
+            expect(Object.keys((globalThis as any).dagda.api)).toEqual(["publishMessage"]);
         });
 
         it("dispatches a 'route'-kind entry through apiCall", async () => {
-            install([{ name: "getSystemInfo", kind: "route" }]);
-            const result = await (globalThis as any).dagda.routes.getSystemInfo();
+            install([{ name: "getSystemInfo", kind: "route", origin: "system", type: "internal" }]);
+            const result = await (globalThis as any).dagda.system.getSystemInfo();
             expect(apiCall).toHaveBeenCalledWith("getSystemInfo", {});
             expect(result).toBe("api-result");
         });
 
         it("dispatches an 'action'-kind entry through actionCall", async () => {
-            install([{ name: "publishMessage", kind: "action" }]);
-            const result = await (globalThis as any).dagda.routes.publishMessage({ topic: "a" });
+            install([{ name: "publishMessage", kind: "action", origin: "app", type: "internal" }]);
+            const result = await (globalThis as any).dagda.api.publishMessage({ topic: "a" });
             expect(actionCall).toHaveBeenCalledWith("publishMessage", { topic: "a" });
             expect(result).toBe("action-result");
         });
 
         it("throws a clear error for an unregistered name instead of silently calling the server", async () => {
             install([]);
-            await expect((globalThis as any).dagda.routes.doesNotExist()).rejects.toThrow(/Unknown route/);
+            await expect((globalThis as any).dagda.system.doesNotExist()).rejects.toThrow(/Unknown dagda.system entry/);
+            await expect((globalThis as any).dagda.api.doesNotExist()).rejects.toThrow(/Unknown dagda.api entry/);
+        });
+
+        it("keeps an app-origin entry out of dagda.system, and vice versa", async () => {
+            install([{ name: "publishMessage", kind: "action", origin: "app", type: "internal" }]);
+            await expect((globalThis as any).dagda.system.publishMessage()).rejects.toThrow(/Unknown dagda.system entry/);
         });
     });
 
@@ -140,7 +147,7 @@ describe("console.ts", () => {
     describe("dagda.help()", () => {
         it("runs without throwing against a populated manifest and action registry", () => {
             installConsoleGlobal<any>({
-                getRoutes: () => [{ name: "getSystemInfo", kind: "route", description: "system info" }],
+                getRoutes: () => [{ name: "getSystemInfo", kind: "route", origin: "system", type: "internal", description: "system info" }],
                 entityActions: { greet: { description: "says hello", fn: () => {} } }
             });
             expect(() => (globalThis as any).dagda.help()).not.toThrow();

@@ -71,7 +71,7 @@ describe("apiRegister", () => {
         // throw (packages/server/src/app/index.ts), since a permission
         // refusal here is thrown into the very same catch block.
         expect(res.statusCode).toBe(500);
-        expect(res.body).toEqual({ error: "Error: Missing permission: settings.manage" });
+        expect(res.body).toEqual({ error: 'Error: Missing permission for "ping"' });
     });
 
     it("allows a caller holding the declared permission", async () => {
@@ -94,6 +94,27 @@ describe("apiRegister", () => {
 
         expect(res.statusCode).toBe(200);
         expect(res.body).toBe("pong");
+    });
+
+    it("a function permission sees the call's own arguments, not just the user", async () => {
+        interface OwnedAPI extends APICollection {
+            editItem: (id: number) => string;
+        }
+        const { router, handlers } = fakeRouter();
+        // Only the id's "owner" (here: matching the user's own id) may call it —
+        // the kind of check a flat permission string can't express.
+        apiRegister<OwnedAPI, "editItem">(router, "editItem", async (_options, id) => `edited ${id}`, {
+            permission: (caller, id) => caller.id === id
+        });
+        const res = fakeResponse();
+
+        await handlers.get("/editItem")!({ body: [7], user: user({ id: 7 }) }, res);
+        expect(res.statusCode).toBe(200);
+        expect(res.body).toBe("edited 7");
+
+        const refused = fakeResponse();
+        await handlers.get("/editItem")!({ body: [7], user: user({ id: 9 }) }, refused);
+        expect(refused.statusCode).toBe(500);
     });
 
 });

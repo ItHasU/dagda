@@ -51,3 +51,10 @@ export type DagdaPermission = keyof typeof DAGDA_PERMISSIONS;
 export function hasPermission<Permission extends string>(user: UserInfo<Permission>, permission: Permission): boolean {
     return user.isSuperAdmin || user.permissions.includes(permission);
 }
+
+/**
+ * Authorizes a call by both who is making it and what it's actually asking
+ * for — unlike a bare permission string, this sees the call's own arguments,
+ * so it can allow "edit my own dashboard" without allowing "edit anyone's".
+ */
+export type PermissionCheck<Args extends any[] = any[]> = (user: UserInfo<any>, ...args: Args) => boolean;

@@ -1,6 +1,6 @@
 import { UserInfo } from "@dagda/shared/src/auth/types";
-import { hasPermission } from "@dagda/shared/src/auth/permissions";
-import { APICollection } from "@dagda/shared/src/api/types";
+import { hasPermission, PermissionCheck } from "@dagda/shared/src/auth/permissions";
+import { APICollection, APIType, ManifestOrigin } from "@dagda/shared/src/api/types";
 import { IRouter, Request } from "express";
 import { registerManifestEntry } from "./manifest";
 
@@ -29,21 +29,45 @@ export type RequestCallback<Collection extends APICollection, Name extends keyof
     ...args: Parameters<Collection[Name]>
 ) => Promise<ReturnType<Collection[Name]>>;
 
-export type RegisterAPIOptions = {
+export type RegisterAPIOptions<Collection extends APICollection = APICollection, Name extends keyof Collection = keyof Collection> = {
+    /**
+     * Where this API may be called from (FEATURES §5 refactor). Defaults to
+     * `"internal"`: the client, a direct server-side call, a user script.
+     * `"external"`/`"both"` are declared for now, not yet enforced — no
+     * token mechanism exists yet to authenticate an outside HTTP call.
+     */
+    type?: APIType;
     /**
      * Permission (FEATURES §7.1) required to call this route, checked against
      * the caller's resolved permissions before the callback ever runs. Unset
      * means any authenticated account may call it — today's default for
      * every route, unchanged.
+     *
+     * A plain string is a flat `hasPermission(user, permission)` check, as
+     * before. A function additionally receives the call's own arguments, so
+     * it can authorize on the call's actual parameters instead of only the
+     * caller's role — e.g. "may edit their own dashboard but not someone
+     * else's".
      */
-    permission?: string;
+    permission?: string | PermissionCheck<Parameters<Collection[Name]>>;
     /** Free-text explanation surfaced by `dagda.help()` (FEATURES §11.2) */
     description?: string;
 };
 
 export function apiRegister<Collection extends APICollection, Name extends keyof Collection>(
-    router: IRouter, name: Name, callback: RequestCallback<Collection, Name>, options?: RegisterAPIOptions): void {
-    registerManifestEntry({ name: name.toString(), kind: "route", permission: options?.permission, description: options?.description });
+    router: IRouter, name: Name, callback: RequestCallback<Collection, Name>,
+    options?: RegisterAPIOptions<Collection, Name>,
+    /** Set only by `AbstractServerApp`'s own framework registrations — an application registering its own API always gets "app" */
+    origin: ManifestOrigin = "app"
+): void {
+    registerManifestEntry({
+        name: name.toString(),
+        kind: "route",
+        origin,
+        type: options?.type ?? "internal",
+        permission: typeof options?.permission === "string" ? options.permission : undefined,
+        description: options?.description
+    });
     // Register the route with the server
     router.post(`/${name.toString()}`, async (req: Request, res) => {
         // Hiding a screen is not access control: the check holds on the route
@@ -70,8 +94,13 @@ export function apiRegister<Collection extends APICollection, Name extends keyof
             // so a refusal gets the exact same response shape actions already
             // give a refused permission — consistency between the two
             // RPC-ish mechanisms matters more than either being "more correct".
-            if (options?.permission != null && !hasPermission(user, options.permission)) {
-                throw new Error(`Missing permission: ${options.permission}`);
+            if (options?.permission != null) {
+                const allowed = typeof options.permission === "function"
+                    ? options.permission(user, ...args as any)
+                    : hasPermission(user, options.permission);
+                if (!allowed) {
+                    throw new Error(`Missing permission for "${name.toString()}"`);
+                }
             }
             let result = await callback(requestOptions, ...args as any); // Here we do not expect args to be invalid
             if (result === void (0)) {

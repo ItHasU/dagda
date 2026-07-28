@@ -182,15 +182,15 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
 
         // -- Register standard APIs --
         console.log("Registering standard APIs...");
-        this.registerAPI("getSystemInfo", getSystemInfo);
-        this.registerAPI("triggerError", triggerError);
+        this._registerSystemAPI("getSystemInfo", getSystemInfo);
+        this._registerSystemAPI("triggerError", triggerError);
         // Register the entities API
         apiRegister<EntitiesAPI<AppTypes["contexts"], AppTypes["entities"]>, "fetch">(this._app, "fetch", (options: RequestOptions, context: AppTypes["contexts"]): Promise<Data<AppTypes["entities"]>> => {
             return this._fetch(context, options);
-        });
+        }, undefined, "system");
         apiRegister<EntitiesAPI<AppTypes["contexts"], AppTypes["entities"]>, "submit">(this._app, "submit", (options: RequestOptions, transactionData: SQLTransactionData<AppTypes["entities"], AppTypes["contexts"]>): Promise<SQLTransactionResult> => {
             return this._submit(transactionData, options);
-        });
+        }, undefined, "system");
 
         // -- Register standard actions --
         // Account management (FEATURES §11.4): every Dagda application gets
@@ -312,9 +312,22 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
     }
 
     /** Register an api on the server */
-    public registerAPI<Name extends keyof AppTypes["apis"]>(name: Name, callback: RequestCallback<AppTypes["apis"], Name>, options?: RegisterAPIOptions): void {
+    public registerAPI<Name extends keyof AppTypes["apis"]>(name: Name, callback: RequestCallback<AppTypes["apis"], Name>, options?: RegisterAPIOptions<AppTypes["apis"], Name>): void {
         // Register the route with the server
-        apiRegister(this._app, name, callback, options);
+        apiRegister(this._app, name, callback, options, "app");
+    }
+
+    /**
+     * Registers one of the framework's own standard APIs (`getSystemInfo`,
+     * `triggerError`; `fetch`/`submit` go through `apiRegister` directly,
+     * they don't fit `AppTypes["apis"]`'s per-name typing the same way) — the
+     * counterpart of `registerAPI()` above, so `dagda.system` only ever shows
+     * what the framework itself registered.
+     */
+    protected _registerSystemAPI<Name extends keyof AppTypes["apis"]>(
+        name: Name, callback: RequestCallback<AppTypes["apis"], Name>, options?: RegisterAPIOptions<AppTypes["apis"], Name>
+    ): void {
+        apiRegister<AppTypes["apis"], Name>(this._app, name, callback, options, "system");
     }
 
     /**
@@ -325,13 +338,13 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
      * never reaches `_recordAudit()`, since it sits strictly after `callback`
      * resolves.
      */
-    public registerAction<Name extends keyof AppTypes["actions"]>(name: Name, callback: ActionCallback<AppTypes["actions"], Name>, options?: RegisterActionOptions): void {
+    public registerAction<Name extends keyof AppTypes["actions"]>(name: Name, callback: ActionCallback<AppTypes["actions"], Name>, options?: RegisterActionOptions<AppTypes["actions"], Name>): void {
         const wrapped: ActionCallback<AppTypes["actions"], Name> = async (user, ...args): Promise<Awaited<ReturnType<AppTypes["actions"][Name]>>> => {
             const result = await callback(user, ...args);
             await this._recordAudit(user.id, "action", String(name), args);
             return result;
         };
-        actionRegister<AppTypes["actions"], Name>(this._app, name, wrapped, options);
+        actionRegister<AppTypes["actions"], Name>(this._app, name, wrapped, options, "app");
     }
 
     /**
@@ -339,7 +352,9 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
      * across `_registerAccountActions()` and friends below) — the
      * counterpart of `registerAction()` above for `DagdaActions` rather than
      * an application's own vocabulary, so both paths get audited from the
-     * same two places instead of at each of those call sites individually.
+     * same two places instead of at each of those call sites individually,
+     * and so `dagda.system` only ever shows what the framework itself
+     * registered.
      *
      * `redact`, when given, rewrites what gets stored for `details` — the
      * only user of this today is `setSetting()`, whose `value` argument must
@@ -350,14 +365,14 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
         name: Name,
         callback: ActionCallback<DagdaActions, Name>,
         redact?: (args: Parameters<DagdaActions[Name]>) => unknown,
-        options?: RegisterActionOptions
+        options?: RegisterActionOptions<DagdaActions, Name>
     ): void {
         const wrapped: ActionCallback<DagdaActions, Name> = async (user, ...args): Promise<Awaited<ReturnType<DagdaActions[Name]>>> => {
             const result = await callback(user, ...args);
             await this._recordAudit(user.id, "action", String(name), redact ? redact(args) : args);
             return result;
         };
-        actionRegister<DagdaActions, Name>(this._app, name, wrapped, options);
+        actionRegister<DagdaActions, Name>(this._app, name, wrapped, options, "system");
     }
 
     /**

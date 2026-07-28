@@ -1,5 +1,6 @@
 import { ActionsCollection } from "@dagda/shared/src/actions/types";
 import { DagdaActions } from "@dagda/shared/src/auth/actions";
+import { ManifestOrigin } from "@dagda/shared/src/api/types";
 import { SystemInfoRoute } from "@dagda/shared/src/api/impl/system.api";
 import { EntitiesHandler } from "@dagda/shared/src/entities/handler";
 import { SQLTransaction } from "@dagda/shared/src/sql/transaction";
@@ -7,9 +8,6 @@ import { apiCall } from "../api";
 import { actionCall } from "../actions";
 import { EntityActionDeclaration, EntityActionsCollection, normalizeEntityAction } from "./entity-actions";
 import { dagda } from "./dagda";
-
-/** Every action reachable from `dagda.routes`: the framework's own, plus the application's */
-type AllActions<Actions extends ActionsCollection> = DagdaActions & Actions;
 
 /**
  * Opens a transaction, runs `fn(tr)`, submits it, and waits for the result —
@@ -30,7 +28,7 @@ export async function encapsulate<T>(fn: (tr: SQLTransaction<any, any>) => T | P
 
 /**
  * What `installConsoleGlobal` adds to the running `dagda` instance so it
- * becomes `window.dagda` (Dagda FEATURES §11.2).
+ * becomes `window.dagda` (Dagda FEATURES §11.2, §5 refactor).
  *
  * The precedent was `window.MQTT` in MQTTToolbox v1, one application's ad-hoc
  * escape hatch; this is the framework's own, so every application gets one
@@ -48,17 +46,20 @@ export interface ConsoleExtras<Actions extends ActionsCollection, EntityActions 
      */
     readonly entitiesHandler: EntitiesHandler<any, any>;
     /**
-     * Every route/action registered on the server (§11.1) — the same calls
-     * the UI makes, nothing more. `dagda.routes.publishMessage({ topic,
-     * payload })`. Genuinely enumerable (`Object.keys(dagda.routes)`, tab
-     * completion): backed by the manifest the server sends at boot, not an
-     * empty proxy target.
-     *
-     * Always includes the framework's own actions (account management,
-     * §11.4) on top of whatever the application declared — accounts are
-     * Dagda's territory, not something every application redeclares.
+     * The framework's own routes/actions (§5 refactor) — account management,
+     * preferences, settings, `getSystemInfo`, ... — never something an
+     * application declares itself. `dagda.system.listUsers()`. Genuinely
+     * enumerable (`Object.keys(dagda.system)`, tab completion): backed by the
+     * manifest the server sends at boot, not an empty proxy target.
      */
-    readonly routes: { [Name in keyof AllActions<Actions>]: AllActions<Actions>[Name] };
+    readonly system: DagdaActions;
+    /**
+     * The application's own routes/actions, registered via `registerAPI`/
+     * `registerAction` server-side (§5 refactor) — the same calls the UI
+     * makes, nothing more. `dagda.api.publishMessage({ topic, payload })`.
+     * Same enumerability as `dagda.system`.
+     */
+    readonly api: Actions;
     /**
      * Named client-side functions that compose entity changes — declared by
      * the application via `DagdaClient.start({actions: {...}})`. Call with
@@ -74,8 +75,16 @@ export interface ConsoleExtras<Actions extends ActionsCollection, EntityActions 
     help(): void;
 }
 
-function buildRoutesProxy(getRoutes: () => SystemInfoRoute[]): Record<string, (...args: unknown[]) => Promise<unknown>> {
-    const findEntry = (name: string): SystemInfoRoute | undefined => getRoutes().find((route) => route.name === name);
+/**
+ * Builds a proxy over every manifest entry of the given origin — `"system"`
+ * for `dagda.system`, `"app"` for `dagda.api` (§5 refactor). Same shape
+ * either way: dispatches a `"route"`-kind entry through `apiCall`, an
+ * `"action"`-kind one through `actionCall`.
+ */
+function buildManifestProxy(getRoutes: () => SystemInfoRoute[], origin: ManifestOrigin): Record<string, (...args: unknown[]) => Promise<unknown>> {
+    const listEntries = (): SystemInfoRoute[] => getRoutes().filter((route) => route.origin === origin);
+    const findEntry = (name: string): SystemInfoRoute | undefined => listEntries().find((route) => route.name === name);
+    const label = origin === "system" ? "dagda.system" : "dagda.api";
     return new Proxy({}, {
         get: (_target, prop: string | symbol) => {
             if (typeof prop !== "string") {
@@ -84,14 +93,14 @@ function buildRoutesProxy(getRoutes: () => SystemInfoRoute[]): Record<string, (.
             return async (...args: unknown[]) => {
                 const entry = findEntry(prop);
                 if (entry == null) {
-                    throw new Error(`Unknown route: "${prop}" — not registered on the server (check dagda.help())`);
+                    throw new Error(`Unknown ${label} entry: "${prop}" — not registered on the server (check dagda.help())`);
                 }
                 return entry.kind === "route"
                     ? apiCall(prop as any, {}, ...args as any)
                     : actionCall(prop as any, ...args as any);
             };
         },
-        ownKeys: () => getRoutes().map((route) => route.name),
+        ownKeys: () => listEntries().map((route) => route.name),
         has: (_target, prop) => typeof prop === "string" && findEntry(prop) != null,
         getOwnPropertyDescriptor: (_target, prop) => {
             if (typeof prop !== "string" || findEntry(prop) == null) {
@@ -144,12 +153,15 @@ function buildActionsProxy<EntityActions extends EntityActionsCollection>(
 }
 
 function printHelp(getRoutes: () => SystemInfoRoute[], entityActions: EntityActionsCollection): void {
-    console.group("dagda.routes");
-    for (const route of getRoutes()) {
-        const permission = route.permission != null ? ` (requires "${route.permission}")` : "";
-        console.log(`${route.name}${permission} — ${route.description ?? "no description"}`);
+    for (const [label, origin] of [["dagda.system", "system"], ["dagda.api", "app"]] as const) {
+        console.group(label);
+        for (const route of getRoutes().filter((r) => r.origin === origin)) {
+            const permission = route.permission != null ? ` (requires "${route.permission}")` : "";
+            const external = route.type !== "internal" ? ` [${route.type}]` : "";
+            console.log(`${route.name}${permission}${external} — ${route.description ?? "no description"}`);
+        }
+        console.groupEnd();
     }
-    console.groupEnd();
     console.group("dagda.actions");
     for (const [name, entry] of Object.entries(entityActions)) {
         const declaration = normalizeEntityAction(entry);
@@ -169,7 +181,8 @@ function printWelcomeMessage(): void {
         [
             "window.dagda is ready:",
             "  dagda.<service>                         any registered service, e.g. dagda.pages, dagda.entities",
-            "  dagda.routes.xxx(...)                    call a registered server route/action",
+            "  dagda.system.xxx(...)                    call one of the framework's own routes/actions",
+            "  dagda.api.xxx(...)                       call one of this application's own routes/actions",
             "  dagda.actions.xxx(tr?, ...)              run a named entity-transaction composer (auto-submits without an explicit tr)",
             "  dagda.encapsulate(async (tr) => {...})   open + submit an ad-hoc transaction",
             "  dagda.entitiesHandler                    the entities handler (fetch/getItems/withTransaction/...)",
@@ -187,7 +200,7 @@ export interface InstallConsoleGlobalOptions<EntityActions extends EntityActions
 
 /**
  * Installs `window.dagda`: the same instance every service is already
- * reached through internally, with a few curated extras (`routes`,
+ * reached through internally, with a few curated extras (`system`, `api`,
  * `actions`, `encapsulate`, `help`) added on top — so `window.dagda.pages`,
  * `window.dagda.entities`, ... work exactly like `dagda.pages` in framework
  * code, and a future user script (FEATURES §11.3) reuses this global as-is.
@@ -202,11 +215,13 @@ export function installConsoleGlobal<Actions extends ActionsCollection, EntityAc
     options: InstallConsoleGlobalOptions<EntityActions>
 ): void {
     const entityActions = options.entityActions ?? ({} as EntityActions);
-    const routes = buildRoutesProxy(options.getRoutes) as { [Name in keyof AllActions<Actions>]: AllActions<Actions>[Name] };
+    const system = buildManifestProxy(options.getRoutes, "system") as unknown as DagdaActions;
+    const api = buildManifestProxy(options.getRoutes, "app") as unknown as Actions;
     const actions = buildActionsProxy(entityActions) as { [Name in keyof EntityActions]: (...args: unknown[]) => Promise<unknown> };
 
     Object.assign(dagda, {
-        routes,
+        system,
+        api,
         actions,
         encapsulate,
         help: () => printHelp(options.getRoutes, entityActions)
