@@ -1,7 +1,7 @@
-import { Dagda, DagdaRegistry } from "@dagda/shared/src/dagda";
 import { EntitiesEvents } from "@dagda/shared/src/entities/events";
 import { EventHandlerData, EventHandlerImpl, EventListener } from "@dagda/shared/src/tools/events";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { _setDagda } from "../../app/dagda";
 import { showToast, ToastHost } from "./toast.component";
 
 /**
@@ -30,12 +30,10 @@ describe("ToastHost", () => {
 
     beforeEach(() => {
         document.body.replaceChildren();
-        Dagda.reset(new DagdaRegistry());
     });
 
     afterEach(() => {
         vi.useRealTimers();
-        Dagda.reset(new DagdaRegistry());
     });
 
     it("does nothing when called before any host has connected", () => {
@@ -43,7 +41,7 @@ describe("ToastHost", () => {
     });
 
     it("shows a message passed to show()", async () => {
-        Dagda.init({});
+        _setDagda({} as any);
         const host = new ToastHost();
         document.body.appendChild(host);
         await host.refresh();
@@ -54,7 +52,7 @@ describe("ToastHost", () => {
     });
 
     it("is reachable through showToast() once mounted, from anywhere", async () => {
-        Dagda.init({});
+        _setDagda({} as any);
         const host = new ToastHost();
         document.body.appendChild(host);
         await host.refresh();
@@ -65,7 +63,7 @@ describe("ToastHost", () => {
     });
 
     it("dismisses on click of its close button", async () => {
-        Dagda.init({});
+        _setDagda({} as any);
         const host = new ToastHost();
         document.body.appendChild(host);
         await host.refresh();
@@ -78,7 +76,7 @@ describe("ToastHost", () => {
 
     it("dismisses itself after a delay", async () => {
         vi.useFakeTimers();
-        Dagda.init({});
+        _setDagda({} as any);
         const host = new ToastHost();
         document.body.appendChild(host);
         await host.refresh();
@@ -92,7 +90,7 @@ describe("ToastHost", () => {
 
     it("surfaces a writeFailed from the entities handler, unprompted", async () => {
         const entities = fakeEntities();
-        Dagda.init({ entities: entities.service });
+        _setDagda({ entities: entities.service } as any);
         const host = new ToastHost();
         document.body.appendChild(host);
         await host.refresh();
@@ -103,7 +101,7 @@ describe("ToastHost", () => {
     });
 
     it("defaults to the danger variant when none is passed — every untouched call site keeps its red toast", async () => {
-        Dagda.init({});
+        _setDagda({} as any);
         const host = new ToastHost();
         document.body.appendChild(host);
         await host.refresh();
@@ -114,7 +112,7 @@ describe("ToastHost", () => {
     });
 
     it("shows a success toast when the caller asks for one, through showToast() too", async () => {
-        Dagda.init({});
+        _setDagda({} as any);
         const host = new ToastHost();
         document.body.appendChild(host);
         await host.refresh();
@@ -125,7 +123,7 @@ describe("ToastHost", () => {
     });
 
     it("shows an info toast when asked", async () => {
-        Dagda.init({});
+        _setDagda({} as any);
         const host = new ToastHost();
         document.body.appendChild(host);
         await host.refresh();
@@ -137,7 +135,7 @@ describe("ToastHost", () => {
 
     it("a write failure always renders as danger, never affected by whatever variant a caller last used", async () => {
         const entities = fakeEntities();
-        Dagda.init({ entities: entities.service });
+        _setDagda({ entities: entities.service } as any);
         const host = new ToastHost();
         document.body.appendChild(host);
         await host.refresh();

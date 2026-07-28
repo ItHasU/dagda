@@ -1,7 +1,5 @@
-import { PageService } from "@dagda/client/src/pages/service";
-import { Dagda } from "@dagda/shared/src/dagda";
-import { LogService } from "@dagda/shared/src/tools/log";
-import { BrandInfo, BrandService } from "../../app/brand";
+import { BrandInfo } from "../../app/brand";
+import { dagda } from "../../app/dagda";
 import { isActive, MenuNode } from "../../pages/menu";
 import { AbstractWebComponent, Ref } from "../abstract.webcomponent";
 import template from "./navbar.component.html";
@@ -46,8 +44,8 @@ export class Navbar extends AbstractWebComponent {
     }
 
     protected override async _refresh(): Promise<void> {
-        const pages = Dagda.get<PageService>("pages");
-        this._renderBrand(Dagda.get<BrandService>("brand"));
+        const pages = dagda.pages;
+        this._renderBrand(dagda.brand);
         this._renderGroup(this._primaryGroup, pages.getMenu("primary"), pages.currentPageUID as string | null);
         this._renderGroup(this._secondaryGroup, pages.getMenu("secondary"), pages.currentPageUID as string | null);
         this._renderToggle();
@@ -171,7 +169,7 @@ export class Navbar extends AbstractWebComponent {
         button.title = entry.label;
 
         button.addEventListener("click", () => {
-            this._goTo(entry.target).catch(Dagda.get<LogService>("log").handleError);
+            this._goTo(entry.target).catch(dagda.log.handleError);
         });
         return button;
     }
@@ -196,7 +194,7 @@ export class Navbar extends AbstractWebComponent {
 
     /** Open a page, or refresh it when it is already the current one */
     protected async _goTo(uid: string): Promise<void> {
-        const pages = Dagda.get<PageService>("pages");
+        const pages = dagda.pages;
         if (pages.currentPageUID === uid) {
             await pages.refresh();
             return;

@@ -1,4 +1,3 @@
-import { Dagda } from "../dagda";
 import { NotificationService } from "../notification/service";
 import { OperationType, SQLTransaction } from "../sql/transaction";
 import { Event, EventHandler, EventHandlerData, EventHandlerImpl, EventListener } from "../tools/events";
@@ -46,22 +45,20 @@ export class EntitiesHandler<Tables extends EntitiesTypes, Contexts> implements 
     /** Queue for submit of transactions */
     protected _submitQueue: Queue<void> = new Queue(void (0));
 
-    constructor(protected _model: EntitiesModel<any, any>, protected _comparator: ContextAdapter<Contexts>, protected _persistenceHandler: PersistenceAdapter<Tables, Contexts>) {
-        // The handler is usually built before Dagda.init() has registered the services,
-        // so we cannot look up the notification service right away.
-        // We wait for the services to be available, then subscribe to mark the cache
-        // dirty whenever another client reports a change on a context we hold.
-        // The service is optional: without it the handler simply never goes dirty on its own.
-        Dagda.loaded.then(() => {
-            this._notification()?.on("contextChanged", (event: Event<ContextEvents<Contexts>["contextChanged"]>) => {
-                this.markCacheDirty(...event.data);
-            });
+    constructor(
+        protected _model: EntitiesModel<any, any>,
+        protected _comparator: ContextAdapter<Contexts>,
+        protected _persistenceHandler: PersistenceAdapter<Tables, Contexts>,
+        /**
+         * Subscribed to mark the cache dirty whenever another client reports
+         * a change on a context this handler holds. Optional: without one
+         * the handler simply never goes dirty on its own.
+         */
+        notification?: NotificationService<ContextEvents<Contexts>>["notification"]
+    ) {
+        notification?.on("contextChanged", (event: Event<ContextEvents<Contexts>["contextChanged"]>) => {
+            this.markCacheDirty(...event.data);
         });
-    }
-
-    /** @returns the notification service, or undefined if the application did not register one */
-    protected _notification(): NotificationService<ContextEvents<Contexts>>["notification"] | undefined {
-        return Dagda.get<NotificationService<ContextEvents<Contexts>>>("notification");
     }
 
     //#region Events ----------------------------------------------------------

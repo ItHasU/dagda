@@ -1,8 +1,7 @@
-import { Dagda } from "@dagda/shared/src/dagda";
 import { Event } from "@dagda/shared/src/tools/events";
+import { dagda } from "../../app/dagda";
 import { attachSwipe } from "../../gestures/swipe";
 import { PageEvents } from "../../pages/handler";
-import { PageService } from "../../pages/service";
 import { AbstractWebComponent, Ref } from "../abstract.webcomponent";
 import { Navbar } from "../navbar/navbar.component";
 import template from "./container.component.html";
@@ -67,7 +66,7 @@ export class PageContainer extends AbstractWebComponent {
 
         this._portraitQuery.addEventListener("change", (event) => this._applyLayout(event.matches));
 
-        Dagda.get<PageService>("pages").on("pageChanged", (event: Event<PageEvents["pageChanged"]>) => {
+        dagda.pages.on("pageChanged", (event: Event<PageEvents["pageChanged"]>) => {
             this._page.replaceChildren(event.data.page);
             // Third close trigger (§4.3, "sélection d'une page") — a no-op
             // in landscape, where collapsing on navigation was never asked

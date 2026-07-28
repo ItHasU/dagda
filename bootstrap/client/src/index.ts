@@ -1,16 +1,15 @@
-import { AppTypes } from "@dagda-app/shared/src/app/types";
 import { APP_CONTEXT_ADAPTER } from "@dagda-app/shared/src/entities/contexts";
 import { APP_MODEL } from "@dagda-app/shared/src/entities/model";
 import { DagdaClient } from "@dagda/client/src/app";
 import { GoodbyePage } from "@dagda/client/src/app/goodbye/goodbye.page";
 import { HelloPage } from "@dagda/client/src/app/hello/hello.page";
-import { AppPages } from "./services";
+import { ClientAppTypes } from "./services";
 
 // No component imported for its side effect any more: the framework registers
 // its own custom elements, and `index.html` is down to `<dagda-app>`
 // (specs/navigation.md §6.1).
 
-DagdaClient.start<AppTypes, AppPages>({
+DagdaClient.start<ClientAppTypes>({
     model: APP_MODEL,
     contextAdapter: APP_CONTEXT_ADAPTER,
     title: "Dagda",

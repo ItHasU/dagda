@@ -1,6 +1,6 @@
-import { Dagda, DagdaRegistry } from "@dagda/shared/src/dagda";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AbstractPageElement } from "../../pages/abstract.page.element";
+import { _setDagda } from "../../app/dagda";
 import { PageHandler } from "../../pages/handler";
 import { NAV_COLLAPSED_KEY, PageContainer, PORTRAIT_MAX_WIDTH_PX } from "./container.component";
 // The container's template names them, so they have to be defined.
@@ -32,8 +32,7 @@ async function mount(): Promise<{ container: PageContainer, pages: PageHandler<a
     const pages = new PageHandler<{ [name: string]: AbstractPageElement }>();
     pages.registerPage("home", { title: "Accueil", constructor: StubPage, menu: {} });
 
-    Dagda.reset(new DagdaRegistry());
-    Dagda.init({ pages, brand: { label: "Test" }, log: { handleError: (): void => { } } });
+    _setDagda({ pages, brand: { label: "Test" }, log: { handleError: (): void => { } } } as any);
 
     const container = new PageContainer();
     document.body.appendChild(container);
@@ -46,10 +45,6 @@ describe("PageContainer", () => {
     beforeEach(() => {
         document.body.replaceChildren();
         window.localStorage.clear();
-    });
-
-    afterEach(() => {
-        Dagda.reset(new DagdaRegistry());
     });
 
     it("starts deployed when nothing has been remembered", async () => {

@@ -1,6 +1,6 @@
-import { Dagda, DagdaRegistry } from "@dagda/shared/src/dagda";
 import { Event, EventListener } from "@dagda/shared/src/tools/events";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+import { dagdaReady, _setDagda } from "../app/dagda";
 import { AbstractPageElement } from "./abstract.page.element";
 import { PageHandler } from "./handler";
 
@@ -44,10 +44,6 @@ function fakeEntities(): { service: { getHandler: () => { on: (name: string, lis
 
 describe("PageHandler", () => {
 
-    afterEach(() => {
-        Dagda.reset(new DagdaRegistry());
-    });
-
     beforeEach(() => {
         CountingPage.refreshCount = 0;
     });
@@ -61,13 +57,10 @@ describe("PageHandler", () => {
         });
 
         it("reflects the flag declared by the current page", async () => {
-            // Reset before construction: PageHandler captures Dagda.loaded at
-            // that point, and it must be the registry init() is about to settle.
-            Dagda.reset(new DagdaRegistry());
             const pages = new PageHandler<{ counting: CountingPage, other: OtherPage }>();
             pages.registerPage("counting", { title: "Counting", constructor: CountingPage, autoRefresh: true });
             pages.registerPage("other", { title: "Other", constructor: OtherPage });
-            Dagda.init({ pages });
+            _setDagda({ pages } as any);
 
             await pages.setPage("counting");
             expect(pages.isCurrentPageAutoRefresh()).toBe(true);
@@ -81,12 +74,11 @@ describe("PageHandler", () => {
     describe("auto-refresh on a dirty cache", () => {
 
         it("refreshes the current page when it declared autoRefresh", async () => {
-            Dagda.reset(new DagdaRegistry());
             const pages = new PageHandler<{ counting: CountingPage }>();
             pages.registerPage("counting", { title: "Counting", constructor: CountingPage, autoRefresh: true });
             const entities = fakeEntities();
-            Dagda.init({ pages, entities: entities.service });
-            await Dagda.loaded;
+            _setDagda({ pages, entities: entities.service } as any);
+            await dagdaReady;
 
             await pages.setPage("counting");
             const before = CountingPage.refreshCount;
@@ -98,12 +90,11 @@ describe("PageHandler", () => {
         });
 
         it("leaves a page without autoRefresh to the indicator", async () => {
-            Dagda.reset(new DagdaRegistry());
             const pages = new PageHandler<{ other: OtherPage }>();
             pages.registerPage("other", { title: "Other", constructor: OtherPage });
             const entities = fakeEntities();
-            Dagda.init({ pages, entities: entities.service });
-            await Dagda.loaded;
+            _setDagda({ pages, entities: entities.service } as any);
+            await dagdaReady;
 
             await pages.setPage("other");
             entities.fire(true);
@@ -116,12 +107,11 @@ describe("PageHandler", () => {
         });
 
         it("does not refresh again while the cache is still dirty", async () => {
-            Dagda.reset(new DagdaRegistry());
             const pages = new PageHandler<{ counting: CountingPage }>();
             pages.registerPage("counting", { title: "Counting", constructor: CountingPage, autoRefresh: true });
             const entities = fakeEntities();
-            Dagda.init({ pages, entities: entities.service });
-            await Dagda.loaded;
+            _setDagda({ pages, entities: entities.service } as any);
+            await dagdaReady;
 
             await pages.setPage("counting");
             entities.fire(true);

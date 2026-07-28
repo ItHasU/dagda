@@ -73,6 +73,8 @@ export type IdFieldDefinition<Types> = {
 
 /** Mapping of FieldType to its TypeDefinition */
 export type FieldTypesDefinition = Record<string, FieldTypeDefinition<JSTypes, any>>;
+/** Mapping of FieldType to the branded JS type it resolves to — what `EntitiesModel.fieldTypes` (and `BaseAppTypes["fieldTypes"]`) exposes */
+export type NamedFieldTypes<FieldTypes extends FieldTypesDefinition> = { [K in keyof FieldTypes]: NamedType<K, FieldTypes[K]> };
 /** Mapping of fields types for each table */
 export type TablesFieldsDefinition<FieldTypes extends FieldTypesDefinition, Tables extends string | symbol | number> = Record<Tables, {
     id: IdFieldDefinition<FieldTypes>;
@@ -142,7 +144,7 @@ export class EntitiesModel<
         return undefined as any;
     }
 
-    public get fieldTypes(): { [K in keyof FieldTypes]: NamedType<K, FieldTypes[K]> } {
+    public get fieldTypes(): NamedFieldTypes<FieldTypes> {
         return undefined as any;
     }
 

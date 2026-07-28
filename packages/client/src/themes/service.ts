@@ -30,7 +30,7 @@ export const DAGDA_THEMES: ThemeInfo[] = [
  */
 export const THEME_STORAGE_KEY = "dagda.theme";
 
-/** What `Dagda.get<ThemeService>("themes")` exposes */
+/** What `dagda.themes` exposes */
 export interface ThemeService {
     themes: ThemeRegistry;
 }
@@ -38,7 +38,7 @@ export interface ThemeService {
 /**
  * The available themes and the current choice (ROADMAP tranche 4).
  *
- * Reachable via `Dagda.get<ThemeService>("themes")`. Mirror-only when no app
+ * Reachable via `dagda.themes`. Mirror-only when no app
  * declares a preference key — `set()` still switches the theme and writes
  * the mirror, it just never round-trips to the server, which is the right
  * default: Dagda must not hardcode a preference key the app never declared

@@ -6,13 +6,10 @@ import "../themes/boot";
 import { EntitiesAPI } from "@dagda/shared/src/api/impl/entities.api";
 import { SystemAPI, SystemInfo } from "@dagda/shared/src/api/impl/system.api";
 import { BaseAppTypes } from "@dagda/shared/src/app/types";
-import { AuthEvents } from "@dagda/shared/src/auth/events";
 import { UserInfo } from "@dagda/shared/src/auth/types";
-import { Dagda } from "@dagda/shared/src/dagda";
-import { NotificationService } from "@dagda/shared/src/notification/service";
+import { BaseServicesParams } from "@dagda/shared/src/dagda";
 import { EntitiesModel } from "@dagda/shared/src/entities/model";
 import { ContextAdapter } from "@dagda/shared/src/entities/tools/adapters";
-import { buildBaseServices } from "@dagda/shared/src/services";
 import Handlebars from "handlebars";
 import { DagdaActions } from "@dagda/shared/src/auth/actions";
 import { apiCall } from "../api";
@@ -26,7 +23,7 @@ import { AuthServiceImpl } from "../auth/auth.service";
 import { UsersDirectory } from "../auth/directory";
 import { ClientNotificationImpl } from "../notification/notification.impl";
 import { PreferencesDirectory } from "../preferences/directory";
-import { BasePageTypes, PageHandler, PageInfo } from "../pages/handler";
+import { PageHandler, PageInfo } from "../pages/handler";
 import { buildDefaultPages, DefaultPageTypes } from "../pages/defaults";
 import { SectionInfo } from "../pages/menu";
 import { Router } from "../pages/router";
@@ -34,6 +31,7 @@ import { DAGDA_THEMES, ThemeInfo, ThemeRegistry } from "../themes/service";
 import { SettingsModel } from "@dagda/shared/src/settings/model";
 import { BrandInfo } from "./brand";
 import { installConsoleGlobal } from "./console";
+import { ClientAppTypes, ClientDagda, ClientOwnServicesParams, dagda, _setDagda } from "./dagda";
 import { EntityActionsCollection } from "./entity-actions";
 import { SQLTransaction } from "@dagda/shared/src/sql/transaction";
 import headerTemplate from "./index.header.html";
@@ -41,11 +39,8 @@ import headerTemplate from "./index.header.html";
 // shell, in that order (FEATURES §8).
 import "../styles/index.css";
 
-export interface BaseClientAppTypes extends BaseAppTypes {
-}
-
 /** What an application hands to DagdaClient.start() */
-export interface ClientStartParams<AppTypes extends BaseClientAppTypes, PageTypes extends BasePageTypes> {
+export interface ClientStartParams<AppTypes extends ClientAppTypes> {
     /** The application entities model */
     model: EntitiesModel<any, any>;
     /** How two contexts compare */
@@ -59,7 +54,7 @@ export interface ClientStartParams<AppTypes extends BaseClientAppTypes, PageType
      * relationship `themes` already has with `DAGDA_THEMES`.
      */
     pages:
-        { [Name in keyof PageTypes]: PageInfo<PageTypes[Name]> }
+        { [Name in keyof AppTypes["pages"]]: PageInfo<AppTypes["pages"][Name]> }
         & Partial<{ [Name in keyof DefaultPageTypes]: PageInfo<DefaultPageTypes[Name]> }>;
     /**
      * Menu sections the pages hang from, keyed by the name pages refer to.
@@ -78,8 +73,6 @@ export interface ClientStartParams<AppTypes extends BaseClientAppTypes, PageType
     brand?: BrandInfo;
     /** Title of the document */
     title?: string;
-    /** Services of the application, registered next to the framework's */
-    services?: Record<string, unknown>;
     /**
      * Themes the shell may switch to (ROADMAP tranche 4), replacing the
      * framework's own `DAGDA_THEMES` — "la liste déclarée dans le code
@@ -92,16 +85,16 @@ export interface ClientStartParams<AppTypes extends BaseClientAppTypes, PageType
      * The preference key the theme choice is stored under, declared by the
      * application's own `PreferencesModel` (FEATURES §11.6) — Dagda cannot
      * hardcode one that does not exist until the app declares it. Absent,
-     * `Dagda.get<ThemeService>("themes")` still switches the theme and
-     * remembers it locally, it just never round-trips to the server.
+     * `dagda.themes` still switches the theme and remembers it locally, it
+     * just never round-trips to the server.
      */
     themePreferenceKey?: string;
     /**
      * The application's declared system settings (Dagda FEATURES §11.5),
-     * consumed by the framework's `SettingsPage` (`Dagda.get<SettingsService>
-     * ("settingsModel")`) — optional since not every application registers
-     * that page. Same "app supplies a config value the framework's own page
-     * reads" shape as `themePreferenceKey` above.
+     * consumed by the framework's `SettingsPage` (`dagda.settingsModel`) —
+     * optional since not every application registers that page. Same "app
+     * supplies a config value the framework's own page reads" shape as
+     * `themePreferenceKey` above.
      */
     settings?: SettingsModel<any>;
     /**
@@ -111,6 +104,19 @@ export interface ClientStartParams<AppTypes extends BaseClientAppTypes, PageType
      * `EntityActionsCollection`'s own doc comment for the difference).
      */
     actions?: EntityActionsCollection<SQLTransaction<AppTypes["entities"], AppTypes["contexts"]>>;
+    /**
+     * Builds the application's `dagda` instance from the framework's base
+     * parameters (FEATURES §0). An application that registers its own
+     * services — the list is constant, declared once — supplies its own
+     * `ClientDagda` subclass here instead of merging a dictionary into a
+     * shared one:
+     * ```ts
+     * buildDagda: (params) => new AppDagda({ ...params, mqtt: new MqttApi() })
+     * ```
+     * Defaults to `new ClientDagda(params)` for an application with nothing
+     * of its own to register.
+     */
+    buildDagda?: (params: BaseServicesParams<AppTypes> & ClientOwnServicesParams<AppTypes>) => ClientDagda<AppTypes>;
 }
 
 /**
@@ -143,14 +149,14 @@ export class DagdaClient {
      * only ever repeated the same four lines (FEATURES §0). All it declares
      * here is what belongs to it: its model, its contexts and its pages.
      */
-    public static async start<AppTypes extends BaseClientAppTypes, PageTypes extends BasePageTypes>(
-        params: ClientStartParams<AppTypes, PageTypes>
+    public static async start<AppTypes extends ClientAppTypes>(
+        params: ClientStartParams<AppTypes>
     ): Promise<void> {
-        // -- Register the services --
-        // Everything goes in a single Dagda.init(): registering resolves
-        // Dagda.loaded, which every component waits on, so no service may be
-        // missing by the time the first one wakes up.
-        const pageHandler = new PageHandler<PageTypes & DefaultPageTypes>();
+        // -- Build the services --
+        // Everything goes into a single ClientDagda/AppDagda construction:
+        // nothing reads `dagda` before this function returns, so no service
+        // may be missing by the time the first component wakes up.
+        const pageHandler = new PageHandler<AppTypes["pages"] & DefaultPageTypes>();
         // Defaults first, the application's own `pages` spread on top: an
         // app that declares its own `preferences`/`users`/`roles`/`settings`
         // entry overrides the default for that key instead of colliding
@@ -178,22 +184,22 @@ export class DagdaClient {
         // every page is registered and the account is known (canAccess must
         // already answer correctly, or a deep link to a page the account
         // cannot see would silently open it before the permission is loaded).
-        const router = new Router<PageTypes & DefaultPageTypes>(pageHandler);
+        const router = new Router<AppTypes["pages"] & DefaultPageTypes>(pageHandler);
 
         // The user directory (ROADMAP tranche 3): built here so it is
-        // reachable via Dagda.get("users") from the first render, loaded
-        // below once the shell's own bootstrap calls are underway.
+        // reachable via dagda.users from the first render, loaded below once
+        // the shell's own bootstrap calls are underway.
         const users = new UsersDirectory(() => actionCall<DagdaActions, "listUserNames">("listUserNames"));
 
-        // The auth service (ROADMAP tranche 3): reachable via Dagda.get("auth")
-        // from the first render, same placement as `users` above. It is a thin
+        // The auth service (ROADMAP tranche 3): reachable via dagda.auth from
+        // the first render, same placement as `users` above. It is a thin
         // accessor over `DagdaClient` itself (see auth.service.ts) — no load()
         // step, since there is nothing here that isn't already read by
         // refreshSystemInfo() below.
         const auth = new AuthServiceImpl();
 
         // The preferences (ROADMAP tranche 3, FEATURES §11.6): reachable via
-        // Dagda.get("preferences") from the first render, same placement as
+        // dagda.preferences from the first render, same placement as
         // `users`/`auth` above, loaded below alongside them.
         const preferences = new PreferencesDirectory(
             () => actionCall<DagdaActions, "getPreferences">("getPreferences"),
@@ -201,20 +207,19 @@ export class DagdaClient {
         );
 
         // Themes (ROADMAP tranche 4): built here, after `preferences` exists
-        // (it reads/writes through it) and before Dagda.init() registers it.
-        // `reconcile()` runs later, once preferences.load() has resolved.
+        // (it reads/writes through it) and before the dagda instance is built
+        // below. `reconcile()` runs later, once preferences.load() has resolved.
         const themes = new ThemeRegistry(params.themes ?? DAGDA_THEMES, preferences, params.themePreferenceKey);
 
-        Dagda.init({
-            ...buildBaseServices<AppTypes["entities"], AppTypes["contexts"], AppTypes["events"]>({
-                model: params.model,
-                contextAdapter: params.contextAdapter,
-                persistence: {
-                    fetch: (context) => apiCall<EntitiesAPI<AppTypes["contexts"], AppTypes["entities"]>, "fetch">("fetch", {}, context),
-                    submit: (data) => apiCall<EntitiesAPI<AppTypes["contexts"], AppTypes["entities"]>, "submit">("submit", {}, data)
-                },
-                notification: new ClientNotificationImpl<AppTypes["events"]>()
-            }),
+        const buildDagda = params.buildDagda ?? ((p: BaseServicesParams<AppTypes> & ClientOwnServicesParams<AppTypes>) => new ClientDagda<AppTypes>(p));
+        _setDagda(buildDagda({
+            model: params.model,
+            contextAdapter: params.contextAdapter,
+            persistence: {
+                fetch: (context) => apiCall<EntitiesAPI<AppTypes["contexts"], AppTypes["entities"]>, "fetch">("fetch", {}, context),
+                submit: (data) => apiCall<EntitiesAPI<AppTypes["contexts"], AppTypes["entities"]>, "submit">("submit", {}, data)
+            },
+            notification: new ClientNotificationImpl<AppTypes["events"]>(),
             pages: pageHandler,
             router,
             users,
@@ -222,9 +227,8 @@ export class DagdaClient {
             preferences,
             themes,
             brand: params.brand ?? { label: params.title ?? "Dagda" },
-            ...(params.settings != null ? { settingsModel: params.settings } : {}),
-            ...(params.services ?? {})
-        });
+            settingsModel: params.settings
+        }));
 
         // -- Console global (FEATURES §11.2) --
         // getRoutes reads the manifest lazily: it only arrives once
@@ -276,7 +280,7 @@ export class DagdaClient {
             // would render this session's identity. `user` is never null
             // here: the route refuses an anonymous call, so a resolved
             // SystemInfo always carries one.
-            Dagda.get<NotificationService<AuthEvents>>("notification").notifyLocal("userInfoChanged", this._systemInfo.user);
+            dagda.notification.notifyLocal("userInfoChanged", this._systemInfo.user);
         } catch (err) {
             console.error("Error while reading system information", err);
             this._systemInfo = null;

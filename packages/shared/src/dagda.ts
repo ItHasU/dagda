@@ -1,96 +1,97 @@
-type BaseServices = {
-    [serviceName: string]: any;
-}
+import { BaseAppTypes } from "./app/types";
+import { EntitiesHandler } from "./entities/handler";
+import { EntitiesModel } from "./entities/model";
+import { EntitiesService } from "./entities/service";
+import { ContextAdapter, PersistenceAdapter } from "./entities/tools/adapters";
+import { EntitiesTypes } from "./entities/types";
+import { NotificationService } from "./notification/service";
+import { buildConsoleLogService, LogService } from "./tools/log";
 
 /**
- * A set of services, addressed by name.
+ * Build the entities service around a handler.
  *
- * Applications never build one themselves: they go through the static `Dagda`
- * facade below, which holds the registry of the running application. This class
- * exists so that a test can work on a registry of its own instead of reaching
- * into module state.
+ * The handler itself is side-independent — it is the whole point of the shared
+ * package — so only the persistence adapter tells the client and the server apart.
  */
-export class DagdaRegistry {
+export function buildEntitiesService<Entities extends EntitiesTypes, Contexts>(
+    model: EntitiesModel<any, any>,
+    contextAdapter: ContextAdapter<Contexts>,
+    persistence: PersistenceAdapter<Entities, Contexts>,
+    options?: { handlerPerCall?: boolean; notification?: NotificationService<any>["notification"] }
+): EntitiesService<Entities, Contexts>["entities"] {
+    const build = (): EntitiesHandler<Entities, Contexts> =>
+        new EntitiesHandler<Entities, Contexts>(model, contextAdapter, persistence, options?.notification as any);
 
-    /** One entry per registered service, keyed by name */
-    private readonly _services: { [name: string]: any } = {};
-
-    /** Resolver of `loaded`. Assigned by the promise executor just below. */
-    private _resolveLoaded: () => void = () => { };
-
-    /** Resolves once init() has been called at least once on this registry */
-    public readonly loaded: Promise<void> = new Promise<void>((resolve) => {
-        this._resolveLoaded = resolve;
-    });
-
-    /**
-     * Register services.
-     * Calling it several times adds to the registry rather than replacing it,
-     * so an application can declare its services in several places.
-     */
-    public init<Services extends BaseServices>(services: Services): void {
-        for (const [name, service] of Object.entries(services)) {
-            this._services[name] = service;
-        }
-        this._resolveLoaded();
+    if (options?.handlerPerCall) {
+        return { getHandler: build };
     }
+    // One handler for the whole session: its synchronous cache is what the
+    // components read while rendering.
+    const handler = build();
+    return { getHandler: () => handler };
+}
 
+/** Parameters needed to build the base services every Dagda application receives, whichever side it runs on */
+export interface BaseServicesParams<AppTypes extends BaseAppTypes> {
+    /** The application entities model */
+    model: EntitiesModel<any, any>;
+    /** How two contexts compare */
+    contextAdapter: ContextAdapter<AppTypes["contexts"]>;
+    /** Where the data comes from and goes to: an API call on the client, SQL on the server */
+    persistence: PersistenceAdapter<AppTypes["entities"], AppTypes["contexts"]>;
+    /** The transport of the notifications: a websocket client or a websocket server */
+    notification: NotificationService<AppTypes["events"]>["notification"];
     /**
-     * @returns the service registered under this name.
-     * The caller states which services it expects, which is what gives the
-     * typing: asking for a name outside that set is a compile error.
+     * Build a new handler on every call instead of sharing one.
+     * The server needs it: two requests must never share a cache, since the
+     * cache is scoped to what one user is allowed to see.
      */
-    public get<Services extends BaseServices>(name: keyof Services): Services[keyof Services] {
-        return this._services[name as string];
-    }
-
+    handlerPerCall?: boolean;
+    /** Replaces the default console logger */
+    log?: LogService["log"];
 }
 
 /**
- * Entry point to the services, shared by the client and the server.
+ * The services every Dagda application receives, whichever side it runs on:
+ * `log`, `entities` and `notification`. An application never builds them
+ * itself — the framework does, on both sides (FEATURES §0, "les services de
+ * base sont autonomes"). What differs between the client and the server is
+ * only how data is persisted and how notifications travel, which is why both
+ * are constructor parameters.
  *
- * Static on purpose: a component reaches a service by name, without being
- * handed a reference through its whole call chain.
+ * `ClientDagda`/`ServerDagda` extend this with what belongs to their side.
+ * An application then extends one of those with its own services — the list
+ * is constant per application (FEATURES §0), so each one is a named, typed
+ * field rather than an entry in a dictionary reached through `get(name)`.
  *
  * ```ts
- * Dagda.init<ClientServices>({ log, notification, entities, pages });
- * const pages = Dagda.get<PageService>("pages");
+ * class AppDagda extends ClientDagda<AppTypes> {
+ *     public readonly mqtt: MqttService;
+ *     constructor(params: BaseServicesParams<AppTypes> & ClientOwnServicesParams<AppTypes> & { mqtt: MqttService }) {
+ *         super(params);
+ *         this.mqtt = params.mqtt;
+ *     }
+ * }
+ * export let dagda: AppDagda;
+ * // ... at bootstrap, once every parameter is known:
+ * dagda = new AppDagda({ ... });
  * ```
  */
-export class Dagda {
+export class Dagda<AppTypes extends BaseAppTypes = BaseAppTypes> {
 
-    /** Registry of the running application */
-    private static _registry: DagdaRegistry = new DagdaRegistry();
+    public readonly log: LogService["log"];
+    public readonly entities: EntitiesService<AppTypes["entities"], AppTypes["contexts"]>["entities"];
+    public readonly notification: NotificationService<AppTypes["events"]>["notification"];
 
-    /** @see DagdaRegistry.loaded */
-    public static get loaded(): Promise<void> {
-        return this._registry.loaded;
-    }
-
-    /** @see DagdaRegistry.init */
-    public static init<Services extends BaseServices>(services: Services): void {
-        this._registry.init(services);
-    }
-
-    /** @see DagdaRegistry.get */
-    public static get<Services extends BaseServices>(name: keyof Services): Services[keyof Services] {
-        return this._registry.get<Services>(name);
-    }
-
-    /**
-     * Install a registry in place of the current one, for tests.
-     *
-     * Note that whoever is already awaiting the previous `Dagda.loaded` keeps
-     * awaiting that one: a promise cannot be taken back. This swaps what the
-     * *next* readers see, which is what a test between two cases needs.
-     *
-     * @param registry the registry to install, a fresh one by default
-     * @returns the registry that was replaced, so a test can put it back
-     */
-    public static reset(registry: DagdaRegistry = new DagdaRegistry()): DagdaRegistry {
-        const previous = this._registry;
-        this._registry = registry;
-        return previous;
+    constructor(params: BaseServicesParams<AppTypes>) {
+        this.log = params.log ?? buildConsoleLogService();
+        this.entities = buildEntitiesService<AppTypes["entities"], AppTypes["contexts"]>(
+            params.model,
+            params.contextAdapter,
+            params.persistence,
+            { handlerPerCall: params.handlerPerCall, notification: params.notification as any }
+        );
+        this.notification = params.notification;
     }
 
 }

@@ -1,6 +1,6 @@
-import { Dagda } from "@dagda/shared/src/dagda";
 import { beforeAll, describe, expect, it } from "vitest";
 import { GoodbyePage } from "../app/goodbye/goodbye.page";
+import { _setDagda } from "../app/dagda";
 import { AbstractWebComponent, Attribute, camelToKebabCase, NumberMarshaller, Ref } from "./abstract.webcomponent";
 
 /** A component with a template holding a ref and two slots */
@@ -45,8 +45,8 @@ customElements.define("sample-component", SampleComponent);
 describe("AbstractWebComponent", () => {
 
     beforeAll(() => {
-        // refresh() waits on Dagda.loaded, which never settles without an init().
-        Dagda.init({});
+        // refresh() waits on dagdaReady, which never settles without a dagda instance.
+        _setDagda({} as any);
     });
 
     it("renders its template on construction", () => {

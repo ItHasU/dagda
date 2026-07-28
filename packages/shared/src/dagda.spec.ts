@@ -1,116 +1,59 @@
-import { describe, expect, it } from "vitest";
-import { Dagda, DagdaRegistry } from "./dagda";
+import { describe, expect, it, vi } from "vitest";
+import { BaseAppTypes } from "./app/types";
+import { Dagda } from "./dagda";
+import { TestContext, TestContextAdapter, TestPersistanceAdapter } from "./entities/impl/test.adapters";
+import { EntitiesHandler } from "./entities/handler";
+import { TEST_MODEL } from "./entities/_data";
 
-type StringService = {
-    str: () => string;
+type TablesFields = typeof TEST_MODEL.tablesFields;
+
+interface TestAppTypes extends BaseAppTypes {
+    entities: TablesFields;
+    contexts: TestContext<keyof TablesFields>;
 }
 
-type NumberService = {
-    num: () => number;
-}
-
-type MixedService = {
-    str: () => string;
-    num: () => number;
+function buildParams() {
+    return {
+        model: TEST_MODEL,
+        contextAdapter: new TestContextAdapter(),
+        persistence: new TestPersistanceAdapter<TablesFields>(TEST_MODEL),
+        notification: { on: vi.fn(), broadcast: vi.fn(), notifyLocal: vi.fn() }
+    };
 }
 
 describe("Dagda", () => {
 
-    it("can register one service", () => {
-        Dagda.init<StringService>({
-            str: () => "result",
-        });
-        expect(Dagda.get<StringService>("str")()).toBe("result");
+    it("assigns the given notification service as a real property", () => {
+        const params = buildParams();
+        const dagda = new Dagda<TestAppTypes>(params);
+        expect(dagda.notification).toBe(params.notification);
     });
 
-    it("can register another service", () => {
-        Dagda.init<NumberService>({
-            num: () => 42,
-        });
-        expect(Dagda.get<NumberService>("num")()).toBe(42);
+    it("builds the entities service around the given model/contextAdapter/persistence", () => {
+        const dagda = new Dagda<TestAppTypes>(buildParams());
+        expect(dagda.entities.getHandler()).toBeInstanceOf(EntitiesHandler);
     });
 
-    it("can register both services", () => {
-        Dagda.init<MixedService>({
-            str: () => "result",
-            num: () => 42,
-        });
-        expect(Dagda.get<MixedService>("str")()).toBe("result");
-        expect(Dagda.get<MixedService>("num")()).toBe(42);
-        expect(Dagda.get<StringService>("str")()).toBe("result");
-        expect(Dagda.get<NumberService>("num")()).toBe(42);
+    it("defaults log to the console logger when none is given", () => {
+        const dagda = new Dagda<TestAppTypes>(buildParams());
+        expect(dagda.log.log).toBeTypeOf("function");
+        expect(dagda.log.handleError).toBeTypeOf("function");
     });
 
-    it("can access a restricted set of services", () => {
-        Dagda.init<MixedService>({
-            str: () => "result",
-            num: () => 42,
-        });
-        expect(Dagda.get<StringService>("str")()).toBe("result");
-        expect(Dagda.get<NumberService>("num")()).toBe(42);
+    it("uses the given log instead of the default when provided", () => {
+        const log = { log: vi.fn(), handleError: vi.fn() };
+        const dagda = new Dagda<TestAppTypes>({ ...buildParams(), log });
+        expect(dagda.log).toBe(log);
     });
 
-    it("resolves loaded only once init has been called", async () => {
-        // The tests above have already called init(), so the running registry is
-        // settled by now. A fresh one is the only way to observe that `loaded`
-        // stays pending until init().
-        const registry = new DagdaRegistry();
-
-        let resolved = false;
-        registry.loaded.then(() => {
-            resolved = true;
-        });
-        // Let any already-queued microtask run: if `loaded` were resolved,
-        // the flag would be set by now.
-        await Promise.resolve();
-        expect(resolved, "loaded must not resolve before init()").toBe(false);
-
-        registry.init<MixedService>({
-            str: () => "result",
-            num: () => 42,
-        });
-        await registry.loaded;
-        expect(resolved).toBe(true);
+    it("shares one entities handler across calls by default", () => {
+        const dagda = new Dagda<TestAppTypes>(buildParams());
+        expect(dagda.entities.getHandler()).toBe(dagda.entities.getHandler());
     });
 
-    it("fails when trying to access a service that doesn't exist", () => {
-        Dagda.init<MixedService>({
-            str: () => "result",
-            num: () => 42,
-        });
-        expect(() => {
-            Dagda.get<{ nonExistent: () => {} }>("nonExistent")();
-        }).toThrow();
-    });
-
-});
-
-describe("DagdaRegistry", () => {
-
-    it("keeps two registries independent", () => {
-        const first = new DagdaRegistry();
-        const second = new DagdaRegistry();
-
-        first.init<StringService>({ str: () => "first" });
-        second.init<StringService>({ str: () => "second" });
-
-        expect(first.get<StringService>("str")()).toBe("first");
-        expect(second.get<StringService>("str")()).toBe("second");
-    });
-
-    it("lets a test install its own registry and put the previous one back", () => {
-        Dagda.init<StringService>({ str: () => "running" });
-
-        const previous = Dagda.reset();
-        try {
-            Dagda.init<StringService>({ str: () => "isolated" });
-            expect(Dagda.get<StringService>("str")()).toBe("isolated");
-        } finally {
-            Dagda.reset(previous);
-        }
-
-        // The isolated registry left no trace on the running one.
-        expect(Dagda.get<StringService>("str")()).toBe("running");
+    it("builds a new entities handler on every call when handlerPerCall is set", () => {
+        const dagda = new Dagda<TestAppTypes>({ ...buildParams(), handlerPerCall: true });
+        expect(dagda.entities.getHandler()).not.toBe(dagda.entities.getHandler());
     });
 
 });

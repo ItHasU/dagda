@@ -1,7 +1,6 @@
 import { GoodbyePage } from "@dagda/client/src/app/goodbye/goodbye.page";
 import { HelloPage } from "@dagda/client/src/app/hello/hello.page";
-import { PageService } from "@dagda/client/src/pages/service";
-import { SharedServices } from "@dagda-app/shared/src/services";
+import { AppTypes } from "@dagda-app/shared/src/app/types";
 
 /**
  * The pages of the application.
@@ -14,8 +13,7 @@ export type AppPages = {
     "goodbye": GoodbyePage;
 };
 
-/** Custom page service */
-export type AppPageService = PageService<AppPages>;
-
-/** All services available from the client */
-export type ClientServices = SharedServices & AppPageService;
+/** The application's contract, `pages` included (FEATURES §0) */
+export interface ClientAppTypes extends AppTypes {
+    pages: AppPages;
+}

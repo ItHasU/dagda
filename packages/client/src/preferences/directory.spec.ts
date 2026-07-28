@@ -1,7 +1,5 @@
-import { Dagda, DagdaRegistry } from "@dagda/shared/src/dagda";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { PreferencesDirectory } from "./directory";
-import { PreferencesService } from "./service";
 
 /**
  * The client-side preferences (ROADMAP tranche 3, FEATURES §11.6): loaded
@@ -11,10 +9,6 @@ import { PreferencesService } from "./service";
  */
 
 describe("PreferencesDirectory", () => {
-
-    afterEach(() => {
-        Dagda.reset(new DagdaRegistry());
-    });
 
     it("answers undefined before the initial load resolves", () => {
         const preferences = new PreferencesDirectory(async () => ({ theme: "light" }), async () => { });
@@ -66,13 +60,6 @@ describe("PreferencesDirectory", () => {
         const preferences = new PreferencesDirectory(async () => ({ theme: "light" }), async () => { });
         await preferences.set("compactView", true);
         expect(preferences.get("compactView")).toBe(true);
-    });
-
-    it("is reachable via Dagda.get(\"preferences\") once registered", async () => {
-        const preferences = new PreferencesDirectory(async () => ({ theme: "dark" }), async () => { });
-        await preferences.load();
-        Dagda.init({ preferences });
-        expect(Dagda.get<PreferencesService>("preferences").get("theme")).toBe("dark");
     });
 
 });

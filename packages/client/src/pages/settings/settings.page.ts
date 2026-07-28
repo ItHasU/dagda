@@ -8,16 +8,11 @@ import "@dagda/client/src/forms/form.component";
 import { DagdaForm, FormSubmitDetail } from "@dagda/client/src/forms/form.component";
 import { AbstractPageElement } from "@dagda/client/src/pages/abstract.page.element";
 import { DagdaActions } from "@dagda/shared/src/auth/actions";
-import { Dagda } from "@dagda/shared/src/dagda";
 import { EntitiesModel } from "@dagda/shared/src/entities/model";
 import { SettingsModel } from "@dagda/shared/src/settings/model";
 import { FormFieldDeclaration } from "@dagda/shared/src/forms/types";
+import { dagda } from "../../app/dagda";
 import template from "./settings.page.html";
-
-/** What `Dagda.get<SettingsService>("settingsModel")` exposes */
-export interface SettingsService {
-    settingsModel: SettingsModel<any>;
-}
 
 /**
  * System settings editing screen (Dagda FEATURES §11.5, ROADMAP tranche 3),
@@ -26,9 +21,9 @@ export interface SettingsService {
  * exactly its shape.
  *
  * Field declarations come straight from the application's own `SettingsModel`
- * (`Dagda.get<SettingsModel<any>>("settingsModel")`, supplied via
- * `DagdaClient.start({settings})`), read at use-time rather than module
- * scope — `Dagda.init()` hasn't run yet when this module is first imported.
+ * (`dagda.settingsModel`, supplied via `DagdaClient.start({settings})`), read
+ * at use-time rather than module scope — `dagda` hasn't been built yet when
+ * this module is first imported.
  * Labels, descriptions, types and defaults live there, the very instance the
  * server itself reads. Only the current values and the write actually need a
  * round trip.
@@ -42,7 +37,7 @@ export interface SettingsService {
 export class SettingsPage extends AbstractPageElement {
 
     protected get _settings(): SettingsModel<any> {
-        return Dagda.get<SettingsService>("settingsModel");
+        return dagda.settingsModel!;
     }
 
     @Ref()

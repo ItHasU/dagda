@@ -1,6 +1,6 @@
-import { Dagda, DagdaRegistry } from "@dagda/shared/src/dagda";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { BrandInfo } from "../../app/brand";
+import { dagda, _setDagda } from "../../app/dagda";
 import { AbstractPageElement } from "../../pages/abstract.page.element";
 import { PageHandler } from "../../pages/handler";
 import { PermissionPredicate } from "../../pages/menu";
@@ -46,10 +46,9 @@ async function mount(options: { canAccess?: PermissionPredicate, collapsed?: boo
         pages.canAccess = options.canAccess;
     }
 
-    // Before opening a page, not after: a page waits on `Dagda.loaded` to
-    // render, and a registry that was reset but never inited never settles.
-    Dagda.reset(new DagdaRegistry());
-    Dagda.init({ pages, brand: BRAND, log: { handleError: (): void => { } } });
+    // Before opening a page, not after: a page waits on `dagdaReady` to
+    // render, and it never settles without a dagda instance.
+    _setDagda({ pages, brand: BRAND, log: { handleError: (): void => { } } } as any);
 
     if (options.currentPage != null) {
         await pages.setPage(options.currentPage);
@@ -78,10 +77,6 @@ describe("Navbar", () => {
 
     beforeEach(() => {
         document.body.replaceChildren();
-    });
-
-    afterEach(() => {
-        Dagda.reset(new DagdaRegistry());
     });
 
     describe("deployed", () => {
@@ -149,7 +144,7 @@ describe("Navbar", () => {
                 .find(entry => entry.getAttribute("aria-label") === "Supervision");
             badge!.click();
             await new Promise(resolve => setTimeout(resolve, 0));
-            expect(Dagda.get<{ pages: PageHandler<any> }>("pages").currentPageUID).toBe("dashboard");
+            expect(dagda.pages.currentPageUID).toBe("dashboard");
         });
 
     });
@@ -234,8 +229,7 @@ describe("Navbar", () => {
         // A title is data. The menu is not a place to interpret it.
         const pages = new PageHandler<{ [name: string]: AbstractPageElement }>();
         pages.registerPage("evil", { title: "<img src=x onerror=alert(1)>", constructor: StubPage, menu: {} });
-        Dagda.reset(new DagdaRegistry());
-        Dagda.init({ pages, brand: BRAND, log: { handleError: (): void => { } } });
+        _setDagda({ pages, brand: BRAND, log: { handleError: (): void => { } } } as any);
 
         const navbar = new Navbar();
         document.body.appendChild(navbar);

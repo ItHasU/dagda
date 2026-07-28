@@ -1,11 +1,6 @@
-import { Dagda } from "@dagda/shared/src/dagda";
 import { EntitiesEvents } from "@dagda/shared/src/entities/events";
-import { EntitiesService } from "@dagda/shared/src/entities/service";
-import { DagdaEvents } from "@dagda/shared/src/notification/events";
-import { NotificationService } from "@dagda/shared/src/notification/service";
 import { Event } from "@dagda/shared/src/tools/events";
-import { LogService } from "@dagda/shared/src/tools/log";
-import { PageService } from "../../pages/service";
+import { dagda } from "../../app/dagda";
 import { AbstractWebComponent, Ref } from "../abstract.webcomponent";
 import template from "./status.component.html";
 
@@ -51,21 +46,21 @@ export class EntitiesStatusComponent extends AbstractWebComponent {
     }
 
     protected override async _init(): Promise<void> {
-        const log = Dagda.get<LogService>("log");
+        const log = dagda.log;
         try {
-            Dagda.get<EntitiesService<any, any>>("entities").getHandler().on("state", (event: Event<EntitiesEvents["state"]>) => {
+            dagda.entities.getHandler().on("state", (event: Event<EntitiesEvents["state"]>) => {
                 this._state = event.data;
                 this.refresh().catch(log.handleError);
             });
         } catch (e) {
             log.handleError(e);
         }
-        Dagda.get<NotificationService<DagdaEvents>>("notification").on("connected", (event) => {
+        dagda.notification.on("connected", (event) => {
             this._connected = !!event.data;
             this.refresh().catch(log.handleError);
         });
         this._entry.addEventListener("click", () => {
-            Dagda.get<PageService>("pages").refresh().catch(log.handleError);
+            dagda.pages.refresh().catch(log.handleError);
         });
     }
 
@@ -88,7 +83,7 @@ export class EntitiesStatusComponent extends AbstractWebComponent {
         if (this._connected === false) {
             return { icon: "ph-wifi-slash", label: "Hors ligne", alert: true };
         }
-        if (this._state.dirty && !Dagda.get<PageService>("pages").isCurrentPageAutoRefresh()) {
+        if (this._state.dirty && !dagda.pages.isCurrentPageAutoRefresh()) {
             // The cache was invalidated and not reloaded: what is on screen may
             // not be what is stored. Unless the page declared `autoRefresh` —
             // then it is already catching up, and there is nothing left here

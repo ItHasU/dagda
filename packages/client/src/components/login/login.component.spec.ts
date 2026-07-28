@@ -1,10 +1,10 @@
 import { AuthEvents } from "@dagda/shared/src/auth/events";
 import { UserInfo } from "@dagda/shared/src/auth/types";
-import { Dagda, DagdaRegistry } from "@dagda/shared/src/dagda";
 import { NotificationService } from "@dagda/shared/src/notification/service";
 import { EventHandlerData, EventHandlerImpl, EventListener } from "@dagda/shared/src/tools/events";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DagdaClient } from "../../app";
+import { _setDagda } from "../../app/dagda";
 import { LoginComponent } from "./login.component";
 
 /**
@@ -40,13 +40,11 @@ describe("LoginComponent", () => {
     beforeEach(() => {
         document.body.replaceChildren();
         notification = notifications();
-        Dagda.reset(new DagdaRegistry());
-        Dagda.init({ notification });
+        _setDagda({ notification } as any);
     });
 
     afterEach(() => {
         vi.restoreAllMocks();
-        Dagda.reset(new DagdaRegistry());
     });
 
     it("shows the account that was already known when it was built", async () => {

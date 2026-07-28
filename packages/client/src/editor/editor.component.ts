@@ -1,6 +1,5 @@
 import type * as Monaco from "monaco-editor/editor/editor.api";
-import { Dagda } from "@dagda/shared/src/dagda";
-import { ThemeService } from "../themes/service";
+import { dagda } from "../app/dagda";
 import { AbstractWebComponent, Attribute, Ref } from "../components/abstract.webcomponent";
 import { loadExtraLibs, ExtraLib } from "./monaco.service";
 import { loadMonaco } from "./monaco.loader";
@@ -71,7 +70,7 @@ export class CodeEditor extends AbstractWebComponent {
         // a theme id comparison, which would misfire for an application
         // declaring its own custom theme list — Monaco has no notion of
         // those, only its own built-in "vs"/"vs-dark".
-        const themes = Dagda.get<ThemeService>("themes");
+        const themes = dagda.themes;
         const applyTheme = (): void => monaco.editor.setTheme(themes.currentInfo.dark ? "vs-dark" : "vs");
         applyTheme();
         this._unsubscribeTheme = themes.onChange(applyTheme);

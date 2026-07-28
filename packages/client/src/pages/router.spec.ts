@@ -1,5 +1,5 @@
-import { Dagda, DagdaRegistry } from "@dagda/shared/src/dagda";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { _setDagda } from "../app/dagda";
 import { AbstractPageElement } from "./abstract.page.element";
 import { PageHandler } from "./handler";
 import { Router } from "./router";
@@ -23,8 +23,8 @@ function buildPages(): PageHandler<TestPages> {
     pages.registerPage("first", { title: "First", constructor: FirstPage, menu: { order: 1 } });
     pages.registerPage("second", { title: "Second", constructor: SecondPage });
     // AbstractWebComponent.refresh() (called from setPage()) awaits
-    // Dagda.loaded, which only resolves once Dagda.init() runs.
-    Dagda.init({ pages });
+    // dagdaReady, which only resolves once a dagda instance is set.
+    _setDagda({ pages } as any);
     return pages;
 }
 
@@ -41,7 +41,6 @@ describe("Router", () => {
 
     afterEach(() => {
         resetLocation();
-        Dagda.reset(new DagdaRegistry());
     });
 
     describe("start()", () => {

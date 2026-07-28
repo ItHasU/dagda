@@ -1,11 +1,8 @@
 import { EntitiesAPI } from "@dagda/shared/src/api/impl/entities.api";
 import { BaseAppTypes } from "@dagda/shared/src/app/types";
-import { Dagda } from "@dagda/shared/src/dagda";
 import { EntitiesHandler } from "@dagda/shared/src/entities/handler";
-import { EntitiesService } from "@dagda/shared/src/entities/service";
 import { EntitiesModel } from "@dagda/shared/src/entities/model";
 import { ContextAdapter, Data } from "@dagda/shared/src/entities/tools/adapters";
-import { initBaseServices } from "@dagda/shared/src/services";
 import { PreferencesDeclaration, PreferencesModel } from "@dagda/shared/src/preferences/model";
 import { SettingsDeclaration, SettingsModel } from "@dagda/shared/src/settings/model";
 import { PreferencesStore } from "../preferences/store";
@@ -14,8 +11,9 @@ import { SQLTransactionData, SQLTransactionResult } from "@dagda/shared/src/sql/
 import express from "express";
 import { resolve } from "path";
 import { DagdaActions } from "@dagda/shared/src/auth/actions";
-import { DAGDA_PERMISSIONS, hasPermission, PermissionsDeclaration } from "@dagda/shared/src/auth/permissions";
+import { DAGDA_PERMISSIONS, DagdaPermission, hasPermission, PermissionDeclaration } from "@dagda/shared/src/auth/permissions";
 import { UserId, UserInfo } from "@dagda/shared/src/auth/types";
+import { dagda, ServerDagda, _setDagda } from "./dagda";
 import { NotificationRecipientFilter } from "@dagda/shared/src/notification/abstract.notification.handler";
 import { actionRegister, ActionCallback, RegisterActionOptions } from "../actions";
 import { apiRegister, RegisterAPIOptions, RequestCallback, RequestOptions } from "../api";
@@ -119,7 +117,7 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
          * `DAGDA_PERMISSIONS`. Omitted, only the framework's own are checkable
          * — an app with nothing of its own to gate needs nothing here.
          */
-        protected _permissions: PermissionsDeclaration = {}
+        protected _permissions: Record<Exclude<AppTypes["permissions"], DagdaPermission>, PermissionDeclaration> = {} as Record<Exclude<AppTypes["permissions"], DagdaPermission>, PermissionDeclaration>
     ) {
         console.log("Reading config for environment variables...");
         // Read the config from env variables
@@ -204,11 +202,12 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
         this._registerPreferencesActions();
         this._registerSettingsActions();
 
-        // -- Register the standard services --
-        // Until this landed, the server never called Dagda.init() at all: every
-        // Dagda.get() answered undefined there, so an entities handler built on
-        // the server silently skipped its contextChanged broadcast and no client
-        // ever heard about a write made by the server itself.
+        // -- Build the standard services --
+        // Until this landed, the server never built a `dagda` at all: every
+        // `dagda.entities` lookup answered undefined there, so an entities
+        // handler built on the server silently skipped its contextChanged
+        // broadcast and no client ever heard about a write made by the
+        // server itself.
         console.log("Registering standard services...");
         this._notification = new ServerNotificationImpl<AppTypes["events"]>();
         // Built here, loaded in migrate(): the table it reads is created by a
@@ -220,7 +219,7 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
             encryptionKey: this._config.secretKey
         });
         this._preferences = new PreferencesStore<Preferences>(this._preferencesModel, this._db);
-        initBaseServices<AppTypes["entities"], AppTypes["contexts"], AppTypes["events"]>({
+        _setDagda(new ServerDagda<AppTypes, Settings>({
             model: this._model,
             contextAdapter: this._contextAdapter,
             persistence: {
@@ -231,19 +230,8 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
             // One handler per call: two requests must not share a cache, since
             // what it holds depends on who asked.
             handlerPerCall: true,
-            extraServices: {
-                settings: this._settings.settings,
-                ...this._buildServices()
-            }
-        });
-    }
-
-    /**
-     * Services of the application, registered next to the framework's.
-     * Override to add your own; they land in the same Dagda.init().
-     */
-    protected _buildServices(): Record<string, unknown> {
-        return {};
+            settings: this._settings.settings
+        }));
     }
 
     //#region HTTP Server -----------------------------------------------------
@@ -391,7 +379,7 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
      * The gate that matters for an action: hiding a screen is not access
      * control (§11.2), and an action is reachable from any console.
      */
-    protected _requirePermission(user: UserInfo, permission: string): void {
+    protected _requirePermission(user: UserInfo, permission: AppTypes["permissions"] | DagdaPermission): void {
         if (!hasPermission(user, permission)) {
             throw new Error("Missing permission: " + permission);
         }
@@ -576,8 +564,10 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
      */
     public getTemporaryHandler(): EntitiesHandler<AppTypes["entities"], AppTypes["contexts"]> {
         // The service builds a new handler on every call, so each request gets
-        // its own cache. Equivalent to Dagda.get("entities").getHandler().
-        return Dagda.get<EntitiesService<AppTypes["entities"], AppTypes["contexts"]>>("entities").getHandler();
+        // its own cache. Equivalent to dagda.entities.getHandler(). Cast: the
+        // module-level `dagda` is typed generically, this class's own
+        // `AppTypes` is the concrete one.
+        return dagda.entities.getHandler() as EntitiesHandler<AppTypes["entities"], AppTypes["contexts"]>;
     }
 
     /** Fetch implementation to be provided by the app */

@@ -1,7 +1,5 @@
-import { Dagda, DagdaRegistry } from "@dagda/shared/src/dagda";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { UsersDirectory } from "./directory";
-import { UsersService } from "./service";
 
 /**
  * The client-side user directory (ROADMAP tranche 3): loaded once at
@@ -10,10 +8,6 @@ import { UsersService } from "./service";
  */
 
 describe("UsersDirectory", () => {
-
-    afterEach(() => {
-        Dagda.reset(new DagdaRegistry());
-    });
 
     it("answers null before the initial load resolves", () => {
         const directory = new UsersDirectory(async () => [{ id: 1, displayName: "Alice" }]);
@@ -48,13 +42,6 @@ describe("UsersDirectory", () => {
         const directory = new UsersDirectory(async () => { throw new Error("no session"); });
         await expect(directory.load()).resolves.toBeUndefined();
         expect(directory.getDisplayName(1)).toBeNull();
-    });
-
-    it("is reachable via Dagda.get(\"users\") once registered", async () => {
-        const directory = new UsersDirectory(async () => [{ id: 1, displayName: "Alice" }]);
-        await directory.load();
-        Dagda.init({ users: directory });
-        expect(Dagda.get<UsersService>("users").getDisplayName(1)).toBe("Alice");
     });
 
 });

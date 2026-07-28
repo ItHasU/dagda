@@ -48,6 +48,6 @@ export type DagdaPermission = keyof typeof DAGDA_PERMISSIONS;
  * not a role enumerating every permission there is, so nobody has to keep a
  * "super" role in step with the permissions declared after it.
  */
-export function hasPermission(user: UserInfo, permission: string): boolean {
+export function hasPermission<Permission extends string>(user: UserInfo<Permission>, permission: Permission): boolean {
     return user.isSuperAdmin || user.permissions.includes(permission);
 }

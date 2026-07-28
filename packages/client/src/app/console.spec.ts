@@ -1,8 +1,7 @@
-import { Dagda, DagdaRegistry } from "@dagda/shared/src/dagda";
 import { EntitiesService } from "@dagda/shared/src/entities/service";
 import { SQLTransaction } from "@dagda/shared/src/sql/transaction";
 import { SystemInfoRoute } from "@dagda/shared/src/api/impl/system.api";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../api", () => ({ apiCall: vi.fn().mockResolvedValue("api-result") }));
 vi.mock("../actions", () => ({ actionCall: vi.fn().mockResolvedValue("action-result") }));
@@ -11,9 +10,10 @@ vi.mock("../actions", () => ({ actionCall: vi.fn().mockResolvedValue("action-res
 import { apiCall } from "../api";
 import { actionCall } from "../actions";
 import { encapsulate, installConsoleGlobal } from "./console";
+import { _setDagda } from "./dagda";
 
 /** A fake entities handler whose withTransaction/waitForSubmit are directly observable */
-function buildFakeEntities(): { service: EntitiesService<any, any>, submitted: SQLTransaction<any, any>[] } {
+function buildFakeEntities(): { entities: EntitiesService<any, any>["entities"], submitted: SQLTransaction<any, any>[] } {
     const submitted: SQLTransaction<any, any>[] = [];
     const handler = {
         withTransaction: vi.fn(async (f: (tr: SQLTransaction<any, any>) => Promise<void> | void) => {
@@ -23,25 +23,27 @@ function buildFakeEntities(): { service: EntitiesService<any, any>, submitted: S
         }),
         waitForSubmit: vi.fn(async () => { /* resolved immediately, mirrors an already-drained queue */ })
     };
-    // EntitiesService is itself the Dagda.init() services-map shape (like
-    // ThemeService's {themes: ThemeRegistry}) — the "entities" key holds
-    // {getHandler()}, not getHandler() directly.
-    const service: EntitiesService<any, any> = { entities: { getHandler: () => handler as any } };
-    return { service, submitted };
+    // dagda.entities is directly {getHandler}, the same shape a real ClientDagda field holds.
+    return { entities: { getHandler: () => handler as any }, submitted };
 }
 
 describe("console.ts", () => {
 
+    beforeEach(() => {
+        // A minimal stand-in for the running application's dagda instance —
+        // real fields are added per-test (entities), the rest is untouched.
+        _setDagda({} as any);
+    });
+
     afterEach(() => {
-        Dagda.reset(new DagdaRegistry());
         vi.clearAllMocks();
         delete (globalThis as any).dagda;
     });
 
     describe("encapsulate", () => {
         it("opens a transaction, runs the callback, submits and awaits it, and returns the callback's result", async () => {
-            const { service, submitted } = buildFakeEntities();
-            Dagda.init<EntitiesService<any, any>>(service);
+            const { entities, submitted } = buildFakeEntities();
+            _setDagda({ entities } as any);
 
             const result = await encapsulate(async (tr) => {
                 expect(tr).toBeInstanceOf(SQLTransaction);
@@ -99,8 +101,8 @@ describe("console.ts", () => {
         });
 
         it("auto-opens and submits its own transaction when called without one", async () => {
-            const { service, submitted } = buildFakeEntities();
-            Dagda.init<EntitiesService<any, any>>(service);
+            const { entities, submitted } = buildFakeEntities();
+            _setDagda({ entities } as any);
 
             const fn = vi.fn((_tr: SQLTransaction<any, any>, name: string) => `hello ${name}`);
             installConsoleGlobal<any>({ getRoutes: () => [], entityActions: { greet: fn } });
@@ -113,8 +115,8 @@ describe("console.ts", () => {
         });
 
         it("passes an explicit transaction straight through instead of opening a second one", async () => {
-            const { service, submitted } = buildFakeEntities();
-            Dagda.init<EntitiesService<any, any>>(service);
+            const { entities, submitted } = buildFakeEntities();
+            _setDagda({ entities } as any);
 
             const fn = vi.fn((_tr: SQLTransaction<any, any>, name: string) => `hi ${name}`);
             installConsoleGlobal<any>({ getRoutes: () => [], entityActions: { greet: fn } });

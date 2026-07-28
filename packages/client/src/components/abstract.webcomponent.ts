@@ -1,4 +1,4 @@
-import { Dagda } from "@dagda/shared/src/dagda";
+import { dagdaReady } from "../app/dagda";
 
 /** 
  * Options for the web component creation
@@ -101,7 +101,7 @@ export abstract class AbstractWebComponent extends HTMLElement {
     /** A single refresh pass. Never throws. */
     protected async _refreshOnce(): Promise<void> {
         try {
-            await Dagda.loaded; // Wait for Dagda to be loaded
+            await dagdaReady; // Wait for dagda to be built
 
             // Initialize the component if needed
             if (!this._initialized) {

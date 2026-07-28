@@ -1,8 +1,8 @@
 import { PUBLICATION_STATUS, TEST_MODEL } from "@dagda/shared/src/entities/_data";
-import { Dagda, DagdaRegistry } from "@dagda/shared/src/dagda";
 import { JSTypes } from "@dagda/shared/src/entities/tools/javascript.types";
 import { FormFieldDeclaration } from "@dagda/shared/src/forms/types";
 import { beforeEach, describe, expect, it } from "vitest";
+import { _setDagda } from "../app/dagda";
 import { registerDefaultFieldEditors } from "./defaults";
 import { FieldEditor, FieldEditorRegistry } from "./editors";
 import { DagdaForm, FormSubmitDetail } from "./form.component";
@@ -18,8 +18,7 @@ describe("DagdaForm", () => {
     let form: DagdaForm;
 
     beforeEach(async () => {
-        Dagda.reset(new DagdaRegistry());
-        Dagda.init({});
+        _setDagda({} as any);
         form = new DagdaForm();
         await form.refresh();
     });

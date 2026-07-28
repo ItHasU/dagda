@@ -1,10 +1,5 @@
 import { BasePageTypes, PageHandler } from "./handler";
 
-/** What `Dagda.get<RouterService>("router")` exposes */
-export interface RouterService {
-    router: Router<any>;
-}
-
 /**
  * Deep-linkable pages by query string (ROADMAP tranche 4).
  *

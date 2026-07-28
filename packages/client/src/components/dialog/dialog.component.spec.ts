@@ -1,5 +1,5 @@
-import { Dagda } from "@dagda/shared/src/dagda";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { _setDagda } from "../../app/dagda";
 import { ToastHost } from "../toast/toast.component";
 import { DialogHost, openDialog } from "./dialog.component";
 
@@ -15,7 +15,7 @@ describe("DialogHost", () => {
 
     beforeEach(async () => {
         document.body.replaceChildren();
-        Dagda.init({});
+        _setDagda({} as any);
         host = new DialogHost();
         document.body.appendChild(host);
         await host.refresh();

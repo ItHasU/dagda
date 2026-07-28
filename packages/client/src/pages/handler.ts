@@ -1,6 +1,5 @@
-import { Dagda } from "@dagda/shared/src/dagda";
-import { EntitiesService } from "@dagda/shared/src/entities/service";
 import { EventHandlerData, EventHandlerImpl, EventListener } from "@dagda/shared/src/tools/events";
+import { dagda, dagdaReady } from "../app/dagda";
 import { AbstractPageElement } from "./abstract.page.element";
 import { ALLOW_ALL, buildMenu, MenuGroup, MenuNode, MenuPlacement, PermissionPredicate, SectionInfo } from "./menu";
 
@@ -105,9 +104,9 @@ export class PageHandler<PageTypes extends BasePageTypes> {
     constructor() {
         // Optional on purpose: an application without an entities service has
         // nothing to go dirty, and the subscription simply never fires.
-        Dagda.loaded.then(() => {
+        dagdaReady.then(() => {
             try {
-                Dagda.get<EntitiesService<any, any>>("entities").getHandler().on("state", (event) => {
+                dagda.entities.getHandler().on("state", (event) => {
                     const dirty = event.data.dirty;
                     if (dirty && !this._wasDirty && this.isCurrentPageAutoRefresh()) {
                         // The page, not the indicator, is what re-fetches — it

@@ -1,8 +1,7 @@
 import { Ref } from "@dagda/client/src/components/abstract.webcomponent";
 import { AbstractPageElement } from "@dagda/client/src/pages/abstract.page.element";
 import { showToast } from "@dagda/client/src/components/toast/toast.component";
-import { ThemeService } from "@dagda/client/src/themes/service";
-import { Dagda } from "@dagda/shared/src/dagda";
+import { dagda } from "../../app/dagda";
 import template from "./preferences.page.html";
 
 /**
@@ -21,7 +20,7 @@ export class PreferencesPage extends AbstractPageElement {
     }
 
     protected override async _refresh(): Promise<void> {
-        const themes = Dagda.get<ThemeService>("themes");
+        const themes = dagda.themes;
         const current = themes.current;
 
         this._themes.replaceChildren();

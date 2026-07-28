@@ -1,5 +1,4 @@
-import { Dagda } from "@dagda/shared/src/dagda";
-import { EntitiesService } from "@dagda/shared/src/entities/service";
+import { dagda } from "../../app/dagda";
 import { AbstractWebComponent, Ref } from "../abstract.webcomponent";
 import template from "./toast.component.html";
 
@@ -40,7 +39,7 @@ export class ToastHost extends AbstractWebComponent {
         // tranche 2). A screen with something more specific to say may still
         // call showToast() itself; this is the floor, not the ceiling.
         try {
-            Dagda.get<EntitiesService<any, any>>("entities").getHandler().on("writeFailed", (event) => {
+            dagda.entities.getHandler().on("writeFailed", (event) => {
                 this.show(`Échec de l'enregistrement : ${this._describe(event.data.error)}`, "danger");
             });
         } catch {

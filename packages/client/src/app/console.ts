@@ -1,13 +1,12 @@
 import { ActionsCollection } from "@dagda/shared/src/actions/types";
 import { DagdaActions } from "@dagda/shared/src/auth/actions";
-import { Dagda } from "@dagda/shared/src/dagda";
 import { SystemInfoRoute } from "@dagda/shared/src/api/impl/system.api";
 import { EntitiesHandler } from "@dagda/shared/src/entities/handler";
-import { EntitiesService } from "@dagda/shared/src/entities/service";
 import { SQLTransaction } from "@dagda/shared/src/sql/transaction";
 import { apiCall } from "../api";
 import { actionCall } from "../actions";
 import { EntityActionDeclaration, EntityActionsCollection, normalizeEntityAction } from "./entity-actions";
+import { dagda } from "./dagda";
 
 /** Every action reachable from `dagda.routes`: the framework's own, plus the application's */
 type AllActions<Actions extends ActionsCollection> = DagdaActions & Actions;
@@ -20,7 +19,7 @@ type AllActions<Actions extends ActionsCollection> = DagdaActions & Actions;
  * explicit transaction.
  */
 export async function encapsulate<T>(fn: (tr: SQLTransaction<any, any>) => T | Promise<T>): Promise<T> {
-    const handler = Dagda.get<EntitiesService<any, any>>("entities").getHandler();
+    const handler = dagda.entities.getHandler();
     let result!: T;
     await handler.withTransaction(async (tr) => {
         result = await fn(tr);
@@ -30,21 +29,24 @@ export async function encapsulate<T>(fn: (tr: SQLTransaction<any, any>) => T | P
 }
 
 /**
- * What `window.dagda` exposes (Dagda FEATURES §11.2).
+ * What `installConsoleGlobal` adds to the running `dagda` instance so it
+ * becomes `window.dagda` (Dagda FEATURES §11.2).
  *
  * The precedent was `window.MQTT` in MQTTToolbox v1, one application's ad-hoc
  * escape hatch; this is the framework's own, so every application gets one
  * for free and the shape stays consistent across them.
  */
-export interface ConsoleGlobal<Actions extends ActionsCollection, EntityActions extends EntityActionsCollection = EntityActionsCollection> {
-    /** Any registered service, by name — the same registry components read from */
-    get<T = unknown>(name: string): T;
+export interface ConsoleExtras<Actions extends ActionsCollection, EntityActions extends EntityActionsCollection = EntityActionsCollection> {
     /**
      * The entities handler: `fetch(context)`, `getItems(table)`, `getById(…)`,
      * `withTransaction(tr => …)` — everything a component already does, now
      * reachable by hand for a one-off console query.
+     *
+     * A distinct name from `dagda.entities` (the raw registered service every
+     * `Dagda` instance already exposes): this is a curated, derived view —
+     * `dagda.entities.getHandler()` — not the service itself.
      */
-    readonly entities: EntitiesHandler<any, any>;
+    readonly entitiesHandler: EntitiesHandler<any, any>;
     /**
      * Every route/action registered on the server (§11.1) — the same calls
      * the UI makes, nothing more. `dagda.routes.publishMessage({ topic,
@@ -166,11 +168,12 @@ function printWelcomeMessage(): void {
     console.log(
         [
             "window.dagda is ready:",
-            "  dagda.routes.xxx(...)                  call a registered server route/action",
-            "  dagda.actions.xxx(tr?, ...)             run a named entity-transaction composer (auto-submits without an explicit tr)",
-            "  dagda.encapsulate(async (tr) => {...})  open + submit an ad-hoc transaction",
-            "  dagda.entities                          the entities handler (fetch/getItems/withTransaction/...)",
-            "  dagda.help()                            list every registered route and action"
+            "  dagda.<service>                         any registered service, e.g. dagda.pages, dagda.entities",
+            "  dagda.routes.xxx(...)                    call a registered server route/action",
+            "  dagda.actions.xxx(tr?, ...)              run a named entity-transaction composer (auto-submits without an explicit tr)",
+            "  dagda.encapsulate(async (tr) => {...})   open + submit an ad-hoc transaction",
+            "  dagda.entitiesHandler                    the entities handler (fetch/getItems/withTransaction/...)",
+            "  dagda.help()                             list every registered route and action"
         ].join("\n")
     );
 }
@@ -183,7 +186,11 @@ export interface InstallConsoleGlobalOptions<EntityActions extends EntityActions
 }
 
 /**
- * Installs `window.dagda`.
+ * Installs `window.dagda`: the same instance every service is already
+ * reached through internally, with a few curated extras (`routes`,
+ * `actions`, `encapsulate`, `help`) added on top — so `window.dagda.pages`,
+ * `window.dagda.entities`, ... work exactly like `dagda.pages` in framework
+ * code, and a future user script (FEATURES §11.3) reuses this global as-is.
  *
  * ⚠️ Hiding a button is not access control (§11.2): every route/action
  * reachable here is reachable from any authenticated browser's console,
@@ -198,16 +205,19 @@ export function installConsoleGlobal<Actions extends ActionsCollection, EntityAc
     const routes = buildRoutesProxy(options.getRoutes) as { [Name in keyof AllActions<Actions>]: AllActions<Actions>[Name] };
     const actions = buildActionsProxy(entityActions) as { [Name in keyof EntityActions]: (...args: unknown[]) => Promise<unknown> };
 
-    const dagdaConsole: ConsoleGlobal<Actions, EntityActions> = {
-        get: <T = unknown>(name: string): T => Dagda.get(name as any),
-        get entities(): EntitiesHandler<any, any> {
-            return Dagda.get<EntitiesService<any, any>>("entities").getHandler();
-        },
+    Object.assign(dagda, {
         routes,
         actions,
         encapsulate,
         help: () => printHelp(options.getRoutes, entityActions)
-    };
-    (globalThis as any).dagda = dagdaConsole;
+    });
+    // A live getter, not a value: Object.assign would otherwise capture
+    // whatever getHandler() returns once, at install time.
+    Object.defineProperty(dagda, "entitiesHandler", {
+        get: (): EntitiesHandler<any, any> => dagda.entities.getHandler(),
+        enumerable: true,
+        configurable: true
+    });
+    (globalThis as any).dagda = dagda;
     printWelcomeMessage();
 }

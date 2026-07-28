@@ -1,13 +1,11 @@
-import { AuthEvents } from "@dagda/shared/src/auth/events";
 import { UserInfo } from "@dagda/shared/src/auth/types";
-import { Dagda } from "@dagda/shared/src/dagda";
-import { NotificationService } from "@dagda/shared/src/notification/service";
 import { Event } from "@dagda/shared/src/tools/events";
 // A cycle on paper — `DagdaClient` pulls in the shell, which pulls in this
 // component — but not in practice: the reference is inside a method body, so
 // it resolves when the badge renders, long after both modules have finished
 // evaluating.
 import { DagdaClient } from "../../app";
+import { dagda } from "../../app/dagda";
 import { AbstractWebComponent, Ref } from "../abstract.webcomponent";
 import template from "./login.component.html";
 
@@ -37,7 +35,7 @@ export class LoginComponent extends AbstractWebComponent {
     }
 
     protected override _init(): Promise<void> {
-        Dagda.get<NotificationService<AuthEvents>>("notification").on("userInfoChanged", (event: Event<UserInfo>) => {
+        dagda.notification.on("userInfoChanged", (event: Event<UserInfo>) => {
             this._user = event.data;
             this.refresh();
         });

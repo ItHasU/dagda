@@ -13,7 +13,7 @@ export type UserId = number;
 export type RoleId = number;
 
 /** What the client is told about a user */
-export interface UserInfo {
+export interface UserInfo<Permission extends string = string> {
     id: UserId;
     /** What is typed in the login form. Unique, case-insensitive */
     login: string;
@@ -42,16 +42,16 @@ export interface UserInfo {
      * `hasPermission()` in `./permissions`). Sent to the client to hide
      * inaccessible UI, never a substitute for the server's own check.
      */
-    permissions: string[];
+    permissions: Permission[];
 }
 
 /** A role: a name and the subset of permissions it grants (FEATURES §7.1) */
-export interface Role {
+export interface Role<Permission extends string = string> {
     id: RoleId;
     /** Chosen freely by the administrator, unique */
     name: string;
     /** Permission keys, validated against the declared vocabulary at write time */
-    permissions: string[];
+    permissions: Permission[];
 }
 
 /** The login credentials, as the login form sends them */
