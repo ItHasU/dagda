@@ -250,7 +250,7 @@ comptes (§11.4) — pas fixés dans le code, à l'inverse des permissions.
 | **NEW** — ↳ Fichiers de police embarqués localement || ✅ | même contrainte que les polices de texte : pas de CDN, l'outil doit fonctionner sans Internet |
 | **NEW** — ↳ Brancher le lint d'adhérence fourni dans le bundle || ✅ | `_adherence.oxlintrc.json` signale les hex bruts, les `px` bruts et les polices hors système : c'est le garde-fou qui empêche les gabarits de dériver hors des jetons |
 | **NEW** — Séparation *store* / vue dans les composants | | | **à évaluer, indépendant du worker écarté (§3)** : un store produit un état de vue prêt à rendre, la vue ne fait que le rendu. Aujourd'hui les deux sont mêlés (cf. `_refreshImpl` dans EurekAI, ~200 lignes) |
-| **NEW** — Routage par URL (deep-link, bouton retour navigateur) | | | |
+| **NEW** — Routage par URL (deep-link, bouton retour navigateur) || ✅ | `popstate` géré par le routeur (`router.ts`), testé (`router.spec.ts`) |
 | **NEW** — Navigation mobile (gestes, *swipe* entre pages) | | | besoin remonté par MQTTToolbox 2 |
 | **NEW** — Support PWA : installation, manifest, icônes | | | fait à la main dans les apps aujourd'hui |
 | **NEW** — Écran « hors ligne » / perte de connexion | | | le mode hors ligne étant écarté (§0), il faut au moins le signaler proprement |

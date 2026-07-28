@@ -49,6 +49,13 @@
     /* Toast success variant (FEATURES §8) — same role-not-a-ramp-step reasoning as --color-danger above */
     --color-success: #6fcf97;
     --color-success-tint: color-mix(in srgb, var(--color-success) 20%, transparent);
+    /* Same role-not-a-ramp-step reasoning, rounding out the four semantic
+       colours (toasts, tags, buttons) — warning and info were missing
+       entirely before (info was a one-off color-mix off --color-accent). */
+    --color-warning: #e2a35c;
+    --color-warning-tint: color-mix(in srgb, var(--color-warning) 20%, transparent);
+    --color-info: #7bb8e8;
+    --color-info-tint: color-mix(in srgb, var(--color-info) 20%, transparent);
 
     /* -- Tonal ramps ------------------------------------------------------
        Generated in OKLCH on one shared lightness scale, so the same step of
@@ -225,6 +232,32 @@
     --btn-ghost-bg-hover: color-mix(in srgb, var(--color-accent) 10%, transparent);
     --btn-ghost-bg-active: color-mix(in srgb, var(--color-accent) 18%, transparent);
 
+    /* Semantic variants (success/info/warning/danger) — same solid-fill shape
+       as --btn-primary-*, off the semantic colour instead of the accent. */
+    --btn-danger-fg: var(--color-bg);
+    --btn-danger-bg: var(--color-danger);
+    --btn-danger-border: transparent;
+    --btn-danger-bg-hover: color-mix(in srgb, var(--color-danger) 88%, black);
+    --btn-danger-bg-active: color-mix(in srgb, var(--color-danger) 76%, black);
+
+    --btn-warning-fg: var(--color-bg);
+    --btn-warning-bg: var(--color-warning);
+    --btn-warning-border: transparent;
+    --btn-warning-bg-hover: color-mix(in srgb, var(--color-warning) 88%, black);
+    --btn-warning-bg-active: color-mix(in srgb, var(--color-warning) 76%, black);
+
+    --btn-info-fg: var(--color-bg);
+    --btn-info-bg: var(--color-info);
+    --btn-info-border: transparent;
+    --btn-info-bg-hover: color-mix(in srgb, var(--color-info) 88%, black);
+    --btn-info-bg-active: color-mix(in srgb, var(--color-info) 76%, black);
+
+    --btn-success-fg: var(--color-bg);
+    --btn-success-bg: var(--color-success);
+    --btn-success-border: transparent;
+    --btn-success-bg-hover: color-mix(in srgb, var(--color-success) 88%, black);
+    --btn-success-bg-active: color-mix(in srgb, var(--color-success) 76%, black);
+
     /* -- Surfaces and interactive tints ------------------------------------ */
     --card-bg: var(--color-surface);
 
@@ -257,6 +290,18 @@
     --tag-neutral-fg: var(--color-neutral-100);
     --tag-outline-border: var(--color-accent);
     --tag-outline-fg: var(--color-accent);
+
+    /* Semantic variants — no ramp of their own (unlike accent/neutral), so
+       tint-as-background/colour-as-foreground, same relationship the toast
+       variants already use. */
+    --tag-danger-bg: var(--color-danger-tint);
+    --tag-danger-fg: var(--color-danger);
+    --tag-warning-bg: var(--color-warning-tint);
+    --tag-warning-fg: var(--color-warning);
+    --tag-info-bg: var(--color-info-tint);
+    --tag-info-fg: var(--color-info);
+    --tag-success-bg: var(--color-success-tint);
+    --tag-success-fg: var(--color-success);
 
     /* -- Imagery -----------------------------------------------------------
        Photographs go through `.lighten`: anything darker than the backdrop
@@ -312,6 +357,10 @@
     --color-danger-tint: color-mix(in srgb, var(--color-danger) 14%, transparent);
     --color-success: #2e7d46;
     --color-success-tint: color-mix(in srgb, var(--color-success) 14%, transparent);
+    --color-warning: #9c6a1c;
+    --color-warning-tint: color-mix(in srgb, var(--color-warning) 14%, transparent);
+    --color-info: #2b6ca3;
+    --color-info-tint: color-mix(in srgb, var(--color-info) 14%, transparent);
 
     /* -- Tonal ramps --------------------------------------------------------
        Same OKLCH lightness scale as Nocturne, walked in the other direction:
@@ -487,6 +536,32 @@
     --btn-ghost-bg-hover: color-mix(in srgb, var(--color-accent) 10%, transparent);
     --btn-ghost-bg-active: color-mix(in srgb, var(--color-accent) 18%, transparent);
 
+    /* Semantic variants (success/info/warning/danger) — same solid-fill shape
+       as --btn-primary-*, off the semantic colour instead of the accent. */
+    --btn-danger-fg: var(--color-bg);
+    --btn-danger-bg: var(--color-danger);
+    --btn-danger-border: transparent;
+    --btn-danger-bg-hover: color-mix(in srgb, var(--color-danger) 88%, black);
+    --btn-danger-bg-active: color-mix(in srgb, var(--color-danger) 76%, black);
+
+    --btn-warning-fg: var(--color-bg);
+    --btn-warning-bg: var(--color-warning);
+    --btn-warning-border: transparent;
+    --btn-warning-bg-hover: color-mix(in srgb, var(--color-warning) 88%, black);
+    --btn-warning-bg-active: color-mix(in srgb, var(--color-warning) 76%, black);
+
+    --btn-info-fg: var(--color-bg);
+    --btn-info-bg: var(--color-info);
+    --btn-info-border: transparent;
+    --btn-info-bg-hover: color-mix(in srgb, var(--color-info) 88%, black);
+    --btn-info-bg-active: color-mix(in srgb, var(--color-info) 76%, black);
+
+    --btn-success-fg: var(--color-bg);
+    --btn-success-bg: var(--color-success);
+    --btn-success-border: transparent;
+    --btn-success-bg-hover: color-mix(in srgb, var(--color-success) 88%, black);
+    --btn-success-bg-active: color-mix(in srgb, var(--color-success) 76%, black);
+
     /* -- Surfaces and interactive tints ------------------------------------ */
     --card-bg: var(--color-surface);
 
@@ -524,6 +599,18 @@
     --tag-outline-border: var(--color-accent);
     --tag-outline-fg: var(--color-accent);
 
+    /* Semantic variants — no ramp of their own (unlike accent/neutral), so
+       tint-as-background/colour-as-foreground, same relationship the toast
+       variants already use. */
+    --tag-danger-bg: var(--color-danger-tint);
+    --tag-danger-fg: var(--color-danger);
+    --tag-warning-bg: var(--color-warning-tint);
+    --tag-warning-fg: var(--color-warning);
+    --tag-info-bg: var(--color-info-tint);
+    --tag-info-fg: var(--color-info);
+    --tag-success-bg: var(--color-success-tint);
+    --tag-success-fg: var(--color-success);
+
     /* -- Imagery --------------------------------------------------------------
        The other token the ROADMAP's "reveals the forgotten tokens" line was
        about: Nocturne's `lighten` makes a black photo background disappear
@@ -538,6 +625,291 @@
 
     /* -- SPA shell -------------------------------------------------------------
        Structural sizing, identical to Nocturne. */
+    --nav-badge-size: 32px;
+    --nav-width: 240px;
+    --nav-width-collapsed: calc(var(--nav-badge-size) + var(--space-3) * 2 + var(--space-2) * 2);
+    --font-weight-strong: 600;
+}
+
+/* --------------------------------------------------------------------------
+   Frenchy — light, bleu-blanc-rouge. Same ground as Aurore (a light theme is
+   a light theme regardless of accent hue), so everything structural —
+   shadows, image blend, neutral ramp direction, typography, density, radii,
+   motion, SPA shell sizing — is carried over from Aurore unchanged: this is
+   a colour-polarity/hue exercise on top of an already-proven light ground,
+   not a second light theme to calibrate from scratch. `--color-danger`/
+   `--color-success`/`--color-warning`/`--color-info` are also carried over
+   verbatim — the review only asked for a new brand palette, not four new
+   alert colours re-tuned per theme, and reusing Aurore's keeps them
+   consistent with what a user already learned to read on the other light
+   theme.
+
+   The two things that ARE new: `--color-accent` (a marine blue — "plutôt
+   bleu marine", not a bright one) and `--color-accent-2` (the flag's red,
+   its own full ramp, deliberately never reused by `--color-danger` — a
+   decorative brand colour and an alert colour must stay two different
+   tokens even where their hue happens to be close, or restyling one down
+   the line silently restyles the other).
+
+   First pass — hand-picked, not run through the same OKLCH generation the
+   original two ramps came from (ROADMAP tranche 4 doesn't document the
+   generator, only its output); expect this to need real adjustment once
+   it's seen against actual content, not just the token list.
+   -------------------------------------------------------------------------- */
+[data-theme="frenchy"] {
+    color-scheme: light;
+
+    /* -- Colour roles ---------------------------------------------------- */
+    --color-bg: #f4f6fb;
+    --color-surface: #ffffff;
+    --color-text: #1a2233;
+    --color-accent: #274472;
+    --color-accent-2: #c8102e;
+    --color-divider: color-mix(in srgb, var(--color-text) 12%, transparent);
+    --color-danger: #b3303f;
+    --color-danger-tint: color-mix(in srgb, var(--color-danger) 14%, transparent);
+    --color-success: #2e7d46;
+    --color-success-tint: color-mix(in srgb, var(--color-success) 14%, transparent);
+    --color-warning: #9c6a1c;
+    --color-warning-tint: color-mix(in srgb, var(--color-warning) 14%, transparent);
+    --color-info: #2b6ca3;
+    --color-info-tint: color-mix(in srgb, var(--color-info) 14%, transparent);
+
+    /* -- Tonal ramps ---------------------------------------------------------
+       Same darkest(100)-to-lightest(900) direction as Aurore (light ground).
+       Neutral is Aurore's ramp verbatim — nothing about a navy/red brand
+       changes what grey should look like. Accent (marine) and accent-2
+       (flag red) are new. */
+    --color-neutral-100: #1a1c26;
+    --color-neutral-200: #2c2e3b;
+    --color-neutral-300: #424453;
+    --color-neutral-400: #5a5c6d;
+    --color-neutral-500: #757789;
+    --color-neutral-600: #9698a8;
+    --color-neutral-700: #bcbecb;
+    --color-neutral-800: #dcdde6;
+    --color-neutral-900: #eef0f7;
+
+    --color-accent-100: #101d33;
+    --color-accent-200: #1a2c4d;
+    --color-accent-300: #253c66;
+    --color-accent-400: #325080;
+    --color-accent-500: #4a6ea3;
+    --color-accent-600: #7592bd;
+    --color-accent-700: #a3b8d6;
+    --color-accent-800: #cdd8ea;
+    --color-accent-900: #eef2f8;
+
+    --color-accent-2-100: #3d0a10;
+    --color-accent-2-200: #5c1219;
+    --color-accent-2-300: #7d1b23;
+    --color-accent-2-400: #a02530;
+    --color-accent-2-500: #c85263;
+    --color-accent-2-600: #d95c6d;
+    --color-accent-2-700: #e796a1;
+    --color-accent-2-800: #f3c7cd;
+    --color-accent-2-900: #fbeaec;
+
+    /* Saturated grounds, at presentation scale only — never interface fills. */
+    --color-section: #dbe4f0;
+    --color-section-glow: #c0d2e8;
+    --color-section-ghost: #93b0d4;
+
+    /* -- Derived text colours ---------------------------------------------- */
+    --color-text-muted: color-mix(in srgb, var(--color-text) 55%, transparent);
+    --color-text-label: color-mix(in srgb, var(--color-text) 70%, transparent);
+    --color-text-meta: color-mix(in srgb, var(--color-text) 50%, transparent);
+    --color-text-table-head: color-mix(in srgb, var(--color-text) 60%, transparent);
+    --color-selection: color-mix(in srgb, var(--color-accent) 30%, transparent);
+
+    /* -- Typography — structural, identical to Nocturne/Aurore -------------- */
+    --font-heading: "Inter", system-ui, sans-serif;
+    --font-body: "Inter", system-ui, sans-serif;
+    --font-icon: "Phosphor";
+    --font-heading-weight: 500;
+    --font-body-weight: 400;
+
+    --font-size-base: 15px;
+    --font-size-h1: 42px;
+    --font-size-h2: 32px;
+    --font-size-h3: 25px;
+    --font-size-h4: 20px;
+    --font-size-h5: 16px;
+    --font-size-h6: 13px;
+    --font-size-control: 14px;
+    --font-size-sm: 13px;
+    --font-size-label: 12px;
+    --font-size-xs: 11px;
+    --font-size-xxs: 10px;
+    --font-size-card-title: 17px;
+    --font-size-nav-brand: 18px;
+    --font-size-dialog-title: 20px;
+
+    --line-height-base: 1.55;
+    --line-height-heading: 1.12;
+    --line-height-tight: 1.2;
+
+    --tracking-heading: -0.015em;
+    --tracking-caps: 0.08em;
+    --tracking-caps-wide: 0.1em;
+    --tracking-tag: 0.02em;
+
+    /* -- Density and spacing — identical to Nocturne/Aurore ------------------ */
+    --density: 0.7;
+    --space-1: calc(4px * var(--density) * 1);
+    --space-2: calc(4px * var(--density) * 2);
+    --space-3: calc(4px * var(--density) * 3);
+    --space-4: calc(4px * var(--density) * 4);
+    --space-6: calc(4px * var(--density) * 6);
+    --space-8: calc(4px * var(--density) * 8);
+
+    /* -- Radii ---------------------------------------------------------------- */
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 14px;
+    --radius-tag: calc(var(--radius-md) * 0.75);
+    --radius-round: 50%;
+
+    /* -- Lines ------------------------------------------------------------------ */
+    --hairline: 1px;
+    --rule-fade: 48px;
+
+    /* -- Elevation — same light-ground calibration as Aurore's own ink shadows ------ */
+    --shadow-sm: 0 1px 2px rgba(28, 30, 42, 0.08);
+    --shadow-md: 0 1px 2px rgba(28, 30, 42, 0.06), 0 6px 18px rgba(28, 30, 42, 0.12);
+    --shadow-lg: 0 2px 6px rgba(28, 30, 42, 0.08), 0 16px 40px rgba(28, 30, 42, 0.18);
+
+    /* -- Focus --------------------------------------------------------------- */
+    --focus-ring-width: 2px;
+    --focus-ring-offset: 2px;
+    --focus-ring-color: var(--color-accent);
+
+    /* -- Control metrics --------------------------------------------------- */
+    --control-size: 36px;
+    --control-gap: 6px;
+    --disabled-opacity: 0.45;
+    --link-underline-offset: 3px;
+
+    --btn-padding-y: var(--space-2);
+    --btn-padding-x: calc(var(--space-3) * 1.2);
+
+    --input-padding-y: 6px;
+    --input-padding-x: 10px;
+    --input-label-gap: 5px;
+    --textarea-min-height: 90px;
+
+    --radio-size: 16px;
+    --radio-gap: 8px;
+    --radio-border-width: 1.5px;
+    --radio-dot-inset: 4px;
+
+    --seg-padding-y: 7px;
+    --seg-padding-x: 12px;
+
+    --tag-padding-y: 3px;
+    --tag-padding-x: 10px;
+
+    --card-body-opacity: 0.8;
+
+    --dialog-width: 440px;
+    --dialog-body-opacity: 0.85;
+
+    /* -- Buttons — same filled posture as Nocturne/Aurore -------------------- */
+    --btn-fg: var(--color-text);
+    --btn-bg: transparent;
+    --btn-border: transparent;
+
+    --btn-primary-fg: var(--color-bg);
+    --btn-primary-bg: var(--color-accent);
+    --btn-primary-border: transparent;
+    --btn-primary-bg-hover: color-mix(in srgb, var(--color-accent) 88%, black);
+    --btn-primary-bg-active: color-mix(in srgb, var(--color-accent) 76%, black);
+
+    --btn-secondary-fg: var(--color-text);
+    --btn-secondary-bg: var(--color-neutral-800);
+    --btn-secondary-border: transparent;
+    --btn-secondary-bg-hover: var(--color-neutral-700);
+    --btn-secondary-bg-active: var(--color-neutral-600);
+
+    --btn-ghost-fg: var(--color-accent);
+    --btn-ghost-bg-hover: color-mix(in srgb, var(--color-accent) 10%, transparent);
+    --btn-ghost-bg-active: color-mix(in srgb, var(--color-accent) 18%, transparent);
+
+    --btn-danger-fg: var(--color-bg);
+    --btn-danger-bg: var(--color-danger);
+    --btn-danger-border: transparent;
+    --btn-danger-bg-hover: color-mix(in srgb, var(--color-danger) 88%, black);
+    --btn-danger-bg-active: color-mix(in srgb, var(--color-danger) 76%, black);
+
+    --btn-warning-fg: var(--color-bg);
+    --btn-warning-bg: var(--color-warning);
+    --btn-warning-border: transparent;
+    --btn-warning-bg-hover: color-mix(in srgb, var(--color-warning) 88%, black);
+    --btn-warning-bg-active: color-mix(in srgb, var(--color-warning) 76%, black);
+
+    --btn-info-fg: var(--color-bg);
+    --btn-info-bg: var(--color-info);
+    --btn-info-border: transparent;
+    --btn-info-bg-hover: color-mix(in srgb, var(--color-info) 88%, black);
+    --btn-info-bg-active: color-mix(in srgb, var(--color-info) 76%, black);
+
+    --btn-success-fg: var(--color-bg);
+    --btn-success-bg: var(--color-success);
+    --btn-success-border: transparent;
+    --btn-success-bg-hover: color-mix(in srgb, var(--color-success) 88%, black);
+    --btn-success-bg-active: color-mix(in srgb, var(--color-success) 76%, black);
+
+    /* -- Surfaces and interactive tints ------------------------------------ */
+    --card-bg: var(--color-surface);
+
+    --input-bg: var(--color-surface);
+    --input-fg: var(--color-text);
+    --input-border: var(--color-divider);
+    --input-border-hover: color-mix(in srgb, var(--color-text) 45%, transparent);
+    --input-border-focus: var(--color-accent);
+    --input-caret: var(--color-accent);
+
+    --seg-border: var(--color-divider);
+    --seg-selected-fg: var(--color-accent);
+    --seg-selected-border: var(--color-accent);
+    --seg-bg-hover: color-mix(in srgb, var(--color-text) 7%, transparent);
+
+    --nav-link-active-fg: var(--color-accent);
+
+    --table-rule: color-mix(in srgb, var(--color-text) 8%, transparent);
+    --table-row-hover: color-mix(in srgb, var(--color-text) 4%, transparent);
+
+    --dialog-bg: var(--color-surface);
+    --dialog-backdrop: color-mix(in srgb, var(--color-neutral-100) 50%, transparent);
+
+    /* -- Tags -------------------------------------------------------------- */
+    --tag-accent-bg: var(--color-accent-800);
+    --tag-accent-fg: var(--color-accent-100);
+    --tag-accent-2-bg: var(--color-accent-2-800);
+    --tag-accent-2-fg: var(--color-accent-2-100);
+    --tag-neutral-bg: var(--color-neutral-800);
+    --tag-neutral-fg: var(--color-neutral-100);
+    --tag-outline-border: var(--color-accent);
+    --tag-outline-fg: var(--color-accent);
+
+    --tag-danger-bg: var(--color-danger-tint);
+    --tag-danger-fg: var(--color-danger);
+    --tag-warning-bg: var(--color-warning-tint);
+    --tag-warning-fg: var(--color-warning);
+    --tag-info-bg: var(--color-info-tint);
+    --tag-info-fg: var(--color-info);
+    --tag-success-bg: var(--color-success-tint);
+    --tag-success-fg: var(--color-success);
+
+    /* -- Imagery — same as Aurore: a light ground hides a white photo background with `darken`, not `lighten`. -- */
+    --image-blend: darken;
+
+    /* -- Motion --------------------------------------------------------------- */
+    --dur-md: 160ms;
+    --ease-out: cubic-bezier(0.2, 0, 0, 1);
+
+    /* -- SPA shell -------------------------------------------------------------
+       Structural sizing, identical to Nocturne/Aurore. */
     --nav-badge-size: 32px;
     --nav-width: 240px;
     --nav-width-collapsed: calc(var(--nav-badge-size) + var(--space-3) * 2 + var(--space-2) * 2);

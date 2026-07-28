@@ -5,12 +5,13 @@ import template from "./toast.component.html";
 /** How long a toast stays before it dismisses itself */
 const AUTO_DISMISS_MS = 6000;
 
-/** Visual/semantic category of a toast — distinguishes a failure from a positive confirmation or a plain heads-up */
-export type ToastVariant = "success" | "danger" | "info";
+/** Visual/semantic category of a toast — distinguishes a failure from a positive confirmation, a caution, or a plain heads-up */
+export type ToastVariant = "success" | "danger" | "warning" | "info";
 
 const VARIANT_ICON: Record<ToastVariant, string> = {
     success: "ph-check-circle",
     danger: "ph-warning",
+    warning: "ph-warning-circle",
     info: "ph-info"
 };
 

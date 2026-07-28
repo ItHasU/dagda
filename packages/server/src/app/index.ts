@@ -429,6 +429,14 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
             this._requirePermission(user, "users.manage");
             await this._users.setRole(params.id, params.roleId);
         });
+        this._registerFrameworkAction<"setUserSuperAdmin">("setUserSuperAdmin", async (user, params) => {
+            this._requirePermission(user, "users.manage");
+            await this._users.setSuperAdmin(params.id, params.isSuperAdmin);
+        });
+        this._registerFrameworkAction<"setUserDisplayName">("setUserDisplayName", async (user, params) => {
+            this._requirePermission(user, "users.manage");
+            await this._users.setDisplayName(params.id, params.displayName);
+        });
 
         this._registerFrameworkAction<"listRoles">("listRoles", async (user) => {
             this._requirePermission(user, "roles.manage");

@@ -169,6 +169,20 @@ export class UserStore {
         await this._db.run(`UPDATE ${qi(USERS_TABLE)} SET ${qi("roleId")} = $1 WHERE ${qi("id")} = $2`, roleId, id);
     }
 
+    /** Grant or revoke the super-admin flag (FEATURES §7.1: bypasses every permission check) */
+    public async setSuperAdmin(id: UserId, isSuperAdmin: boolean): Promise<void> {
+        await this._db.run(`UPDATE ${qi(USERS_TABLE)} SET ${qi("isSuperAdmin")} = $1 WHERE ${qi("id")} = $2`, isSuperAdmin, id);
+    }
+
+    /** Rename an account — the login stays the sign-in identifier, only the displayed name changes */
+    public async setDisplayName(id: UserId, displayName: string): Promise<void> {
+        const trimmed = displayName.trim();
+        if (trimmed === "") {
+            throw new Error("A display name cannot be empty");
+        }
+        await this._db.run(`UPDATE ${qi(USERS_TABLE)} SET ${qi("displayName")} = $1 WHERE ${qi("id")} = $2`, trimmed, id);
+    }
+
     //#endregion
 
     //#region Invitations -------------------------------------------------------

@@ -43,12 +43,14 @@
     color: var(--color-success);
 }
 
-/* No dedicated token: informational toasts read off the accent color already
-   used for "primary" emphasis elsewhere (dagda-ui.css), mixed the same way
-   --color-danger-tint/--color-success-tint are. */
+.dagda-toast[data-state="warning"] {
+    background: var(--color-warning-tint);
+    color: var(--color-warning);
+}
+
 .dagda-toast[data-state="info"] {
-    background: color-mix(in srgb, var(--color-accent) 20%, transparent);
-    color: var(--color-accent);
+    background: var(--color-info-tint);
+    color: var(--color-info);
 }
 
 .dagda-toast > i {

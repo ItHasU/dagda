@@ -189,6 +189,42 @@ figcaption {
 .btn-ghost:hover { background: var(--btn-ghost-bg-hover); }
 .btn-ghost:active { background: var(--btn-ghost-bg-active); }
 
+.btn-danger {
+    color: var(--btn-danger-fg);
+    background: var(--btn-danger-bg);
+    border-color: var(--btn-danger-border);
+}
+
+.btn-danger:hover { background: var(--btn-danger-bg-hover); }
+.btn-danger:active { background: var(--btn-danger-bg-active); }
+
+.btn-warning {
+    color: var(--btn-warning-fg);
+    background: var(--btn-warning-bg);
+    border-color: var(--btn-warning-border);
+}
+
+.btn-warning:hover { background: var(--btn-warning-bg-hover); }
+.btn-warning:active { background: var(--btn-warning-bg-active); }
+
+.btn-info {
+    color: var(--btn-info-fg);
+    background: var(--btn-info-bg);
+    border-color: var(--btn-info-border);
+}
+
+.btn-info:hover { background: var(--btn-info-bg-hover); }
+.btn-info:active { background: var(--btn-info-bg-active); }
+
+.btn-success {
+    color: var(--btn-success-fg);
+    background: var(--btn-success-bg);
+    border-color: var(--btn-success-border);
+}
+
+.btn-success:hover { background: var(--btn-success-bg-hover); }
+.btn-success:active { background: var(--btn-success-bg-active); }
+
 .btn-icon {
     width: var(--control-size);
     height: var(--control-size);
@@ -419,6 +455,26 @@ textarea.input {
     color: var(--tag-outline-fg);
 }
 
+.tag-danger {
+    background: var(--tag-danger-bg);
+    color: var(--tag-danger-fg);
+}
+
+.tag-warning {
+    background: var(--tag-warning-bg);
+    color: var(--tag-warning-fg);
+}
+
+.tag-info {
+    background: var(--tag-info-bg);
+    color: var(--tag-info-fg);
+}
+
+.tag-success {
+    background: var(--tag-success-bg);
+    color: var(--tag-success-fg);
+}
+
 /* — navigation — */
 .nav {
     display: flex;
@@ -447,6 +503,14 @@ textarea.input {
 }
 
 /* — tables — */
+/* Wrap a `.table` in this when its column count is unbounded (e.g. one per
+   role) instead of fixed — a horizontal scrollbar beats a table that blows
+   out the page width. Not applied to every `.table` on purpose: most have a
+   fixed, small column count with nothing to gain from it. */
+.table-wrapper {
+    overflow-x: auto;
+}
+
 .table {
     width: 100%;
     border-collapse: collapse;

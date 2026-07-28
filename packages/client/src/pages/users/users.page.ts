@@ -30,10 +30,16 @@ function checkboxInput(editor: FieldEditor<boolean>): HTMLInputElement {
     return editor.querySelector("input")!;
 }
 
+/** Same reasoning as checkboxInput() above, for a text editor's native input */
+function textInput(editor: FieldEditor<string>): HTMLInputElement {
+    return editor.querySelector("input")!;
+}
+
 /**
  * Account administration and role assignment (Dagda FEATURES §7, §7.1),
  * the screen `dagda.system.inviteUser/reinviteUser/listUsers/
- * setUserEnabled/setUserRole` were, until now, only reachable from.
+ * setUserEnabled/setUserRole/setUserSuperAdmin/setUserDisplayName` were,
+ * until now, only reachable from.
  *
  * No email service (FEATURES §0): inviting or reinviting hands back a link
  * with nowhere of its own to go, so both open a dialog with the link ready
@@ -77,20 +83,24 @@ export class UsersPage extends AbstractPageElement {
 
             const account = document.createElement("td");
             const login = document.createElement("div");
+            login.className = "text-muted";
             login.textContent = user.login;
             account.appendChild(login);
-            if (user.displayName !== user.login) {
-                const displayName = document.createElement("div");
-                displayName.className = "text-muted";
-                displayName.textContent = user.displayName;
-                account.appendChild(displayName);
-            }
-            if (user.isSuperAdmin) {
-                const tag = document.createElement("span");
-                tag.className = "tag tag-accent";
-                tag.textContent = "Super-admin";
-                account.appendChild(tag);
-            }
+            const nameEditor = textEditor(user.displayName);
+            textInput(nameEditor).addEventListener("change", () => {
+                const displayName = nameEditor.value?.trim() ?? "";
+                if (displayName === "" || displayName === user.displayName) {
+                    nameEditor.value = user.displayName;
+                    return;
+                }
+                actionCall<DagdaActions, "setUserDisplayName">("setUserDisplayName", { id: user.id, displayName })
+                    .then(() => this.refresh())
+                    .catch((err: unknown) => {
+                        showToast(err instanceof Error ? err.message : String(err));
+                        nameEditor.value = user.displayName;
+                    });
+            });
+            account.appendChild(nameEditor);
             row.appendChild(account);
 
             const roleCell = document.createElement("td");
@@ -106,6 +116,16 @@ export class UsersPage extends AbstractPageElement {
             });
             enabledCell.appendChild(enabledEditor);
             row.appendChild(enabledCell);
+
+            const superAdminCell = document.createElement("td");
+            const superAdminEditor = booleanEditor(user.isSuperAdmin);
+            checkboxInput(superAdminEditor).addEventListener("change", () => {
+                actionCall<DagdaActions, "setUserSuperAdmin">("setUserSuperAdmin", { id: user.id, isSuperAdmin: superAdminEditor.value === true })
+                    .then(() => this.refresh())
+                    .catch((err: unknown) => showToast(err instanceof Error ? err.message : String(err)));
+            });
+            superAdminCell.appendChild(superAdminEditor);
+            row.appendChild(superAdminCell);
 
             const actionsCell = document.createElement("td");
             const reinvite = document.createElement("button");

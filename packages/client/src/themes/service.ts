@@ -15,10 +15,11 @@ export interface ThemeInfo {
     dark?: boolean;
 }
 
-/** The framework's own themes, both declared in `styles/themes.css` (FEATURES §8, ROADMAP tranche 4) */
+/** The framework's own themes, all declared in `styles/themes.css` (FEATURES §8, ROADMAP tranche 4) */
 export const DAGDA_THEMES: ThemeInfo[] = [
     { id: "nocturne", label: "Nocturne", dark: true },
-    { id: "aurore", label: "Aurore", dark: false }
+    { id: "aurore", label: "Aurore", dark: false },
+    { id: "frenchy", label: "Frenchy", dark: false }
 ];
 
 /**

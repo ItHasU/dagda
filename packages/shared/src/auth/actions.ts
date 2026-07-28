@@ -35,6 +35,10 @@ export type DagdaActions = {
     setUserEnabled(params: { id: UserId, enabled: boolean }): void;
     /** Give an account a role, or none (§7.1: at most one) */
     setUserRole(params: { id: UserId, roleId: RoleId | null }): void;
+    /** Grant or revoke the super-admin flag (§7.1: bypasses every permission check) */
+    setUserSuperAdmin(params: { id: UserId, isSuperAdmin: boolean }): void;
+    /** Rename an account — the login stays the sign-in identifier, only the displayed name changes */
+    setUserDisplayName(params: { id: UserId, displayName: string }): void;
 
     /** Every role, for the matrix screen and the account screen's role picker */
     listRoles(): Role[];

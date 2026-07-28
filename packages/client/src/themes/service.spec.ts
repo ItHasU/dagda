@@ -26,7 +26,7 @@ describe("ThemeRegistry", () => {
     it("lists the framework's own themes by default", () => {
         const { preferences } = buildPreferences();
         const themes = new ThemeRegistry(DAGDA_THEMES, preferences);
-        expect(themes.list().map((t) => t.id)).toEqual(["nocturne", "aurore"]);
+        expect(themes.list().map((t) => t.id)).toEqual(["nocturne", "aurore", "frenchy"]);
     });
 
     it("current falls back to the first declared theme before anything is applied", () => {

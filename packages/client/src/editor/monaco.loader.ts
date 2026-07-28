@@ -18,6 +18,13 @@ let monacoPromise: Promise<typeof import("monaco-editor/editor/editor.api")> | n
 
 /** @returns the Monaco module, fetching it on the first call and reusing that same promise afterward */
 export function loadMonaco(): Promise<typeof import("monaco-editor/editor/editor.api")> {
-    monacoPromise ??= import("monaco-editor/editor/editor.api");
+    monacoPromise ??= Promise.all([
+        import("monaco-editor/editor/editor.api"),
+        // Side-effect only: registers the "html" language id and its
+        // (lazily loaded) Monarch tokenizer. The core above never does this
+        // itself for any language — without it, an editor with
+        // language="html" renders as plain, uncolored text.
+        import("monaco-editor/languages/definitions/html/register")
+    ]).then(([monaco]) => monaco);
     return monacoPromise;
 }
