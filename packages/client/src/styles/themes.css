@@ -657,63 +657,71 @@
    it's seen against actual content, not just the token list.
    -------------------------------------------------------------------------- */
 [data-theme="frenchy"] {
-    color-scheme: light;
+    color-scheme: dark;
 
-    /* -- Colour roles ---------------------------------------------------- */
-    --color-bg: #f4f6fb;
-    --color-surface: #ffffff;
-    --color-text: #1a2233;
-    --color-accent: #274472;
-    --color-accent-2: #c8102e;
-    --color-divider: color-mix(in srgb, var(--color-text) 12%, transparent);
-    --color-danger: #b3303f;
-    --color-danger-tint: color-mix(in srgb, var(--color-danger) 14%, transparent);
-    --color-success: #2e7d46;
-    --color-success-tint: color-mix(in srgb, var(--color-success) 14%, transparent);
-    --color-warning: #9c6a1c;
-    --color-warning-tint: color-mix(in srgb, var(--color-warning) 14%, transparent);
-    --color-info: #2b6ca3;
-    --color-info-tint: color-mix(in srgb, var(--color-info) 14%, transparent);
+    /* -- Colour roles ------------------------------------------------------
+       The flag reassigned: navy carries the ground (was "blanc"'s role in
+       the first cut), white carries the text, red is the one accent —
+       matching Nocturne's mono-accent shape (no second brand colour), not
+       the two-accent split the light version used. */
+    --color-bg: #0d1b36;
+    --color-surface: #16294d;
+    --color-text: #f5f7fb;
+    --color-accent: #e63946;
+    /* Mono scheme, same reasoning as Nocturne's own --color-accent-2: kept
+       only so both ramps resolve, a touch softer than the base red so the
+       two are still tellable apart where both show up. */
+    --color-accent-2: #eb5b68;
+    --color-divider: color-mix(in srgb, var(--color-text) 16%, transparent);
+    --color-danger: #e2707a;
+    --color-danger-tint: color-mix(in srgb, var(--color-danger) 20%, transparent);
+    --color-success: #6fcf97;
+    --color-success-tint: color-mix(in srgb, var(--color-success) 20%, transparent);
+    --color-warning: #e2a35c;
+    --color-warning-tint: color-mix(in srgb, var(--color-warning) 20%, transparent);
+    --color-info: #7bb8e8;
+    --color-info-tint: color-mix(in srgb, var(--color-info) 20%, transparent);
 
     /* -- Tonal ramps ---------------------------------------------------------
-       Same darkest(100)-to-lightest(900) direction as Aurore (light ground).
-       Neutral is Aurore's ramp verbatim — nothing about a navy/red brand
-       changes what grey should look like. Accent (marine) and accent-2
-       (flag red) are new. */
-    --color-neutral-100: #1a1c26;
-    --color-neutral-200: #2c2e3b;
-    --color-neutral-300: #424453;
-    --color-neutral-400: #5a5c6d;
-    --color-neutral-500: #757789;
-    --color-neutral-600: #9698a8;
-    --color-neutral-700: #bcbecb;
-    --color-neutral-800: #dcdde6;
-    --color-neutral-900: #eef0f7;
+       Same lightest(100)-to-darkest(900) direction as Nocturne (dark
+       ground): 700-900 for tinted fills/hovers/borders, 500 as the role's
+       base, 100-300 for text on those tints. Neutral is Nocturne's ramp
+       verbatim — a navy/red brand doesn't change what grey should look
+       like. Accent (flag red) and its mono stand-in are new. */
+    --color-neutral-100: #f3f5fe;
+    --color-neutral-200: #e4e7f5;
+    --color-neutral-300: #cfd3e5;
+    --color-neutral-400: #b2b6ca;
+    --color-neutral-500: #9397ab;
+    --color-neutral-600: #75798c;
+    --color-neutral-700: #595d6c;
+    --color-neutral-800: #3f424d;
+    --color-neutral-900: #292b31;
 
-    --color-accent-100: #101d33;
-    --color-accent-200: #1a2c4d;
-    --color-accent-300: #253c66;
-    --color-accent-400: #325080;
-    --color-accent-500: #4a6ea3;
-    --color-accent-600: #7592bd;
-    --color-accent-700: #a3b8d6;
-    --color-accent-800: #cdd8ea;
-    --color-accent-900: #eef2f8;
+    --color-accent-100: #ffeef0;
+    --color-accent-200: #ffd6da;
+    --color-accent-300: #feb0b8;
+    --color-accent-400: #f4818d;
+    --color-accent-500: #e63946;
+    --color-accent-600: #c22736;
+    --color-accent-700: #971d29;
+    --color-accent-800: #6b151d;
+    --color-accent-900: #3d0d11;
 
-    --color-accent-2-100: #3d0a10;
-    --color-accent-2-200: #5c1219;
-    --color-accent-2-300: #7d1b23;
-    --color-accent-2-400: #a02530;
-    --color-accent-2-500: #c85263;
-    --color-accent-2-600: #d95c6d;
-    --color-accent-2-700: #e796a1;
-    --color-accent-2-800: #f3c7cd;
-    --color-accent-2-900: #fbeaec;
+    --color-accent-2-100: #fff1f2;
+    --color-accent-2-200: #ffdde0;
+    --color-accent-2-300: #febcc0;
+    --color-accent-2-400: #f39aa0;
+    --color-accent-2-500: #eb5b68;
+    --color-accent-2-600: #c94753;
+    --color-accent-2-700: #9c3540;
+    --color-accent-2-800: #6f252c;
+    --color-accent-2-900: #3f1317;
 
     /* Saturated grounds, at presentation scale only — never interface fills. */
-    --color-section: #dbe4f0;
-    --color-section-glow: #c0d2e8;
-    --color-section-ghost: #93b0d4;
+    --color-section: #4a151c;
+    --color-section-glow: #6b1f28;
+    --color-section-ghost: #973040;
 
     /* -- Derived text colours ---------------------------------------------- */
     --color-text-muted: color-mix(in srgb, var(--color-text) 55%, transparent);
@@ -774,10 +782,11 @@
     --hairline: 1px;
     --rule-fade: 48px;
 
-    /* -- Elevation — same light-ground calibration as Aurore's own ink shadows ------ */
-    --shadow-sm: 0 1px 2px rgba(28, 30, 42, 0.08);
-    --shadow-md: 0 1px 2px rgba(28, 30, 42, 0.06), 0 6px 18px rgba(28, 30, 42, 0.12);
-    --shadow-lg: 0 2px 6px rgba(28, 30, 42, 0.08), 0 16px 40px rgba(28, 30, 42, 0.18);
+    /* -- Elevation — same dark-ground calibration as Nocturne: a hairline edge
+       plus ambient darkness rather than a soft ink shadow. ------------------- */
+    --shadow-sm: 0 0 0 var(--hairline) var(--color-neutral-800);
+    --shadow-md: 0 0 0 var(--hairline) var(--color-neutral-700), 0 6px 18px rgba(0, 0, 0, 0.55);
+    --shadow-lg: 0 0 0 var(--hairline) var(--color-neutral-500), 0 16px 40px rgba(0, 0, 0, 0.65);
 
     /* -- Focus --------------------------------------------------------------- */
     --focus-ring-width: 2px;
@@ -880,7 +889,7 @@
     --table-row-hover: color-mix(in srgb, var(--color-text) 4%, transparent);
 
     --dialog-bg: var(--color-surface);
-    --dialog-backdrop: color-mix(in srgb, var(--color-neutral-100) 50%, transparent);
+    --dialog-backdrop: color-mix(in srgb, var(--color-neutral-900) 50%, transparent);
 
     /* -- Tags -------------------------------------------------------------- */
     --tag-accent-bg: var(--color-accent-800);
@@ -901,8 +910,8 @@
     --tag-success-bg: var(--color-success-tint);
     --tag-success-fg: var(--color-success);
 
-    /* -- Imagery — same as Aurore: a light ground hides a white photo background with `darken`, not `lighten`. -- */
-    --image-blend: darken;
+    /* -- Imagery — same as Nocturne: a dark ground hides a black photo background with `lighten`, not `darken`. -- */
+    --image-blend: lighten;
 
     /* -- Motion --------------------------------------------------------------- */
     --dur-md: 160ms;

@@ -19,7 +19,7 @@ export interface ThemeInfo {
 export const DAGDA_THEMES: ThemeInfo[] = [
     { id: "nocturne", label: "Nocturne", dark: true },
     { id: "aurore", label: "Aurore", dark: false },
-    { id: "frenchy", label: "Frenchy", dark: false }
+    { id: "frenchy", label: "Frenchy", dark: true }
 ];
 
 /**
