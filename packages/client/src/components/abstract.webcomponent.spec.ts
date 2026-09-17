@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import { GoodbyePage } from "../app/goodbye/goodbye.page";
+import { PreferencesPage } from "../pages/preferences/preferences.page";
 import { _setDagda } from "../app/dagda";
 import { AbstractWebComponent, Attribute, camelToKebabCase, NumberMarshaller, Ref } from "./abstract.webcomponent";
 
@@ -146,9 +146,11 @@ describe("Template import", () => {
     it("loads a component template from its .html file", async () => {
         // This is the check that the templates are readable outside a webpack
         // bundle. If the .html import mechanism regresses, this test fails
-        // before any component test does.
-        const page = new GoodbyePage();
-        expect(page.innerHTML).toContain("Goodbye world!");
+        // before any component test does. PreferencesPage is used here only
+        // as a vehicle — any framework page with a .html template would do,
+        // now that the demo pages (hello/goodbye) live in bootstrap/.
+        const page = new PreferencesPage();
+        expect(page.innerHTML).toContain("Thème");
     });
 
 });

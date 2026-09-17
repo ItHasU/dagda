@@ -1,8 +1,8 @@
 import { APP_CONTEXT_ADAPTER } from "@dagda-app/shared/src/entities/contexts";
 import { APP_MODEL } from "@dagda-app/shared/src/entities/model";
 import { DagdaClient } from "@dagda/client/src/app";
-import { GoodbyePage } from "@dagda/client/src/app/goodbye/goodbye.page";
-import { HelloPage } from "@dagda/client/src/app/hello/hello.page";
+import { GoodbyePage } from "./pages/goodbye/goodbye.page";
+import { HelloPage } from "./pages/hello/hello.page";
 import { ClientAppTypes } from "./services";
 
 // No component imported for its side effect any more: the framework registers

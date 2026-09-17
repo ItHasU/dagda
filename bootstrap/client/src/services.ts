@@ -1,5 +1,5 @@
-import { GoodbyePage } from "@dagda/client/src/app/goodbye/goodbye.page";
-import { HelloPage } from "@dagda/client/src/app/hello/hello.page";
+import { GoodbyePage } from "./pages/goodbye/goodbye.page";
+import { HelloPage } from "./pages/hello/hello.page";
 import { AppTypes } from "@dagda-app/shared/src/app/types";
 
 /**

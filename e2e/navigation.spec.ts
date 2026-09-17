@@ -44,9 +44,11 @@ test.describe("The shell", () => {
 
     test("names the application in full while the column is deployed", async ({ page }) => {
         await open(page);
-        await expect(page.locator(".shell-brand-full")).toBeVisible();
-        await expect(page.locator(".shell-brand-full")).toHaveText("Dagda");
-        await expect(page.locator(".shell-brand-compact")).toBeHidden();
+        // The brand has the same shape as any other entry: icon then label
+        // (`specs/navigation.md` §3.2). Deployed, both are on screen.
+        await expect(page.locator(".shell-brand-label")).toBeVisible();
+        await expect(page.locator(".shell-brand-label")).toHaveText("Dagda");
+        await expect(page.locator(".shell-brand-icon")).toBeVisible();
     });
 
     test("lists the pages of a section under it", async ({ page }) => {
@@ -83,13 +85,16 @@ test.describe("Navigating", () => {
 
 test.describe("Collapsing the column", () => {
 
-    test("hides the labels and swaps the brand for its compact rendering", async ({ page }) => {
+    test("hides the labels and leaves the brand to its icon alone", async ({ page }) => {
         await open(page);
         await page.locator("[ref=toggle]").click();
 
         await expect(page.locator(".shell")).toHaveAttribute("data-nav", "collapsed");
-        await expect(page.locator(".shell-brand-compact")).toBeVisible();
-        await expect(page.locator(".shell-brand-full")).toBeHidden();
+        // The rail drops the name and keeps the mark, exactly like a page or a
+        // section entry: an application that declares no icon carries no
+        // identity here at all (§3.2).
+        await expect(page.locator(".shell-brand-icon")).toBeVisible();
+        await expect(page.locator(".shell-brand-label")).toBeHidden();
         // Including the labels of the pages of a section that is otherwise
         // expanded (§3.2).
         await expect(page.locator(".shell-pages")).toBeHidden();
@@ -136,7 +141,7 @@ test.describe("Collapsing the column", () => {
         await expect(page.locator(".shell")).toHaveAttribute("data-nav", "collapsed");
         await page.locator("[ref=toggle]").click();
         await expect(page.locator(".shell")).toHaveAttribute("data-nav", "deployed");
-        await expect(page.locator(".shell-brand-full")).toBeVisible();
+        await expect(page.locator(".shell-brand-label")).toBeVisible();
     });
 
 });

@@ -1,17 +1,13 @@
-import { AbstractPageElement } from "../../pages/abstract.page.element";
-import template from "./hello.page.html";
-
-var count = 0;
+import { AbstractPageElement } from "@dagda/client/src/pages/abstract.page.element";
+import template from "./goodbye.page.html";
 
 /** A static page sample, no init, no refresh, just a template */
-export class HelloPage extends AbstractPageElement {
+export class GoodbyePage extends AbstractPageElement {
 
     constructor() {
         super({
             template: template
         });
-        count++;
-        console.log("Active HelloPage pages:", count);
     }
 
     /** Nothing to be done here */
@@ -21,11 +17,9 @@ export class HelloPage extends AbstractPageElement {
 
     /** Nothing to be done here */
     public override dispose(): Promise<void> {
-        count--;
-        console.log("Active HelloPage pages:", count);
         return Promise.resolve();
     }
 
 }
 
-customElements.define("hello-page", HelloPage);
+customElements.define("goodbye-page", GoodbyePage);

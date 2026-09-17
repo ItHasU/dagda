@@ -7,7 +7,7 @@
   "scripts": {
     "clean": "rimraf -g apps/*/dist **/.tsc-build",
     "clean-all": "rimraf -g apps/*/dist **/.tsc-build **/node_modules",
-    "typecheck": "tsc -b packages/shared packages/client packages/server bootstrap/shared && tsc -p e2e/tsconfig.json",
+    "typecheck": "tsc -b packages/shared packages/client packages/server bootstrap/shared bootstrap/client bootstrap/server && tsc -p e2e/tsconfig.json",
     "lint": "oxlint --deny-warnings packages bootstrap e2e",
     "build": "npm run build --workspaces --if-present",
     "watch": "npm run watch -w @dagda-app/client & npm run watch -w @dagda-app/server & wait",
