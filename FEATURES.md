@@ -222,7 +222,7 @@ comptes (§11.4) — pas fixés dans le code, à l'inverse des permissions.
 | Système de pages / navigation (`PageHandler`, `AbstractPageElement`) | ⚠️ | ✅ | v1 : géré dans l'app EurekAI |
 | **NEW** — SPA fournie clé en main : menu de navigation + zone de contenu | | ✅ | l'application n'écrit pas sa coquille. Disposition détaillée dans [`specs/navigation.md`](specs/navigation.md) (paysage/portrait × déployé/rétracté). **Paysage seul** (déployé + rétracté) : le portrait attend la tranche 4 |
 | **NEW** — ↳ **Un seul `<dagda-app>` dans l'`index.html` de l'application** | | ✅ | il monte toute la coquille. Le framework enregistre ses propres éléments personnalisés : les imports « pour effet de bord » (`Navbar`, `PageContainer`, `EntitiesStatusComponent`) ont disparu des applications. Spec : `specs/navigation.md` §6.1 |
-| **NEW** — ↳ Les pages dérivent d'`ApplicationPage` | | | |
+| **NEW** — ↳ Les pages dérivent d'`AbstractPageElement` | | ✅ | et non d'une classe `ApplicationPage`, qui n'a jamais existé dans le code : l'inscription au menu est un champ de `PageInfo`, pas une capacité de la classe de base |
 | **NEW** — ↳ Inscription au menu **optionnelle**, avec hiérarchie par catégorie | | ✅ | `menu: { section, order, group }` sur la page, `sections` dans `DagdaClient.start()`. Une page sans `menu` reste atteignable par le service de navigation |
 | **NEW** — ↳ Menu filtré par les permissions de l'utilisateur | | ⚠️ | conséquence de §7.1 : ne pas proposer ce qui sera refusé. Le filtrage est fait, et une section dont toutes les pages sont refusées disparaît entièrement — le rail rétracté ne montrant que des icônes, une icône seule annoncerait la section aussi sûrement qu'un libellé. Le prédicat se réduit pour l'instant au drapeau super-admin : la matrice rôles × permissions arrive en tranche 3 |
 | Composant de statut (téléchargement / envoi / cache sale) | ✅ | ✅ | |
@@ -274,20 +274,23 @@ Une liste de champs typés en entrée, un formulaire rendu et validé en sortie.
 
 | Fonctionnalité | v1 | v2 | Notes |
 |---|:--:|:--:|---|
-| Point d'entrée unique `Dagda.get("serviceName")` | ❌ | ✅ | classe du paquet partagé, identique côté client et côté serveur ; remplace les singletons statiques de la v1 |
-| `Dagda.init(services)` + promesse `Dagda.loaded` | ❌ | ✅ | les composants attendent l'init |
-| Services standard : `log`, `notification`, `entities`, `pages` | ❌ | ✅ | |
+| Point d'entrée unique : l'instance `dagda` | ❌ | ✅ | `Dagda`/`ClientDagda`/`ServerDagda` sont des classes ordinaires à champs `readonly` nommés, atteintes par une instance singleton exportée `dagda` (minuscule), identique côté client et côté serveur |
+| Promesse `dagdaReady` | ❌ | ✅ | un composant construit avant la fin de `DagdaClient.start()` l'attend — c'est ce que fait `AbstractWebComponent` à son premier rafraîchissement |
+| Services standard : `log`, `notification`, `entities`, `pages` | ❌ | ✅ | lus comme des champs (`dagda.entities`), pas par une clé de registre |
 | Types applicatifs centralisés (`BaseAppTypes`) | ❌ | ✅ | `entities` / `contexts` / `apis` / `events` en un seul endroit |
-| Registre instanciable (`DagdaRegistry`) derrière la façade statique | ❌ | ✅ | `Dagda.reset()` rend le registre courant et en installe un neuf : un test s'isole sans toucher à l'état de module |
-| **NEW** — Service `auth` (utilisateur courant, connexion, déconnexion) | | ✅ | conséquence de §7 ; `currentUser` et `logout()` via `Dagda.get<AuthService>("auth")`, la connexion reste une page rendue par le serveur (`/login`), volontairement hors périmètre |
-| **NEW** — Déclaration de services applicatifs custom documentée | | | |
+| **NEW** — Service `auth` (utilisateur courant, connexion, déconnexion) | | ✅ | conséquence de §7 ; `dagda.auth.currentUser` et `logout()`, la connexion reste une page rendue par le serveur (`/login`), volontairement hors périmètre |
+| **NEW** — Déclaration de services applicatifs custom documentée | | ✅ | `buildDagda` côté client (`DagdaClient.start`), `_buildDagda()` côté serveur (`AbstractServerApp`). Exemple réel : `dagda.notes` dans `bootstrap/server`. Documenté dans [GUIDE.md](GUIDE.md) §4 (ROADMAP tranche 5) |
 
-> **`Dagda` ≠ `DagdaClient`.** `Dagda` (paquet partagé) est le registre de
-> services, et lui seul. L'amorçage de l'application cliente — en-têtes de page,
+> **`dagda` ≠ `DagdaClient`.** `dagda` (paquet partagé) porte les services, et
+> eux seuls. L'amorçage de l'application cliente — en-têtes de page,
 > informations système, appels d'API typés — est porté par `DagdaClient`
-> (paquet client), dont le point d'entrée est `DagdaClient.start(model, adapter)`.
+> (paquet client), dont le point d'entrée est `DagdaClient.start({...})`.
 > Les deux portaient le même nom jusqu'à la tranche 0, avec deux `init()` de
 > signatures incompatibles à une ligne d'écart dans le boilerplate.
+>
+> Il n'y a **plus** de registre statique : `Dagda.get("nom")`, `Dagda.init()`,
+> `Dagda.loaded` et `Dagda.reset()` ont été remplacés par l'instance construite
+> (commit `349c3d4`).
 
 ## 10. Utilitaires partagés
 
@@ -471,9 +474,18 @@ permissions (§7.1) · types de contextes et leurs paramètres · fonctions
 d'intersection par type de contexte (§3) · notifications serveur → client ·
 routes client → serveur (§5) · API externes (§5) · actions de modification (§11.1).
 
-**Partie *client*** — pages, dérivant d'`ApplicationPage`, avec leur position
-optionnelle dans le menu (§8) · composants propres à l'application · liste des
-thèmes retenus (§8).
+**Partie *client*** — pages, dérivant d'`AbstractPageElement`, avec leur
+position optionnelle dans le menu (§8) · composants propres à l'application ·
+liste des thèmes retenus (§8) · fonctions de modèle (`modelFunctions`, §11.2) ·
+surcharges d'éditeurs de formulaire (§8.1) · services applicatifs custom
+(`buildDagda`, §9).
 
 **Partie *serveur*** — implémentation des routes et des API externes ·
-implémentation du `fetch` par contexte · hooks sur modifications (§3).
+implémentation du `fetch` par contexte · vérification des écritures dans
+`_submit` (§7.1) · migrations versionnées (§2) · paramètres système déclarés
+(§11.5) · services applicatifs custom (`_buildDagda()`, §9) · hooks sur
+modifications (§3).
+
+> Le boilerplate `bootstrap/` exerce ce contrat point par point depuis la
+> tranche 5 ; [GUIDE.md](GUIDE.md) §5 en donne le tableau détaillé, chaque
+> ligne renvoyant au fichier qui lui sert d'exemple.
