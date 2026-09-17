@@ -89,6 +89,37 @@ export default defineConfig({
                 }
             },
             {
+                // The boilerplate's own client: its model functions and its
+                // one component, against a simulated DOM. Same plugin, same
+                // oxc options and same setup files as "client" above — a
+                // boilerplate component is a component like any other, and
+                // without them the first `@Ref()` decorator would choke the
+                // transform.
+                plugins: [htmlTemplates()],
+                oxc: {
+                    tsconfigRaw: {
+                        compilerOptions: {
+                            target: "es2024",
+                            experimentalDecorators: true,
+                            useDefineForClassFields: false
+                        }
+                    }
+                },
+                test: {
+                    name: "bootstrap-client",
+                    root: "./bootstrap/client",
+                    environment: "jsdom",
+                    environmentOptions: {
+                        jsdom: { url: "http://localhost/" }
+                    },
+                    setupFiles: [
+                        "../../packages/client/src/test/storage.setup.ts",
+                        "../../packages/client/src/test/matchmedia.setup.ts"
+                    ],
+                    include: ["src/**/*.spec.ts"]
+                }
+            },
+            {
                 // The boilerplate's server, including the tests that need a
                 // real PostgreSQL — same fixture "server" above uses.
                 test: {

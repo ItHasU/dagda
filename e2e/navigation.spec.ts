@@ -1,4 +1,4 @@
-import { expect, Page, test } from "@playwright/test";
+import { expect, Locator, Page, test } from "@playwright/test";
 
 /**
  * The SPA shell in a real browser (`specs/navigation.md` §3, §6.1).
@@ -11,6 +11,17 @@ import { expect, Page, test } from "@playwright/test";
  */
 
 const ADMIN = { login: "admin", password: "admin" };
+
+/**
+ * The menu entry of one named section, and the pages listed under it.
+ *
+ * Scoped by name rather than by position: the boilerplate declares more than
+ * one section, so ".shell-group-primary > li" on its own matches several and
+ * a journey meaning "the section holding Hello and Goodbye" has to say which.
+ */
+function section(page: Page, label: string): Locator {
+    return page.locator(".shell-group-primary > li", { hasText: label });
+}
 
 /** Sign in and wait for the shell to have drawn */
 async function open(page: Page): Promise<void> {
@@ -54,7 +65,7 @@ test.describe("The shell", () => {
     test("lists the pages of a section under it", async ({ page }) => {
         await open(page);
         await expect(page.locator(".shell-entry", { hasText: "Démonstration" }).first()).toBeVisible();
-        await expect(page.locator(".shell-pages .shell-entry")).toHaveCount(2);
+        await expect(section(page, "Démonstration").locator(".shell-pages .shell-entry")).toHaveCount(2);
     });
 
 });
@@ -69,7 +80,7 @@ test.describe("Navigating", () => {
 
         // And the section holding it is marked too, which is what the rail
         // needs when the labels are gone.
-        await expect(page.locator(".shell-group-primary > li > .shell-entry")).toHaveAttribute("aria-current", "page");
+        await expect(section(page, "Démonstration").locator("> .shell-entry")).toHaveAttribute("aria-current", "page");
         await expect(page.locator("goodbye-page")).toHaveCount(1);
         await expect(page.locator("hello-page")).toHaveCount(0);
     });
@@ -97,7 +108,7 @@ test.describe("Collapsing the column", () => {
         await expect(page.locator(".shell-brand-label")).toBeHidden();
         // Including the labels of the pages of a section that is otherwise
         // expanded (§3.2).
-        await expect(page.locator(".shell-pages")).toBeHidden();
+        await expect(section(page, "Démonstration").locator(".shell-pages")).toBeHidden();
         await expect(page.locator(".shell-group-primary .shell-label").first()).toBeHidden();
     });
 
@@ -131,7 +142,7 @@ test.describe("Collapsing the column", () => {
         await page.locator(".shell-pages .shell-entry", { hasText: "Goodbye" }).click();
         await page.locator("[ref=toggle]").click();
 
-        await page.locator(".shell-group-primary > li > .shell-entry").click();
+        await section(page, "Démonstration").locator("> .shell-entry").click();
         await expect(page.locator("hello-page")).toHaveCount(1);
     });
 
