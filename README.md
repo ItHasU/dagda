@@ -8,6 +8,16 @@ DO NOT use this in production.
 - [GUIDE.md](GUIDE.md) — how to turn `bootstrap/` into an application.
 - [packages/client/src/styles/README.md](packages/client/src/styles/README.md) —
   the design system: classes, themes, fonts and icons.
+- [packages/shared/README.md](packages/shared/README.md) — the typed
+  contract between client and server: entities model, contexts,
+  permissions, actions, API.
+- [packages/client/README.md](packages/client/README.md) — the browser
+  side: app bootstrap, SPA shell, web components, generated forms.
+- [packages/server/README.md](packages/server/README.md) — the server
+  side: `AbstractServerApp`, authentication, migrations, accounts and
+  settings.
+- [packages/build/README.md](packages/build/README.md) — the shared
+  TypeScript/webpack/oxlint configuration an application extends.
 
 ## Développer
 

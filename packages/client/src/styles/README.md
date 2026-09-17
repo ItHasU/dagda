@@ -50,8 +50,9 @@ c'est donc **l'ordre du fichier qui départage**. Le premier bloc s'applique
 aussi à `:root` nu, ce qui en fait le thème par défaut ; tout thème ajouté doit
 venir après lui.
 
-Un seul thème existe aujourd'hui : `nocturne`, sombre. Le second arrive en
-tranche 4, et c'est lui qui révélera les jetons oubliés.
+Trois thèmes existent : `nocturne` (sombre, le défaut), `aurore` (clair) et
+`frenchy` (sombre, fond bleu marine). C'est `aurore`, de polarité opposée à
+`nocturne`, qui a révélé les jetons oubliés au découpage de la tranche 1.
 
 ### Ce qui a été hissé en jeton par rapport à Nocturne
 
@@ -155,7 +156,7 @@ un littéral a sa place est `themes.css`.
 
 Bootstrap est sorti (`index.css` est l'unique import, dans
 `packages/client/src/app/index.ts`) ; l'avatar de connexion est du texte dans
-un badge thémé, plus un canvas à couleurs en dur ; deux thèmes existent
-(Nocturne, Aurore — ROADMAP tranche 4), Aurore ayant justement servi à
+un badge thémé, plus un canvas à couleurs en dur ; trois thèmes existent
+(Nocturne, Aurore, Frenchy — ROADMAP tranche 4), Aurore ayant justement servi à
 débusquer les jetons que le découpage de la tranche 1 avait oubliés
 (`--shadow-*`, `--image-blend`, la direction de la rampe `--color-neutral-*`).
