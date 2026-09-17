@@ -165,6 +165,31 @@ test.describe("The account", () => {
 
 });
 
+/**
+ * The pages the framework registers by itself (`pages/defaults.ts`): an
+ * application gets them without declaring anything, so the boilerplate is
+ * where a missing piece of their wiring shows up first.
+ */
+test.describe("The pages the framework brings", () => {
+
+    test("opens Utilisateurs, which builds its editors from the form registry", async ({ page }) => {
+        await open(page);
+        await page.locator(".shell-group-secondary .shell-entry", { hasText: "Utilisateurs" }).click();
+        await expect(page.locator("users-page")).toHaveCount(1);
+        // The row for the account the journey signed in with. Reaching it
+        // means every editor the page asked the registry for was built: the
+        // registry throws rather than degrading when a type has none.
+        await expect(page.locator("users-page")).toContainText(ADMIN.login);
+    });
+
+    test("opens Rôles, which builds its permission matrix the same way", async ({ page }) => {
+        await open(page);
+        await page.locator(".shell-group-secondary .shell-entry", { hasText: "Rôles" }).click();
+        await expect(page.locator("roles-page")).toHaveCount(1);
+    });
+
+});
+
 test.describe("The theme", () => {
 
     test("paints the shell from its tokens, not from browser defaults", async ({ page }) => {

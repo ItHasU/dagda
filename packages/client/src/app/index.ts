@@ -21,6 +21,7 @@ import { actionCall } from "../actions";
 import "../components/app/app.component";
 import { AbstractWebComponent } from "../components/abstract.webcomponent";
 import { AuthServiceImpl } from "../auth/auth.service";
+import { registerDefaultFieldEditors } from "../forms/defaults";
 import { UsersDirectory } from "../auth/directory";
 import { ClientNotificationImpl } from "../notification/notification.impl";
 import { PreferencesDirectory } from "../preferences/directory";
@@ -37,6 +38,16 @@ import headerTemplate from "./index.header.html";
 // The framework stylesheet, replacing Bootstrap: tokens, faces, vocabulary and
 // shell, in that order (FEATURES §8).
 import "../styles/index.css";
+
+// The form generator's editors (FEATURES §8.1). Here, at module scope,
+// rather than inside start(): the framework itself ships pages that build
+// editors — Utilisateurs and Rôles, registered by default — so the registry
+// cannot depend on the application remembering to fill it. An ES module is
+// evaluated before the body of the module importing it, so an application
+// registering an override of its own still wins: the defaults are already in
+// place by the time its own code runs.
+
+registerDefaultFieldEditors();
 
 /** What an application hands to DagdaClient.start() */
 export interface ClientStartParams<AppTypes extends ClientAppTypes> {
