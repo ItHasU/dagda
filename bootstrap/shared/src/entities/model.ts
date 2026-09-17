@@ -37,6 +37,9 @@ export const APP_MODEL = new EntitiesModel({
     PROJECT_ID: {
         rawType: JSTypes.number
     },
+    NOTE_ID: {
+        rawType: JSTypes.number
+    },
     // -- Base types ----------------------------------------------------------
     BOOLEAN: {
         rawType: JSTypes.boolean
@@ -58,6 +61,18 @@ export const APP_MODEL = new EntitiesModel({
         description: { type: "TEXT" },
         userId: { type: "USER_ID" },
         status: { type: "PROJECT_STATUS" }
+    },
+    /**
+     * A second table, referencing the first — the minimum needed to exercise
+     * a foreign key (ROADMAP tranche 5). `projectId` is named after the
+     * table it references, not its role (CLAUDE.md's naming convention),
+     * which is also what `foreignTable` below reads on: nothing infers the
+     * link from the field's name or type alone.
+     */
+    notes: {
+        id: { type: "NOTE_ID", identity: true },
+        projectId: { type: "PROJECT_ID", foreignTable: "projects" },
+        text: { type: "TEXT" }
     }
 });
 

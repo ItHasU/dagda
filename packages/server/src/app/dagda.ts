@@ -15,9 +15,10 @@ export interface ServerOwnServicesParams<Settings extends SettingsDeclaration<Se
  * .settings` instead, which is a store, not a Dagda service.
  *
  * An application extends this with its own services (FEATURES §0) — see
- * `Dagda`'s own doc comment for the shape. None does today, so
- * `AbstractServerApp` builds this directly rather than through an
- * overridable hook.
+ * `Dagda`'s own doc comment for the shape, and `AbstractServerApp
+ * ._buildDagda()` for the hook a subclass overrides to build its own
+ * subclass instead of this one directly (`bootstrap/server/src/dagda.ts`
+ * has a minimal real example).
  */
 export class ServerDagda<
     AppTypes extends BaseAppTypes = BaseAppTypes,

@@ -77,6 +77,27 @@ export default defineConfig({
                     // Decides once, before collection, whether a database is reachable.
                     globalSetup: ["src/test/pg.globalsetup.ts"]
                 }
+            },
+            {
+                // The boilerplate's own shared logic (the entities model, in
+                // particular) — same reasoning as "shared" above.
+                test: {
+                    name: "bootstrap-shared",
+                    root: "./bootstrap/shared",
+                    environment: "node",
+                    include: ["src/**/*.spec.ts"]
+                }
+            },
+            {
+                // The boilerplate's server, including the tests that need a
+                // real PostgreSQL — same fixture "server" above uses.
+                test: {
+                    name: "bootstrap-server",
+                    root: "./bootstrap/server",
+                    environment: "node",
+                    include: ["src/**/*.spec.ts"],
+                    globalSetup: ["../../packages/server/src/test/pg.globalsetup.ts"]
+                }
             }
         ]
     }

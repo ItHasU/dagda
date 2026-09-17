@@ -13,7 +13,8 @@ import { resolve } from "path";
 import { DagdaActions } from "@dagda/shared/src/auth/actions";
 import { DAGDA_PERMISSIONS, DagdaPermission, hasPermission, PermissionDeclaration } from "@dagda/shared/src/auth/permissions";
 import { UserId, UserInfo } from "@dagda/shared/src/auth/types";
-import { dagda, ServerDagda, _setDagda } from "./dagda";
+import { dagda, ServerDagda, ServerOwnServicesParams, _setDagda } from "./dagda";
+import { BaseServicesParams } from "@dagda/shared/src/dagda";
 import { NotificationRecipientFilter } from "@dagda/shared/src/notification/abstract.notification.handler";
 import { actionRegister, ActionCallback, RegisterActionOptions } from "../actions";
 import { apiRegister, RegisterAPIOptions, RequestCallback, RequestOptions } from "../api";
@@ -219,7 +220,7 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
             encryptionKey: this._config.secretKey
         });
         this._preferences = new PreferencesStore<Preferences>(this._preferencesModel, this._db);
-        _setDagda(new ServerDagda<AppTypes, Settings>({
+        _setDagda(this._buildDagda({
             model: this._model,
             contextAdapter: this._contextAdapter,
             persistence: {
@@ -233,6 +234,25 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
             settings: this._settings.settings,
             permissions: this._permissions
         }));
+    }
+
+    /**
+     * Builds the `dagda` instance for this application (FEATURES §9).
+     *
+     * Defaults to the plain `ServerDagda`, for an application with nothing of
+     * its own to register — every existing subclass keeps working unchanged.
+     * One that declares its own services overrides this and returns a
+     * `ServerDagda` subclass instead (see `bootstrap/server/src/dagda.ts`),
+     * mirroring the client's `DagdaClient.start({buildDagda})` hook.
+     *
+     * A *method* rather than a constructor parameter, unlike the client's:
+     * the subclass constructor calls `super(...)` before `this` becomes
+     * usable, so a parameter closing over e.g. `this._db` could not work —
+     * this is called from here, after the base constructor has already set
+     * every field an override is likely to need.
+     */
+    protected _buildDagda(params: BaseServicesParams<AppTypes> & ServerOwnServicesParams<Settings>): ServerDagda<AppTypes, Settings> {
+        return new ServerDagda<AppTypes, Settings>(params);
     }
 
     //#region HTTP Server -----------------------------------------------------
