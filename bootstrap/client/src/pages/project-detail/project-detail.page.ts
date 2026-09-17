@@ -1,3 +1,4 @@
+import { contentUrl } from "@dagda/client/src/api/content";
 import { Attribute, NumberMarshaller, Ref } from "@dagda/client/src/components/abstract.webcomponent";
 import { showToast } from "@dagda/client/src/components/toast/toast.component";
 import { AbstractPageElement } from "@dagda/client/src/pages/abstract.page.element";
@@ -40,6 +41,8 @@ export class ProjectDetailPage extends AbstractPageElement {
     @Ref()
     protected _description!: HTMLElement;
     @Ref()
+    protected _cover!: HTMLImageElement;
+    @Ref()
     protected _notes!: HTMLUListElement;
 
     constructor() {
@@ -60,6 +63,7 @@ export class ProjectDetailPage extends AbstractPageElement {
             this._title.textContent = "Projet inconnu";
             this._status.textContent = "";
             this._description.textContent = "";
+            this._cover.removeAttribute("src");
             this._notes.replaceChildren();
             return;
         }
@@ -79,6 +83,10 @@ export class ProjectDetailPage extends AbstractPageElement {
         this._title.textContent = project?.name ?? `Projet #${id}`;
         this._status.textContent = project == null ? "" : (PROJECT_STATUS.getLabel(project.status) ?? "");
         this._description.textContent = project?.description ?? "";
+        // Not through the entities cache (ROADMAP tranche 5): the browser
+        // fetches this itself, with its own conditional GET / 304 dance
+        // against `contentRegister`'s route — nothing here to await.
+        this._cover.src = contentUrl("projectCover", id);
 
         const notes = entities.getHandler().getItems("notes").filter((note) => note.projectId === id);
         this._notes.replaceChildren();

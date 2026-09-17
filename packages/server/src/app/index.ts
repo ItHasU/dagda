@@ -18,6 +18,7 @@ import { BaseServicesParams } from "@dagda/shared/src/dagda";
 import { NotificationRecipientFilter } from "@dagda/shared/src/notification/abstract.notification.handler";
 import { actionRegister, ActionCallback, RegisterActionOptions } from "../actions";
 import { apiRegister, RegisterAPIOptions, RequestCallback, RequestOptions } from "../api";
+import { ContentRegisterOptions, ContentResolver, contentRegister } from "../content";
 import { submit } from "../api/impl/entities.api";
 import { getSystemInfo, triggerError } from "../api/impl/system.api";
 import { AuditLogKind, AuditLogStore } from "../audit/store";
@@ -336,6 +337,19 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
     public registerAPI<Name extends keyof AppTypes["apis"]>(name: Name, callback: RequestCallback<AppTypes["apis"], Name>, options?: RegisterAPIOptions<AppTypes["apis"], Name>): void {
         // Register the route with the server
         apiRegister(this._app, name, callback, options, "app");
+    }
+
+    /**
+     * Registers a `GET /content/:name/:id` route serving one piece of binary
+     * content outside the entities cache (ROADMAP tranche 5, "Contenus
+     * binaires volumineux hors cache") — the counterpart of `registerAPI`
+     * above for a payload too large, or too binary, to ever be a JSON
+     * response. See `contentRegister`'s own doc comment
+     * (`@dagda/server/src/content`) for the caching and authorization
+     * contract `resolver` has to honor.
+     */
+    public registerContent(name: string, resolver: ContentResolver, options?: ContentRegisterOptions): void {
+        contentRegister(this._app, name, resolver, options);
     }
 
     /**

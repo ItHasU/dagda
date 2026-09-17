@@ -1,10 +1,11 @@
 import { AppTypes } from "@dagda-app/shared/src/app/types";
 import { AppContexts } from "@dagda-app/shared/src/entities/contexts";
 import { APP_MODEL } from "@dagda-app/shared/src/entities/model";
-import { AppEntityTypes, NoteId, UserId } from "@dagda-app/shared/src/entities/types";
+import { AppEntityTypes, NoteId, ProjectId, UserId } from "@dagda-app/shared/src/entities/types";
 import { RequestOptions } from "@dagda/server/src/api";
 import { AbstractServerApp } from "@dagda/server/src/app";
 import { ServerOwnServicesParams } from "@dagda/server/src/app/dagda";
+import { ContentDescriptor } from "@dagda/server/src/content";
 import { Migration } from "@dagda/server/src/sql/migrations";
 import { UserInfo } from "@dagda/shared/src/auth/types";
 import { BaseServicesParams } from "@dagda/shared/src/dagda";
@@ -12,9 +13,35 @@ import { Data } from "@dagda/shared/src/entities/tools/adapters";
 import { asNamed } from "@dagda/shared/src/entities/tools/named";
 import { _getUpdatedId } from "@dagda/shared/src/entities/handler";
 import { OperationType, SQLTransactionData, SQLTransactionResult } from "@dagda/shared/src/sql/transaction";
+import { Readable } from "node:stream";
 import { AppServerDagda, dagda, _setDagda } from "./dagda";
 import { APP_MIGRATIONS } from "./migrations";
 import { NotesService } from "./notes.service";
+
+/**
+ * Placeholder cover image served by `contentRegister` below (ROADMAP tranche
+ * 5, "Contenus binaires volumineux hors cache") — every project's cover is
+ * this same icon today, since uploading one is out of scope for this
+ * tranche (only *serving* content is). A constant string, not a file on
+ * disk: it keeps the example free of any path resolution assumption
+ * (working directory, bundler output layout) between `npm run dev` and a
+ * test importing this module directly. A real application streams from disk
+ * or object storage instead (`ContentDescriptor.open` returns any
+ * `Readable`) — see `packages/server/src/content/index.spec.ts` for that
+ * shape exercised against a real file.
+ */
+// Named SVG colors, not hex: the repo's design-system lint (oxlint-adherence)
+// flags a literal hex color anywhere in the source, and there is no token to
+// route through server-side for a value that never touches the client's own
+// stylesheet.
+const PROJECT_COVER_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="8" fill="dimgray"/><path d="M16 44l10-14 8 10 6-8 8 12z" fill="whitesmoke"/><circle cx="24" cy="20" r="5" fill="whitesmoke"/></svg>';
+/**
+ * Fixed rather than `new Date()` at load time: a stable value is what makes
+ * the conditional GET this content route supports actually observable
+ * (`If-None-Match`/`If-Modified-Since` have something constant to compare
+ * against across requests, and across process restarts in dev).
+ */
+const PROJECT_COVER_LAST_MODIFIED = new Date("2026-01-01T00:00:00.000Z");
 
 // Physical names, prefixed by the framework (FEATURES §2). Read from the
 // model rather than written by hand, so a rename is caught by the compiler.
@@ -36,6 +63,7 @@ export class ServerApp extends AbstractServerApp<AppTypes> {
     public constructor(...args: ConstructorParameters<typeof AbstractServerApp<AppTypes>>) {
         super(...args);
         this._registerAppAPI();
+        this._registerContentRoutes();
     }
 
     /** @inheritdoc */
@@ -151,6 +179,43 @@ export class ServerApp extends AbstractServerApp<AppTypes> {
     protected async _countProjects(userId: UserId): Promise<number> {
         const row = await this._db.get<{ count: string }>(`SELECT COUNT(*)::text AS "count" FROM ${PROJECTS} WHERE "userId" = $1`, userId);
         return Number(row?.count ?? 0);
+    }
+
+    /**
+     * Binary content routes (ROADMAP tranche 5, "Contenus binaires volumineux
+     * hors cache") — the one place this boilerplate exercises
+     * `contentRegister`. A project's cover image is the stand-in for
+     * EurekAI's images/videos: attached to an owned entity, served outside
+     * the entities cache, over a plain `GET` a browser can cache and
+     * revalidate on its own.
+     */
+    protected _registerContentRoutes(): void {
+        this.registerContent("projectCover", (user, id) => this._resolveProjectCover(user, id));
+    }
+
+    /**
+     * @returns the cover of project `id`, or `null` when it does not exist
+     * *or* does not belong to `user` — resolved with the same rigor as
+     * `_fetch()`'s "project" case above: the owner check is part of the
+     * query itself (`AND "userId" = $2`), not a control run after a plain
+     * `SELECT ... WHERE "id" = $1`, so a project belonging to someone else
+     * is indistinguishable from one that does not exist at all.
+     */
+    protected async _resolveProjectCover(user: UserInfo, id: string): Promise<ContentDescriptor | null> {
+        const projectId = Number(id);
+        if (!Number.isFinite(projectId)) {
+            return null;
+        }
+        const project = await this._db.get<{ id: ProjectId }>(`SELECT "id" FROM ${PROJECTS} WHERE "id" = $1 AND "userId" = $2`, projectId, user.id);
+        if (project == null) {
+            return null;
+        }
+        return {
+            contentType: "image/svg+xml",
+            lastModified: PROJECT_COVER_LAST_MODIFIED,
+            size: Buffer.byteLength(PROJECT_COVER_SVG),
+            open: () => Readable.from(Buffer.from(PROJECT_COVER_SVG, "utf8"))
+        };
     }
 
     /**
