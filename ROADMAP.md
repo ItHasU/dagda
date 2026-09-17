@@ -23,12 +23,12 @@ EurekAI arrivant en dernier, ses exigences propres ne seront exercées par rien
 avant la toute fin. Quatre points qu'MQTTToolbox ne couvrira probablement pas
 spontanément, à surveiller à chaque tranche :
 
-| Exigence EurekAI | Où la couvrir |
-|---|---|
-| Contextes **avec options** (`{type:"project", options:{projectId}}`) et leur intersection | à forcer dans `bootstrap/` + tests dès la tranche 1 |
-| Insertion optimiste dont l'id temporaire est réutilisé **dans la même transaction** (une pièce jointe insérée puis référencée par une image) | tranche 2, à couvrir par un test même si MQTTToolbox ne l'exige pas |
-| Contenus binaires volumineux hors cache (route dédiée, cache HTTP) | à ne pas oublier : MQTTToolbox n'a que des payloads courts |
-| Listes longues et rendu dense (milliers d'éléments) | mesurer sur `bootstrap/` avant la conversion |
+| Exigence EurekAI | Où la couvrir | État |
+|---|---|---|
+| Contextes **avec options** (`{type:"project", options:{projectId}}`) et leur intersection | à forcer dans `bootstrap/` + tests dès la tranche 1 | **couvert** (tranche 5) — contexte `project`, `intersectsOnEqualOptions`, page détail |
+| Insertion optimiste dont l'id temporaire est réutilisé **dans la même transaction** (une pièce jointe insérée puis référencée par une image) | tranche 2, à couvrir par un test même si MQTTToolbox ne l'exige pas | **couvert** (tranche 5) — le framework le gérait déjà (`_updateForeignKeys`), rien ne l'exerçait contre une vraie base : `bootstrap/server/src/app.spec.ts` et `bootstrap/client/src/model.spec.ts` |
+| Contenus binaires volumineux hors cache (route dédiée, cache HTTP) | à ne pas oublier : MQTTToolbox n'a que des payloads courts | **couvert** (tranche 5) — brique neuve `contentRegister()`, rien n'existait. **Reste ouvert : pas de `Range`/206**, donc pas de lecture partielle d'une vidéo — à trancher en tranche 8 |
+| Listes longues et rendu dense (milliers d'éléments) | mesurer sur `bootstrap/` avant la conversion | **mesuré** (tranche 5) — `bootstrap/client/src/perf/`. Ça tient aux volumes plausibles, mais un motif **quadratique** est identifié : chaque `<project-card>` filtre tout le cache `notes` (O(N×M)) |
 
 Règle : quand une tranche ne les exerce pas naturellement, on les couvre par un
 test ou un écran du boilerplate. Sinon on les découvrira à la conversion, au
@@ -552,20 +552,49 @@ tableau partagé, et rien qui fuite entre les deux.
 
 ---
 
-## Tranche 5 — Extraction du boilerplate
+## Tranche 5 — Extraction du boilerplate — **FAITE**
 
 > Objectif n°2 de la liste. Il arrive ici parce qu'avant, les motifs ne sont pas
 > stabilisés — un boilerplate écrit trop tôt serait à refaire.
 
 - `bootstrap/` remonte les motifs éprouvés : entités et contextes (dont un
   contexte à options), authentification, notifications, pages, composants,
-  gestion d'erreur.
-- Documentation : README par package, guide de démarrage.
-- Éventuellement le générateur de projet — mais seulement si le boilerplate
-  s'est révélé stable.
+  gestion d'erreur. Passé de 320 à ~1 550 lignes, et il exerce désormais
+  FEATURES §12 point par point.
+- Documentation : README par package, guide de démarrage. Faits — et
+  `GUIDE.md` a été réécrit, parce qu'il ne décrivait pas seulement un état
+  ancien du code : cinq de ses API n'existaient pas (`Dagda.get()`,
+  `_isUserValid`, `declareSettings`, `ApplicationPage`, la permission portée
+  par un type partagé). `FEATURES.md` §9 souffrait du même décalage.
+- Générateur de projet : **écarté**, conformément au « éventuellement ». Le
+  boilerplate se recopie ; on décidera quand il aura vécu.
 
 **Porte de sortie** — un tiers (ou toi dans six mois) démarre une application
 Dagda en suivant le guide, sans lire le code du framework.
+
+### Ce que la tranche a révélé, au-delà de son périmètre
+
+Le boilerplate sert de révélateur : ce qu'il n'exerçait pas, personne ne
+l'exerçait. Six trous trouvés, tous corrigés sauf mention contraire :
+
+- **Les parcours e2e étaient rouges depuis le 27 juillet** — la marque avait
+  changé de classes CSS sans que le test suive. La CI lance `test:e2e`, donc
+  la branche était rouge sept semaines durant.
+- **Le registre d'éditeurs de formulaire n'était jamais rempli.** Les pages
+  Utilisateurs et Rôles sont livrées par le framework et en construisent :
+  toute application autre que MQTTToolbox 2 plantait sur deux écrans qu'elle
+  n'avait pas demandés. Aucun parcours e2e ne les visitait.
+- **`npm run typecheck` ne couvrait que `bootstrap/shared`**, et **aucun
+  projet vitest ne couvrait `bootstrap/`** : un test écrit dans le
+  boilerplate n'aurait jamais tourné.
+- **`AbstractServerApp` n'avait pas d'équivalent au `buildDagda` du client**,
+  donc un service serveur applicatif ne pouvait qu'être déclaré, jamais
+  câblé. `_buildDagda()` comble ça.
+- **Les pages de démonstration vivaient dans le framework** et le boilerplate
+  les importait — dépendance à l'envers.
+- **`projects.userId` n'émet aucune clé étrangère** vers les comptes : le
+  drapeau `referencesUsers` existe mais impose `ON DELETE SET NULL`, donc une
+  colonne nullable, ce qui ne convient pas à un propriétaire. **Non tranché.**
 
 ---
 
@@ -700,9 +729,11 @@ laisse du temps, ou à répartir sur `bootstrap/` en tranche 5 :
 - Interface web de lancement et de suivi des tests (FEATURES §1) — le `npm test`
   en CLI (tranche 0) suffit à toutes les portes de sortie.
 - Journalisation structurée / niveaux de log configurables (FEATURES §10).
-- Déclaration de services applicatifs custom **documentée** (FEATURES §9) — le
-  mécanisme (`Dagda.init`) existe depuis la v2 initiale ; ce qui manque est la
-  doc, donc naturellement en tranche 5.
+- ~~Déclaration de services applicatifs custom **documentée** (FEATURES §9)~~ —
+  **fait en tranche 5** ([GUIDE.md](GUIDE.md) §4). Le mécanisme n'était
+  d'ailleurs pas `Dagda.init` (disparu avec le refactor du 28 juillet) et
+  n'existait que côté client : `AbstractServerApp._buildDagda()` a été ajouté
+  pour que le serveur ait le sien.
 
 ## Couverture — FEATURES.md → tranche
 
