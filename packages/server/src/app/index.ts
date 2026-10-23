@@ -89,6 +89,14 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
 
     protected _config: EnvConfig;
     protected _app: express.Express;
+    /**
+     * Routes that bypass both the session gate and the global body parsers:
+     * mounted first, so a request it answers never reaches them. For an API
+     * authenticated by other means (bearer tokens, devices) — the router
+     * applies its own body parsing and limits. Empty until the application
+     * adds routes to it, typically from its own constructor.
+     */
+    protected readonly _publicRouter: express.Router = express.Router();
     protected _auth: AuthHandler;
     protected _db: PGRunner;
     protected _notification: ServerNotificationImpl<AppTypes["events"]>;
@@ -128,6 +136,8 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
         // -- Init the server --
         console.log("Starting server...");
         this._app = express();
+        // Before the body parsers and the gate: see _publicRouter.
+        this._app.use(this._publicRouter);
         this._app.use(express.json()); // JSON parsing middleware
         // The login form posts urlencoded, which express.json() does not read.
         this._app.use(express.urlencoded({ extended: false }));
