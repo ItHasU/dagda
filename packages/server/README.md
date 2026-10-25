@@ -97,6 +97,18 @@ this.registerAPI("triggerAutomation", async (options, { automationId }) => { /* 
 `registerAction()` journalise automatiquement chaque appel réussi dans le
 journal d'audit (FEATURES §11.7) — l'application n'a rien à faire pour ça.
 
+Pour une API qui ne passe pas par la session (jetons Bearer, objets
+connectés), `this._publicRouter` est monté **avant** les parseurs de corps
+globaux et la porte de connexion : la sous-classe y ajoute ses routes, qui
+gèrent elles-mêmes leur parsing, leurs limites et leur authentification.
+
+```ts
+constructor(...) {
+    super(...);
+    this._publicRouter.use("/api/v1", buildMyApiRouter());
+}
+```
+
 ### Paramètres et préférences
 
 ```ts
