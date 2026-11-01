@@ -252,7 +252,7 @@ comptes (§11.4) — pas fixés dans le code, à l'inverse des permissions.
 | **NEW** — Séparation *store* / vue dans les composants | | | **à évaluer, indépendant du worker écarté (§3)** : un store produit un état de vue prêt à rendre, la vue ne fait que le rendu. Aujourd'hui les deux sont mêlés (cf. `_refreshImpl` dans EurekAI, ~200 lignes) |
 | **NEW** — Routage par URL (deep-link, bouton retour navigateur) || ✅ | `popstate` géré par le routeur (`router.ts`), testé (`router.spec.ts`) |
 | **NEW** — Navigation mobile (gestes, *swipe* entre pages) | | | besoin remonté par MQTTToolbox 2 |
-| **NEW** — Support PWA : installation, manifest, icônes | | | fait à la main dans les apps aujourd'hui |
+| **NEW** — Support PWA : installation, manifest, icônes | | ✅ | service worker fourni (`@dagda/build/pwa/sw.js`, sans cache : page « Hors ligne » seule), enregistré par `DagdaClient.start()` (`serviceWorker: false` pour s'en passer), manifest, worker et icônes servis **avant la porte de session** (`app/pwa.ts`) — le navigateur les télécharge sans cookie. L'application ne fournit que `assets/manifest.json` et ses icônes (GUIDE §2.6) |
 | **NEW** — Écran « hors ligne » / perte de connexion | | | le mode hors ligne étant écarté (§0), il faut au moins le signaler proprement |
 
 ### 8.1 Générateur de formulaires

@@ -240,7 +240,7 @@ Deux natures d'action, décidées (FEATURES §11.1) — à ne pas confondre :
 
 1. **Une modification directe d'entités**, composée côté client dans la
    transaction optimiste déjà là (`EntitiesHandler.withTransaction`). C'est
-   une **fonction de modèle** (`dagda.model.xxx(...)`, §2.7 côté client),
+   une **fonction de modèle** (`dagda.model.xxx(...)`, §2.8 côté client),
    pas une action serveur — elle ne quitte jamais le navigateur comme un
    appel réseau à elle seule. `bootstrap/client/src/model.ts`
    (`APP_MODEL_FUNCTIONS.createProject`) en est l'exemple : il crée un
@@ -314,7 +314,7 @@ DagdaClient.start<ClientAppTypes>({
         // Pas de `menu` : atteignable, jamais listée (ouverte depuis une carte).
         projectDetail: { title: "Projet", constructor: ProjectDetailPage, icon: "ph-folder-open" }
     },
-    // Fonctions de modèle (§1.7/§2.7) — reachable comme dagda.model.xxx(...).
+    // Fonctions de modèle (§1.7/§2.8) — reachable comme dagda.model.xxx(...).
     modelFunctions: APP_MODEL_FUNCTIONS,
     // Uniquement les permissions propres à l'app — DAGDA_PERMISSIONS est ajouté par le framework.
     permissions: APP_PERMISSIONS,
@@ -450,7 +450,29 @@ défaut du framework. Le détail (jetons, polices, icônes, lint d'adhérence)
 est dans `packages/client/src/styles/README.md`, référence en la matière —
 pas repris ici.
 
-### 2.6 Notifications et messages côté client
+### 2.6 Application installable (PWA)
+
+Le framework fournit le service worker (`@dagda/build/pwa/sw.js`, émis à la
+racine du bundle), l'enregistre au démarrage et sert sans session le
+manifest, le worker et les icônes — le navigateur les télécharge sans cookie,
+derrière la porte ils seraient redirigés vers `/login`. Le worker ne met rien
+en cache (le mode hors ligne est écarté, FEATURES §0) : il rend l'application
+installable et affiche une page « Hors ligne » quand le serveur est
+injoignable.
+
+L'application fournit seulement, dans `client/assets/` :
+
+- `manifest.json` : `name`, `short_name`, `start_url: "/"`, `display:
+  "standalone"`, `background_color`, `theme_color` et `icons` (au moins
+  192 × 192 et 512 × 512 en PNG, plus une `maskable` pour Android). Chaque
+  `src` d'icône est rendu public, relatif au manifest ;
+- `icon.png` (180 × 180) : l'icône de l'écran d'accueil iOS, qui ne lit pas
+  le manifest.
+
+`serviceWorker: false` dans `DagdaClient.start()` désactive l'enregistrement.
+L'installation exige un contexte sécurisé : HTTPS, ou `localhost`.
+
+### 2.7 Notifications et messages côté client
 
 L'abonnement à un événement applicatif se fait **une fois**, au bootstrap —
 pas dans une page, dont une nouvelle instance est créée à chaque visite sans
@@ -469,7 +491,7 @@ Le serveur ne diffuse `noteAdded` qu'au propriétaire du projet (§3.1) : rien
 `openDialog({title, body, actions})` sont les deux mécanismes fournis pour
 parler à l'utilisateur — détaillés dans `packages/client/README.md`.
 
-### 2.7 Fonctions de modèle (`dagda.model`)
+### 2.8 Fonctions de modèle (`dagda.model`)
 
 Reachable comme `dagda.model.xxx(...)`, déclarées via `modelFunctions` de
 `DagdaClient.start()` (§2.1) — à ne pas confondre avec les *actions* serveur
@@ -826,11 +848,11 @@ tranche, plutôt qu'un ordre arbitraire :
 6. **Client** : `DagdaClient.start({model, contextAdapter, pages})` (§2.1) et
    une première page qui fetch et affiche (§2.2).
 7. Écrire : brancher une transaction pour la première écriture, décider
-   fonction de modèle (§2.7) vs code inline dans l'écran — c'est le moment où
+   fonction de modèle (§2.8) vs code inline dans l'écran — c'est le moment où
    se fixe la frontière (§1.7), mieux vaut tôt qu'après plusieurs écrans.
 8. Notifications applicatives (§1.4) dès qu'un événement métier doit être
    poussé, avec l'abonnement côté client une fois pour toutes au bootstrap
-   (§2.6).
+   (§2.7).
 9. Permissions applicatives (§1.3) dès qu'un écran ou une écriture doit être
    restreint ; la vérification qui compte est côté serveur, dans `_submit`
    ou l'action concernée (§3.1).
@@ -866,6 +888,9 @@ Détail exhaustif dans les README de chaque paquet — ici, la synthèse :
   page sous la même clé (`packages/client/README.md`).
 - **Feuille de style, thèmes standard, icônes** : `dagda-ui.css`, Phosphor,
   lint d'adhérence (`packages/client/src/styles/README.md`).
+- **PWA** : service worker, enregistrement et service public du manifest et
+  des icônes — l'application ne fournit que `assets/manifest.json` et ses
+  icônes (§2.6).
 - **Console `window.dagda`** et, une fois livré, l'éditeur de scripts
   TypeScript (pas encore livré, tranche 5 bis).
 - **Le cache synchrone, les transactions optimistes, le remapping d'ids
