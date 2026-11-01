@@ -42,9 +42,14 @@
       // along the way. So it stays, with its colours written as
       // `var(--token, #fallback)`, ready to become a link tag the day that
       // proposal is made.
+      //
+      // The service worker's offline page is in the same position, one step
+      // further: it is shown precisely when the server — and every stylesheet
+      // with it — cannot be reached.
       "files": [
         "packages/server/src/auth/login.page.ts",
-        "packages/server/src/auth/invitation.page.ts"
+        "packages/server/src/auth/invitation.page.ts",
+        "packages/build/pwa/sw.js"
       ],
       "rules": {
         "adherence/design-system": "off"

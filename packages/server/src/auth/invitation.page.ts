@@ -7,6 +7,8 @@
  * invalid or expired one gets a message and nowhere else to go but /login.
  */
 
+import { PWA_HEAD } from "../app/pwa";
+
 export interface InvitationPageParams {
     /** Whether the token in the URL still resolves to a pending invitation */
     valid: boolean;
@@ -51,6 +53,7 @@ export function renderInvitationPage(params: InvitationPageParams): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+${PWA_HEAD}
 <title>${title}</title>
 <style>
     :root {

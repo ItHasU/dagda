@@ -11,6 +11,8 @@
  * readable on its own, which a page nobody can get past has to be.
  */
 
+import { PWA_HEAD } from "../app/pwa";
+
 export interface LoginPageParams {
     /** Pre-filled after a failed attempt, so the login does not have to be retyped */
     login?: string;
@@ -50,6 +52,7 @@ export function renderLoginPage(params: LoginPageParams): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+${PWA_HEAD}
 <title>${title}</title>
 <style>
     :root {

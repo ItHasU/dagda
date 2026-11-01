@@ -31,6 +31,7 @@ import { checkSchemaCoherence } from "../sql/coherence";
 import { FRAMEWORK_MIGRATIONS } from "../sql/framework.migrations";
 import { applyMigrations, Migration } from "../sql/migrations";
 import { getEnvNumber, getEnvString, getEnvStringOptional } from "../tools/config";
+import { pwaRouter } from "./pwa";
 
 /** Parameters */
 export interface ServerParams {
@@ -138,6 +139,8 @@ export abstract class AbstractServerApp<AppTypes extends BaseAppTypes, Settings 
         this._app = express();
         // Before the body parsers and the gate: see _publicRouter.
         this._app.use(this._publicRouter);
+        // Manifest, service worker and icons: the browser fetches them without the session (FEATURES §8, PWA).
+        this._app.use(pwaRouter(this._params.staticFolder));
         this._app.use(express.json()); // JSON parsing middleware
         // The login form posts urlencoded, which express.json() does not read.
         this._app.use(express.urlencoded({ extended: false }));

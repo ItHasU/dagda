@@ -35,6 +35,7 @@ import { BrandInfo } from "./brand";
 import { installConsoleGlobal } from "./console";
 import { ClientAppTypes, ClientDagda, ClientOwnServicesParams, dagda, _setDagda } from "./dagda";
 import headerTemplate from "./index.header.html";
+import { registerServiceWorker } from "./pwa";
 // The framework stylesheet, replacing Bootstrap: tokens, faces, vocabulary and
 // shell, in that order (FEATURES §8).
 import "../styles/index.css";
@@ -83,6 +84,12 @@ export interface ClientStartParams<AppTypes extends ClientAppTypes> {
     brand?: BrandInfo;
     /** Title of the document */
     title?: string;
+    /**
+     * Register the framework's service worker, which makes the application
+     * installable (FEATURES §8, PWA). On by default; the application still
+     * has to publish `assets/manifest.json` and its icons.
+     */
+    serviceWorker?: boolean;
     /**
      * Themes the shell may switch to (ROADMAP tranche 4), replacing the
      * framework's own `DAGDA_THEMES` — "la liste déclarée dans le code
@@ -263,6 +270,12 @@ export class DagdaClient {
 
         // -- Inject headers in the app --
         this._injectHeaders(params.title);
+
+        // -- Service worker (PWA) --
+        // Not awaited: installability must never delay the first paint.
+        if (params.serviceWorker !== false) {
+            void registerServiceWorker();
+        }
 
         // -- Read the system information and the user directory --
         // Before the shell draws: the menu is filtered by permission, and the

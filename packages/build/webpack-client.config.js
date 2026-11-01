@@ -108,6 +108,12 @@ function getWebpackConfig(dirname, entry = "src/index.ts", assets = "assets/") {
           {
             from: path.resolve(dirname, assets),
             to: "assets"
+          },
+          {
+            // At the root, not under assets/: a service worker only controls
+            // the pages below its own URL (FEATURES §8, PWA).
+            from: path.resolve(__dirname, "pwa/sw.js"),
+            to: "sw.js"
           }
         ]
       }),
